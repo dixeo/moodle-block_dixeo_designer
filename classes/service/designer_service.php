@@ -498,6 +498,12 @@ class designer_service {
             return null;
         }
 
+        // Defensive safeguard: finalized courses must never keep the draft idnumber marker.
+        if (strpos((string) ($course->idnumber ?? ''), designer_course_creation_service::IDNUMBER_DRAFT_PREFIX) === 0) {
+            $DB->set_field('course', 'idnumber', '', ['id' => (int) $course->id]);
+            $course->idnumber = '';
+        }
+
         $this->submissions->attach_course($submission, (int) $course->id);
 
         // After a successful generation, delete the submission so revisiting

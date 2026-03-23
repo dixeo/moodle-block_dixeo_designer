@@ -62,7 +62,9 @@ final class designer_course_creation_service_test extends advanced_testcase {
     }
 
     public function test_finalize_draft_course_accepts_wrapped_course_structure_and_skips_pending_module_jobs(): void {
-        $course = $this->getDataGenerator()->create_course();
+        $course = $this->getDataGenerator()->create_course([
+            'idnumber' => designer_course_creation_service::IDNUMBER_DRAFT_PREFIX . 'legacy',
+        ]);
         $userid = 2; // PHPUnit admin account id.
 
         $jobid = 'job-' . uniqid();
@@ -101,6 +103,7 @@ final class designer_course_creation_service_test extends advanced_testcase {
         global $DB;
 
         $this->assertSame('My created course', $created->fullname);
+        $this->assertSame('', (string) $created->idnumber);
         $this->assertSame(1, (int) $DB->count_records('course_sections', ['course' => $course->id, 'section' => 1]));
 
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');

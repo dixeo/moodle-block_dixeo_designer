@@ -146,6 +146,8 @@ class designer_course_creation_service {
         }
         $course->fullname = $title;
         $course->shortname = $this->generate_unique_shortname($title);
+        // Finalized courses must not keep the draft marker, or scheduled cleanup can delete them.
+        $course->idnumber = '';
         $course->summary = $data['summary'] ?? '';
         $course->summaryformat = FORMAT_HTML;
         $course->format = $defaultformat;
