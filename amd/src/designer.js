@@ -78,6 +78,8 @@ define([
         pendingCollapseState: null,
         /** Whether inline editor/actions are locked during create-course generation. */
         designerEditingLocked: false,
+        /** Cached promise for delete-confirm strings to avoid first-click latency. */
+        deleteConfirmStringsPromise: null,
 
         /** @type {number} Draft course id for WS language context (0 if not created yet). */
         courseId: 0,
@@ -98,6 +100,7 @@ define([
             this.showLoading();
             this.setupEventHandlers();
             this.setupFooterHandlers();
+            this.preloadDeleteConfirmDialog();
 
             var self = this;
             document.addEventListener(DesignerProgress.GLOBAL_UNLOCK_UI_EVENT, function() {
@@ -116,6 +119,38 @@ define([
             }).catch(function(err) {
                 Notification.exception(err);
                 self.showLoading();
+            });
+        },
+
+        /**
+         * Preload modal dependencies and common delete-confirm strings so the first
+         * delete click opens immediately instead of paying lazy-load cost.
+         */
+        preloadDeleteConfirmDialog: function() {
+            var self = this;
+            if (!this.deleteConfirmStringsPromise) {
+                this.deleteConfirmStringsPromise = Str.get_strings([
+                    {key: 'designer_confirm_delete', component: 'block_dixeo_designer'},
+                    {key: 'designer_delete_module_confirm', component: 'block_dixeo_designer'},
+                    {key: 'designer_delete_section_confirm', component: 'block_dixeo_designer'},
+                    {key: 'delete', component: 'core'},
+                    {key: 'cancel', component: 'core'}
+                ]);
+            }
+
+            // Warm-up core modal modules used by Notification.confirm.
+            try {
+                require(['core/modal_factory', 'core/modal_events'], function() {
+                    // No-op: this only preloads AMD chunks.
+                });
+            } catch (e) {
+                // Ignore preload failures; regular confirm flow still works.
+            }
+
+            return this.deleteConfirmStringsPromise.catch(function() {
+                // If preload fails, allow runtime fallback in deleteItem.
+                self.deleteConfirmStringsPromise = null;
+                return null;
             });
         },
 
@@ -761,14 +796,19 @@ define([
             var $moduleItem = $button.closest('.module-item');
 
             var messageKey = $moduleItem.length > 0 ? 'designer_delete_module_confirm' : 'designer_delete_section_confirm';
-            var titleKey = 'designer_confirm_delete';
-
-            Str.get_strings([
-                {key: titleKey, component: 'block_dixeo_designer'},
-                {key: messageKey, component: 'block_dixeo_designer'},
-                {key: 'delete', component: 'core'},
-                {key: 'cancel', component: 'core'}
-            ]).done(function(strings) {
+            var stringsPromise = this.deleteConfirmStringsPromise || this.preloadDeleteConfirmDialog();
+            Promise.resolve(stringsPromise).then(function(strings) {
+                if (!strings || strings.length < 5) {
+                    return Str.get_strings([
+                        {key: 'designer_confirm_delete', component: 'block_dixeo_designer'},
+                        {key: messageKey, component: 'block_dixeo_designer'},
+                        {key: 'delete', component: 'core'},
+                        {key: 'cancel', component: 'core'}
+                    ]);
+                }
+                var message = messageKey === 'designer_delete_module_confirm' ? strings[1] : strings[2];
+                return [strings[0], message, strings[3], strings[4]];
+            }).then(function(strings) {
                 Notification.confirm(
                     strings[0],
                     strings[1],
