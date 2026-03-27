@@ -42,6 +42,7 @@ $string['myaddinstance'] = 'Adicionar um novo bloco Designer de Cursos Dixeo ao 
 
 // Platform settings.
 $string['categoryname'] = 'Categoria para os cursos criados';
+$string['categoryname_desc'] = 'Introduza o nome da categoria de curso de nível superior onde serão colocados os cursos criados pelo Designer de Cursos Dixeo. A categoria será criada se não existir.';
 $string['coursetemplate'] = 'Modelo de estrutura pedagógica';
 $string['coursetemplate_desc'] = 'Selecione o modelo de estrutura pedagógica utilizado pelo Designer de Cursos Dixeo.';
 $string['coursetemplate_none'] = 'Nenhum';

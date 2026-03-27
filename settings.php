@@ -25,6 +25,14 @@
 defined('MOODLE_INTERNAL') || die();
 
 if ($ADMIN->fulltree) {
+    $settings->add(new admin_setting_configtext(
+        'block_dixeo_designer/categoryname',
+        get_string('categoryname', 'block_dixeo_designer'),
+        get_string('categoryname_desc', 'block_dixeo_designer'),
+        get_string('default_categoryname', 'block_dixeo_designer'),
+        PARAM_TEXT
+    ));
+
     $settings->add(new admin_setting_configselect(
         'block_dixeo_designer/coursetemplate',
         get_string('coursetemplate', 'block_dixeo_designer'),

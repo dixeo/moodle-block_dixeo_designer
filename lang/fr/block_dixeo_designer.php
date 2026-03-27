@@ -31,6 +31,7 @@ $string['toggle_tooltip_hide'] = 'Masquer le bloc de génération';
 $string['toggle_tooltip_show'] = 'Afficher le bloc de génération';
 $string['designacourse'] = 'Concevoir un cours';
 $string['categoryname'] = 'Catégorie pour les cours créés';
+$string['categoryname_desc'] = 'Saisissez le nom de la catégorie de cours de premier niveau dans laquelle seront placés les cours créés par le Concepteur de Cours Dixeo. La catégorie sera créée si elle n\'existe pas.';
 $string['coursetemplate'] = 'Modèle de structure pédagogique';
 $string['coursetemplate_desc'] = 'Sélectionnez le modèle de structure pédagogique utilisé par le Concepteur de Cours Dixeo.';
 $string['coursetemplate_none'] = 'Aucun';

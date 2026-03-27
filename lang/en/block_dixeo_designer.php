@@ -42,6 +42,7 @@ $string['myaddinstance'] = 'Add a new Dixeo Course Designer block to my dashboar
 
 // Platform settings.
 $string['categoryname'] = 'Category for created courses';
+$string['categoryname_desc'] = 'Enter the name of the top-level course category where courses created by Dixeo Course Designer will be placed. The category will be created if it does not exist.';
 $string['coursetemplate'] = 'Pedagogical structure template';
 $string['coursetemplate_desc'] = 'Select the pedagogical structure template used by Dixeo Course Designer.';
 $string['coursetemplate_none'] = 'None';
