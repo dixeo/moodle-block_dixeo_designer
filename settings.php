@@ -103,11 +103,4 @@ if ($ADMIN->fulltree) {
         $settings->hide_if('block_dixeo_designer/certificate_template', 'block_dixeo_designer/certificate_generation');
         $settings->hide_if('block_dixeo_designer/certificate_location', 'block_dixeo_designer/certificate_generation');
     }
-
-    $ADMIN->add('courses',
-        new admin_externalpage('block_dixeo_designer_designacourse', get_string('designacourse', 'block_dixeo_designer'),
-            new moodle_url('/blocks/dixeo_designer/designer.php'),
-            array('block/dixeo_designer:create')
-        )
-    );
 }
