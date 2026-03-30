@@ -24,6 +24,8 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+global $DB;
+
 if ($ADMIN->fulltree) {
     $settings->add(new admin_setting_configtext(
         'block_dixeo_designer/categoryname',
@@ -40,6 +42,67 @@ if ($ADMIN->fulltree) {
         '',
         \block_dixeo_designer\service\course_template_helper::get_course_template_choices()
     ));
+
+    // Course certificate (mod_coursecertificate + tool_certificate).
+    $settings->add(new admin_setting_heading(
+        'block_dixeo_designer_certificate_heading',
+        get_string('certificate_settings', 'block_dixeo_designer'),
+        get_string('certificate_settings_help', 'block_dixeo_designer')
+    ));
+
+    $pluginmanager = \core_plugin_manager::instance();
+    $modcoursecertificate = $pluginmanager->get_plugin_info('mod_coursecertificate');
+    $toolcertificate = $pluginmanager->get_plugin_info('tool_certificate');
+    $certavailable = $modcoursecertificate !== null && $toolcertificate !== null;
+
+    if (!$certavailable) {
+        $info = html_writer::div(
+            get_string('certificate_unavailable', 'block_dixeo_designer'),
+            'box py-3 generalbox alert alert-info'
+        );
+        $settings->add(new admin_setting_description(
+            'block_dixeo_designer/certificate_unavailable',
+            null,
+            $info
+        ));
+    } else {
+        $settings->add(new admin_setting_configcheckbox(
+            'block_dixeo_designer/certificate_generation',
+            get_string('certificate_generation', 'block_dixeo_designer'),
+            get_string('certificate_generation_description', 'block_dixeo_designer'),
+            0
+        ));
+
+        $certificates = $DB->get_records_menu('tool_certificate_templates', null, 'name ASC', 'id,name');
+        if (empty($certificates)) {
+            $certificates = [0 => get_string('choosedots')];
+            $defaulttemplate = 0;
+        } else {
+            $defaulttemplate = isset($certificates[1]) ? 1 : (int) array_key_first($certificates);
+        }
+        $settings->add(new admin_setting_configselect(
+            'block_dixeo_designer/certificate_template',
+            get_string('certificate_template', 'block_dixeo_designer'),
+            get_string('certificate_template_description', 'block_dixeo_designer'),
+            $defaulttemplate,
+            $certificates
+        ));
+
+        $locationoptions = [
+            'summary' => get_string('summarysection', 'block_dixeo_designer'),
+            'last' => get_string('lastsection', 'block_dixeo_designer'),
+        ];
+        $settings->add(new admin_setting_configselect(
+            'block_dixeo_designer/certificate_location',
+            get_string('certificate_location', 'block_dixeo_designer'),
+            get_string('certificate_location_description', 'block_dixeo_designer'),
+            'last',
+            $locationoptions
+        ));
+
+        $settings->hide_if('block_dixeo_designer/certificate_template', 'block_dixeo_designer/certificate_generation');
+        $settings->hide_if('block_dixeo_designer/certificate_location', 'block_dixeo_designer/certificate_generation');
+    }
 
     $ADMIN->add('courses',
         new admin_externalpage('block_dixeo_designer_designacourse', get_string('designacourse', 'block_dixeo_designer'),

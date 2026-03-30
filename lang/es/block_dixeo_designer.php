@@ -37,6 +37,23 @@ $string['coursetemplate_desc'] = 'Seleccione la plantilla de estructura pedagóg
 $string['coursetemplate_none'] = 'Ninguna';
 $string['course_generated'] = '¡Tu curso «<b> {$a} </b>» se ha generado correctamente!';
 $string['default_categoryname'] = 'Cursos Dixeo';
+
+// Certificado (finalización) — alineado con local_edai.
+$string['certificate_settings'] = 'Generación de certificados';
+$string['certificate_settings_help'] = '';
+$string['certificate_unavailable'] = 'La generación de certificados no está disponible. Por favor, instala los plugins Course Certificate (mod_coursecertificate) y Tool Certificate (tool_certificate).';
+$string['certificate_generation'] = 'Habilitar generación de certificados';
+$string['certificate_generation_description'] = 'Habilita o deshabilita la generación de certificados de finalización de curso.';
+$string['certificate_template'] = 'Plantilla de certificado';
+$string['certificate_template_description'] = 'Selecciona la plantilla a utilizar al generar el certificado del curso.';
+$string['certificate_location'] = 'Ubicación del certificado';
+$string['certificate_location_description'] = 'Selecciona dónde se mostrará el certificado.';
+$string['summarysection'] = 'En el resumen del curso';
+$string['lastsection'] = 'Después de la última sección';
+$string['certificate_section'] = 'Certificado de logro';
+$string['certificate_section_intro'] = 'Recupera tu certificado de logro una vez completado el curso.';
+$string['certificate_name'] = 'Certificado de logro';
+
 $string['dixeo_designer:addinstance'] = 'Agregar un bloque Diseñador de Cursos Dixeo';
 $string['dixeo_designer:myaddinstance'] = 'Agregar un nuevo bloque Diseñador de Cursos Dixeo a mi panel';
 $string['dixeo_designer:create'] = 'Crear cursos con el Diseñador de Cursos Dixeo';

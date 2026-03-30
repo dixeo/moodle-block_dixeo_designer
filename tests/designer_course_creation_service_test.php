@@ -270,5 +270,25 @@ final class designer_course_creation_service_test extends advanced_testcase {
             'name' => $resourcesname,
         ]));
     }
+
+    public function test_relocate_designer_upload_resources_explicit_target_after_certificate_section(): void {
+        global $DB;
+
+        $dg = $this->getDataGenerator();
+        $course = $dg->create_course(['numsections' => 2]);
+        $resource = $dg->create_module('resource', [
+            'course' => $course->id,
+            'section' => 1,
+            'idnumber' => file_service::CM_IDNUMBER_DESIGNER_UPLOAD,
+        ]);
+
+        $service = new file_service();
+        // Two content sections; certificate took section 3; resources must use section 4.
+        $service->relocate_designer_upload_resources_after_finalize((int) $course->id, 2, 4);
+
+        $cm = $DB->get_record('course_modules', ['id' => $resource->cmid], '*', MUST_EXIST);
+        $sec = $DB->get_record('course_sections', ['id' => $cm->section], '*', MUST_EXIST);
+        $this->assertSame(4, (int) $sec->section);
+    }
 }
 

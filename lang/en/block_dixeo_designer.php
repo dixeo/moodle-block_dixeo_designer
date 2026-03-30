@@ -48,6 +48,22 @@ $string['coursetemplate_desc'] = 'Select the pedagogical structure template used
 $string['coursetemplate_none'] = 'None';
 $string['default_categoryname'] = 'Dixeo courses';
 
+// Certificate (finalize) — admin strings aligned with local_edai.
+$string['certificate_settings'] = 'Certificate Generation';
+$string['certificate_settings_help'] = '';
+$string['certificate_unavailable'] = 'Certificate generation is not available. Please install the Course Certificate (mod_coursecertificate) and Tool Certificate (tool_certificate) plugins.';
+$string['certificate_generation'] = 'Enable Certificate Generation';
+$string['certificate_generation_description'] = 'Enable or disable the generation of course completion certificates.';
+$string['certificate_template'] = 'Certificate Template';
+$string['certificate_template_description'] = 'Select the template to use when generating the course certificate.';
+$string['certificate_location'] = 'Certificate Location';
+$string['certificate_location_description'] = 'Select where the certificate will be displayed.';
+$string['summarysection'] = 'In course summary';
+$string['lastsection'] = 'After last section';
+$string['certificate_section'] = 'Certificate of Achievement';
+$string['certificate_section_intro'] = 'Retrieve your certificate of achievement once the course is completed.';
+$string['certificate_name'] = 'Certificate of Achievement';
+
 // Course design flow.
 $string['heading'] = 'What do you want to teach today?';
 $string['heading2'] = 'We are building your course!';

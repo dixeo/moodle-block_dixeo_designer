@@ -48,6 +48,22 @@ $string['coursetemplate_desc'] = 'Selecione o modelo de estrutura pedagógica ut
 $string['coursetemplate_none'] = 'Nenhum';
 $string['default_categoryname'] = 'Cursos Dixeo';
 
+// Certificado (finalização) — alinhado ao local_edai.
+$string['certificate_settings'] = 'Geração de certificados';
+$string['certificate_settings_help'] = '';
+$string['certificate_unavailable'] = 'A geração de certificados não está disponível. Instale os plugins Course Certificate (mod_coursecertificate) e Tool Certificate (tool_certificate).';
+$string['certificate_generation'] = 'Ativar geração de certificados';
+$string['certificate_generation_description'] = 'Ativar ou desativar a geração de certificados de conclusão de curso.';
+$string['certificate_template'] = 'Modelo de certificado';
+$string['certificate_template_description'] = 'Selecione o modelo a utilizar ao gerar o certificado do curso.';
+$string['certificate_location'] = 'Localização do certificado';
+$string['certificate_location_description'] = 'Selecione onde o certificado será exibido.';
+$string['summarysection'] = 'No resumo do curso';
+$string['lastsection'] = 'Após a última secção';
+$string['certificate_section'] = 'Certificado de Conclusão';
+$string['certificate_section_intro'] = 'Obtenha o seu certificado de conclusão após terminar o curso.';
+$string['certificate_name'] = 'Certificado de Conclusão';
+
 // Course design flow.
 $string['heading'] = 'O que quer ensinar hoje?';
 $string['heading2'] = 'Estamos a construir o seu curso!';

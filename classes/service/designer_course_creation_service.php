@@ -70,7 +70,7 @@ class designer_course_creation_service {
             'lang' => '',
             'newsitems' => 0,
             'visible' => 1,
-            'enablecompletion' => 0,
+            'enablecompletion' => 1,
             'startdate' => time(),
             'numsections' => 1,
         ];
@@ -176,8 +176,47 @@ class designer_course_creation_service {
 
         $this->materialize_structure_modules($courseid, $sections, $jobid, $moduletotal);
 
+        if ($this->is_finalize_cancelled($jobid)) {
+            return null;
+        }
+
+        $completionsync = new \local_dixeo\service\course_completion_sync_service();
+        $completionsync->sync_activity_criteria_from_modules($courseid);
+
+        if ($this->is_finalize_cancelled($jobid)) {
+            return null;
+        }
+
+        $certtrailing = false;
+        if ((bool) get_config('block_dixeo_designer', 'certificate_generation')) {
+            $templateid = (int) get_config('block_dixeo_designer', 'certificate_template');
+            $certlocation = (string) (get_config('block_dixeo_designer', 'certificate_location') ?: 'last');
+            if (!in_array($certlocation, ['summary', 'last'], true)) {
+                $certlocation = 'last';
+            }
+            if ($templateid > 0) {
+                $certservice = new \local_dixeo\service\course_certificate_service();
+                $placed = $certservice->try_add_coursecertificate_activity(
+                    $courseid,
+                    true,
+                    $templateid,
+                    $certlocation,
+                    get_string('certificate_name', 'block_dixeo_designer'),
+                    get_string('certificate_section', 'block_dixeo_designer'),
+                    get_string('certificate_section_intro', 'block_dixeo_designer'),
+                    submission\file_service::CM_IDNUMBER_DESIGNER_UPLOAD
+                );
+                $certtrailing = ($placed === 'last');
+            }
+        }
+
+        if ($this->is_finalize_cancelled($jobid)) {
+            return null;
+        }
+
+        $resourcestargetsection = $sectiontotal + 1 + ($certtrailing ? 1 : 0);
         $fileService = new submission\file_service();
-        $fileService->relocate_designer_upload_resources_after_finalize($courseid, $sectiontotal);
+        $fileService->relocate_designer_upload_resources_after_finalize($courseid, $sectiontotal, $resourcestargetsection);
 
         // User may have cancelled during content generation: draft deleted while this request continues.
         if ($this->is_finalize_cancelled($jobid)) {
@@ -750,6 +789,7 @@ class designer_course_creation_service {
         $course->format = $defaultformat;
         $course->numsections = 1;
         $course->category = $categoryid;
+        $course->enablecompletion = 1;
 
         update_course($course);
         rebuild_course_cache($courseid, true);

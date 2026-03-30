@@ -48,6 +48,22 @@ $string['coursetemplate_desc'] = 'Wählen Sie die vom Dixeo-Kursdesigner verwend
 $string['coursetemplate_none'] = 'Keine';
 $string['default_categoryname'] = 'Dixeo-Kurse';
 
+// Zertifikat (Abschluss) — wie local_edai.
+$string['certificate_settings'] = 'Zertifikatsgenerierung';
+$string['certificate_settings_help'] = '';
+$string['certificate_unavailable'] = 'Die Zertifikatsgenerierung ist nicht verfügbar. Bitte installieren Sie die Plugins Course Certificate (mod_coursecertificate) und Tool Certificate (tool_certificate).';
+$string['certificate_generation'] = 'Zertifikatsgenerierung aktivieren';
+$string['certificate_generation_description'] = 'Aktivieren oder deaktivieren Sie die Generierung von Kursabschlusszertifikaten.';
+$string['certificate_template'] = 'Zertifikatsvorlage';
+$string['certificate_template_description'] = 'Wählen Sie die Vorlage für die Kurszertifikatsgenerierung.';
+$string['certificate_location'] = 'Zertifikatsspeicherort';
+$string['certificate_location_description'] = 'Wählen Sie, wo das Zertifikat angezeigt wird.';
+$string['summarysection'] = 'In der Kursübersicht';
+$string['lastsection'] = 'Nach dem letzten Abschnitt';
+$string['certificate_section'] = 'Teilnahmezertifikat';
+$string['certificate_section_intro'] = 'Rufen Sie Ihr Teilnahmezertifikat nach Abschluss des Kurses ab.';
+$string['certificate_name'] = 'Teilnahmezertifikat';
+
 // Course design flow.
 $string['heading'] = 'Was möchten Sie heute unterrichten?';
 $string['heading2'] = 'Wir erstellen Ihren Kurs!';

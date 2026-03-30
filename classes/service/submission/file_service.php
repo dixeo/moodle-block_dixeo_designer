@@ -231,14 +231,19 @@ class file_service {
 
     /**
      * After structure finalization, move all designer submission file resources to a trailing
-     * "Resources" section (section index = structure section count + 1). No-op if there are no
-     * tagged modules (no uploaded files were copied into the course).
+     * "Resources" section. Default target index is structure section count + 1; pass an explicit
+     * target when a certificate section was inserted after content (target = count + 2).
      *
      * @param int $courseid Draft/final course id.
-     * @param int $structuresectioncount Number of sections from the generated course structure (not including this Resources section).
+     * @param int $structuresectioncount Number of content sections from the generated structure (excludes resources/certificate).
+     * @param int|null $targetsectionnum If set, section index for Resources; else structuresectioncount + 1.
      * @return void
      */
-    public function relocate_designer_upload_resources_after_finalize(int $courseid, int $structuresectioncount): void {
+    public function relocate_designer_upload_resources_after_finalize(
+        int $courseid,
+        int $structuresectioncount,
+        ?int $targetsectionnum = null
+    ): void {
         global $CFG, $DB;
 
         require_once($CFG->dirroot . '/course/lib.php');
@@ -253,7 +258,9 @@ class file_service {
             return;
         }
 
-        $targetsectionnum = $structuresectioncount + 1;
+        if ($targetsectionnum === null) {
+            $targetsectionnum = $structuresectioncount + 1;
+        }
         course_create_sections_if_missing($courseid, [$targetsectionnum]);
 
         $section = $DB->get_record(
