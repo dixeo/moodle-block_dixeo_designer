@@ -64,6 +64,23 @@ $string['certificate_section'] = 'Certificate of Achievement';
 $string['certificate_section_intro'] = 'Retrieve your certificate of achievement once the course is completed.';
 $string['certificate_name'] = 'Certificate of Achievement';
 
+// LTI publication (finalize).
+$string['lti_publication'] = 'LTI publication';
+$string['lti_publication_desc'] = 'When enabled, a Publish as LTI tool enrolment instance is added to new courses. Requires the enrol_lti plugin to be enabled.';
+$string['lti_publication_enabled'] = 'Add LTI enrolment';
+$string['lti_publication_enabled_desc'] = 'If enabled, an LTI 1.3 enrolment instance will be added to new courses.';
+$string['lti_maxenrolled'] = 'Maximum enrolled users';
+$string['lti_maxenrolled_desc'] = 'Maximum users who can access via this LTI tool. Use 0 for no limit.';
+$string['lti_maildisplay'] = 'Email visibility';
+$string['lti_maildisplay_desc'] = 'Default email display preference for accounts provisioned from LTI launches (same options as the core LTI enrolment form).';
+$string['lti_preferred_language'] = 'Preferred language';
+$string['lti_preferred_language_desc'] = 'Language for users provisioned via LTI. “Same as course language” uses the course’s language, or the site default if the course has none.';
+$string['lti_lang_same_as_course'] = 'Same as course language';
+$string['lti_city'] = 'City';
+$string['lti_city_desc'] = 'Default city for provisioned users (optional). Same as the core LTI enrolment user default field.';
+$string['lti_country'] = 'Country';
+$string['lti_country_desc'] = 'Default country for provisioned users (optional). Same country list as the core LTI enrolment form.';
+
 // Course design flow.
 $string['heading'] = 'What do you want to teach today?';
 $string['heading2'] = 'We are building your course!';

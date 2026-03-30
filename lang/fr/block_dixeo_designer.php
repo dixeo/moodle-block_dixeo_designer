@@ -54,6 +54,23 @@ $string['certificate_section'] = 'Certificat de réussite';
 $string['certificate_section_intro'] = 'Récupérez votre certificat de réussite une fois le cours terminé.';
 $string['certificate_name'] = 'Certificat de réussite';
 
+// Publication LTI (finalisation).
+$string['lti_publication'] = 'Publication LTI';
+$string['lti_publication_desc'] = 'Si cette option est activée, une méthode d’inscription « Publier comme outil LTI » est ajoutée aux nouveaux cours. Nécessite le plugin enrol_lti activé.';
+$string['lti_publication_enabled'] = 'Ajouter l’inscription LTI';
+$string['lti_publication_enabled_desc'] = 'Si activé, une instance d’inscription LTI 1.3 sera ajoutée aux nouveaux cours.';
+$string['lti_maxenrolled'] = 'Nombre maximal d’utilisateurs inscrits';
+$string['lti_maxenrolled_desc'] = 'Nombre maximum d’utilisateurs accédant via cet outil LTI. 0 = illimité.';
+$string['lti_maildisplay'] = 'Visibilité de l’adresse e-mail';
+$string['lti_maildisplay_desc'] = 'Préférence d’affichage de l’e-mail pour les comptes créés au lancement LTI (mêmes options que le formulaire d’inscription LTI standard).';
+$string['lti_preferred_language'] = 'Langue préférée';
+$string['lti_preferred_language_desc'] = 'Langue des utilisateurs provisionnés via LTI. « Identique à la langue du cours » utilise la langue du cours, ou celle du site par défaut si le cours n’en a pas.';
+$string['lti_lang_same_as_course'] = 'Identique à la langue du cours';
+$string['lti_city'] = 'Ville';
+$string['lti_city_desc'] = 'Ville par défaut pour les utilisateurs provisionnés (facultatif). Comme le champ ville par défaut du formulaire d’inscription LTI standard.';
+$string['lti_country'] = 'Pays';
+$string['lti_country_desc'] = 'Pays par défaut pour les utilisateurs provisionnés (facultatif). Même liste de pays que le formulaire d’inscription LTI standard.';
+
 $string['dixeo_designer:addinstance'] = 'Ajouter un bloc Concepteur de Cours Dixeo';
 $string['dixeo_designer:myaddinstance'] = 'Ajouter un nouveau bloc Concepteur de Cours Dixeo à mon tableau de bord';
 $string['dixeo_designer:create'] = 'Créer des cours avec le Concepteur de Cours Dixeo';

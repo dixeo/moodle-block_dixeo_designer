@@ -64,6 +64,23 @@ $string['certificate_section'] = 'Certificado de Conclusão';
 $string['certificate_section_intro'] = 'Obtenha o seu certificado de conclusão após terminar o curso.';
 $string['certificate_name'] = 'Certificado de Conclusão';
 
+// Publicação LTI (finalização).
+$string['lti_publication'] = 'Publicação LTI';
+$string['lti_publication_desc'] = 'Quando ativada, é adicionado um método de inscrição «Publicar como ferramenta LTI» aos cursos novos. Requer o plugin enrol_lti ativo.';
+$string['lti_publication_enabled'] = 'Adicionar inscrição LTI';
+$string['lti_publication_enabled_desc'] = 'Se ativada, será adicionada uma instância de inscrição LTI 1.3 aos cursos novos.';
+$string['lti_maxenrolled'] = 'Máximo de utilizadores inscritos';
+$string['lti_maxenrolled_desc'] = 'Número máximo de utilizadores que podem aceder através desta ferramenta LTI. 0 = sem limite.';
+$string['lti_maildisplay'] = 'Visibilidade do e-mail';
+$string['lti_maildisplay_desc'] = 'Preferência de exibição do e-mail para contas criadas em lançamentos LTI (as mesmas opções do formulário de inscrição LTI padrão).';
+$string['lti_preferred_language'] = 'Idioma preferido';
+$string['lti_preferred_language_desc'] = 'Idioma dos utilizadores aprovisionados via LTI. «Igual ao idioma do curso» usa o idioma do curso, ou o predefinido do site se o curso não tiver idioma.';
+$string['lti_lang_same_as_course'] = 'Igual ao idioma do curso';
+$string['lti_city'] = 'Cidade';
+$string['lti_city_desc'] = 'Cidade predefinida para utilizadores aprovisionados (opcional). Como o campo cidade predefinido do formulário de inscrição LTI padrão.';
+$string['lti_country'] = 'País';
+$string['lti_country_desc'] = 'País predefinido para utilizadores aprovisionados (opcional). A mesma lista de países que o formulário de inscrição LTI padrão.';
+
 // Course design flow.
 $string['heading'] = 'O que quer ensinar hoje?';
 $string['heading2'] = 'Estamos a construir o seu curso!';

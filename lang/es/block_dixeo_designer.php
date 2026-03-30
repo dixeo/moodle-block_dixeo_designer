@@ -54,6 +54,23 @@ $string['certificate_section'] = 'Certificado de logro';
 $string['certificate_section_intro'] = 'Recupera tu certificado de logro una vez completado el curso.';
 $string['certificate_name'] = 'Certificado de logro';
 
+// Publicación LTI (finalización).
+$string['lti_publication'] = 'Publicación LTI';
+$string['lti_publication_desc'] = 'Si está activada, se añade un método de matriculación «Publicar como herramienta LTI» a los cursos nuevos. Requiere el plugin enrol_lti activado.';
+$string['lti_publication_enabled'] = 'Añadir matriculación LTI';
+$string['lti_publication_enabled_desc'] = 'Si está activada, se añadirá una instancia de matriculación LTI 1.3 a los cursos nuevos.';
+$string['lti_maxenrolled'] = 'Máximo de usuarios matriculados';
+$string['lti_maxenrolled_desc'] = 'Número máximo de usuarios que pueden acceder mediante esta herramienta LTI. 0 = sin límite.';
+$string['lti_maildisplay'] = 'Visibilidad del correo electrónico';
+$string['lti_maildisplay_desc'] = 'Preferencia de visualización del correo para las cuentas creadas en los lanzamientos LTI (mismas opciones que el formulario de matriculación LTI estándar).';
+$string['lti_preferred_language'] = 'Idioma preferido';
+$string['lti_preferred_language_desc'] = 'Idioma de los usuarios aprovisionados vía LTI. «Igual que el idioma del curso» usa el idioma del curso, o el predeterminado del sitio si el curso no tiene idioma.';
+$string['lti_lang_same_as_course'] = 'Igual que el idioma del curso';
+$string['lti_city'] = 'Ciudad';
+$string['lti_city_desc'] = 'Ciudad predeterminada para usuarios aprovisionados (opcional). Igual que el campo de ciudad por defecto del formulario de matriculación LTI estándar.';
+$string['lti_country'] = 'País';
+$string['lti_country_desc'] = 'País predeterminado para usuarios aprovisionados (opcional). Misma lista de países que el formulario de matriculación LTI estándar.';
+
 $string['dixeo_designer:addinstance'] = 'Agregar un bloque Diseñador de Cursos Dixeo';
 $string['dixeo_designer:myaddinstance'] = 'Agregar un nuevo bloque Diseñador de Cursos Dixeo a mi panel';
 $string['dixeo_designer:create'] = 'Crear cursos con el Diseñador de Cursos Dixeo';

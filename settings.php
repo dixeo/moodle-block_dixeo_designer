@@ -103,4 +103,73 @@ if ($ADMIN->fulltree) {
         $settings->hide_if('block_dixeo_designer/certificate_template', 'block_dixeo_designer/certificate_generation');
         $settings->hide_if('block_dixeo_designer/certificate_location', 'block_dixeo_designer/certificate_generation');
     }
+
+    // LTI publication (enrol_lti) for finalized designer courses.
+    $settings->add(new admin_setting_heading(
+        'block_dixeo_designer_lti_heading',
+        get_string('lti_publication', 'block_dixeo_designer'),
+        get_string('lti_publication_desc', 'block_dixeo_designer')
+    ));
+
+    $settings->add(new admin_setting_configcheckbox(
+        'block_dixeo_designer/lti_publication_enabled',
+        get_string('lti_publication_enabled', 'block_dixeo_designer'),
+        get_string('lti_publication_enabled_desc', 'block_dixeo_designer'),
+        0
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'block_dixeo_designer/lti_maxenrolled',
+        get_string('lti_maxenrolled', 'block_dixeo_designer'),
+        get_string('lti_maxenrolled_desc', 'block_dixeo_designer'),
+        '25',
+        PARAM_INT
+    ));
+
+    $maildisplaychoices = [
+        '0' => get_string('emaildisplayno'),
+        '1' => get_string('emaildisplayyes'),
+        '2' => get_string('emaildisplaycourse'),
+    ];
+    $settings->add(new admin_setting_configselect(
+        'block_dixeo_designer/lti_maildisplay',
+        get_string('lti_maildisplay', 'block_dixeo_designer'),
+        get_string('lti_maildisplay_desc', 'block_dixeo_designer'),
+        '0',
+        $maildisplaychoices
+    ));
+
+    $ltilangchoices = [
+        \local_dixeo\service\designer_lti_enrol_service::LANG_SAME_AS_COURSE => get_string('lti_lang_same_as_course', 'block_dixeo_designer'),
+    ] + get_string_manager()->get_list_of_translations();
+    $settings->add(new admin_setting_configselect(
+        'block_dixeo_designer/lti_preferred_language',
+        get_string('lti_preferred_language', 'block_dixeo_designer'),
+        get_string('lti_preferred_language_desc', 'block_dixeo_designer'),
+        \local_dixeo\service\designer_lti_enrol_service::LANG_SAME_AS_COURSE,
+        $ltilangchoices
+    ));
+
+    $settings->add(new admin_setting_configtext(
+        'block_dixeo_designer/lti_city',
+        get_string('lti_city', 'block_dixeo_designer'),
+        get_string('lti_city_desc', 'block_dixeo_designer'),
+        '',
+        PARAM_TEXT
+    ));
+
+    $countrychoices = ['' => get_string('selectacountry') . '...'] + get_string_manager()->get_list_of_countries();
+    $settings->add(new admin_setting_configselect(
+        'block_dixeo_designer/lti_country',
+        get_string('lti_country', 'block_dixeo_designer'),
+        get_string('lti_country_desc', 'block_dixeo_designer'),
+        '',
+        $countrychoices
+    ));
+
+    $settings->hide_if('block_dixeo_designer/lti_maxenrolled', 'block_dixeo_designer/lti_publication_enabled');
+    $settings->hide_if('block_dixeo_designer/lti_maildisplay', 'block_dixeo_designer/lti_publication_enabled');
+    $settings->hide_if('block_dixeo_designer/lti_preferred_language', 'block_dixeo_designer/lti_publication_enabled');
+    $settings->hide_if('block_dixeo_designer/lti_city', 'block_dixeo_designer/lti_publication_enabled');
+    $settings->hide_if('block_dixeo_designer/lti_country', 'block_dixeo_designer/lti_publication_enabled');
 }

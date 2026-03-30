@@ -64,6 +64,23 @@ $string['certificate_section'] = 'Teilnahmezertifikat';
 $string['certificate_section_intro'] = 'Rufen Sie Ihr Teilnahmezertifikat nach Abschluss des Kurses ab.';
 $string['certificate_name'] = 'Teilnahmezertifikat';
 
+// LTI-Veröffentlichung (Abschluss).
+$string['lti_publication'] = 'LTI-Veröffentlichung';
+$string['lti_publication_desc'] = 'Wenn aktiviert, wird neuen Kursen eine Einschreibemethode „Als LTI-Tool veröffentlichen“ hinzugefügt. Erfordert das aktivierte Plugin enrol_lti.';
+$string['lti_publication_enabled'] = 'LTI-Einschreibung hinzufügen';
+$string['lti_publication_enabled_desc'] = 'Wenn aktiviert, wird neuen Kursen eine LTI-1.3-Einschreibungsinstanz hinzugefügt.';
+$string['lti_maxenrolled'] = 'Maximal eingeschriebene Nutzer';
+$string['lti_maxenrolled_desc'] = 'Maximal über dieses LTI-Tool zugreifende Nutzer. 0 = unbegrenzt.';
+$string['lti_maildisplay'] = 'E-Mail-Sichtbarkeit';
+$string['lti_maildisplay_desc'] = 'Standard für die E-Mail-Anzeige bei über LTI-Starts angelegten Konten (gleiche Optionen wie im LTI-Einschreibungsformular).';
+$string['lti_preferred_language'] = 'Bevorzugte Sprache';
+$string['lti_preferred_language_desc'] = 'Sprache für über LTI bereitgestellte Nutzer. „Wie Kursprache“ verwendet die Sprache des Kurses bzw. die Website-Standardsprache, wenn der Kurs keine hat.';
+$string['lti_lang_same_as_course'] = 'Wie Kursprache';
+$string['lti_city'] = 'Stadt';
+$string['lti_city_desc'] = 'Standardstadt für bereitgestellte Nutzer (optional). Entspricht dem Standardfeld Stadt im LTI-Einschreibungsformular.';
+$string['lti_country'] = 'Land';
+$string['lti_country_desc'] = 'Standardland für bereitgestellte Nutzer (optional). Dieselbe Länderliste wie im LTI-Einschreibungsformular.';
+
 // Course design flow.
 $string['heading'] = 'Was möchten Sie heute unterrichten?';
 $string['heading2'] = 'Wir erstellen Ihren Kurs!';
