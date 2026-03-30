@@ -91,9 +91,9 @@ final class get_structure extends external_api {
             ];
         }
 
-        // Check user owns this structure (or has manage capability).
-        if ($structure->userid != $USER->id) {
-            require_capability('block/dixeo_designer:manage', $context);
+        // Check user owns this structure (or is a site administrator).
+        if ($structure->userid != $USER->id && !is_siteadmin()) {
+            throw new \moodle_exception('nopermissions', 'error');
         }
 
         return [

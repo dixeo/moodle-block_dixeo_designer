@@ -49,7 +49,9 @@ if (!$hasexistingjob) {
 
 $submission = $submission ?: $submissionservice->get_or_create_submission($jobid, $USER->id);
 if ((int) $submission->userid !== (int) $USER->id) {
-    require_capability('block/dixeo_designer:manage', context_system::instance());
+    if (!is_siteadmin()) {
+        throw new \moodle_exception('nopermissions', 'error');
+    }
 }
 $coursedescription = optional_param('course_description', $submission->prompt ?? '', PARAM_TEXT);
 $templateid = optional_param('templateid', $submission->templateid ?? '', PARAM_TEXT);

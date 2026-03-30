@@ -72,13 +72,8 @@ class service {
      */
     public function save_submission(string $jobid, int $userid, string $prompt, ?string $templateid): \stdClass {
         $submission = $this->repository->get_or_create($jobid, $userid);
-        if ((int) $submission->userid !== $userid) {
-            throw new \required_capability_exception(
-                \context_system::instance(),
-                'block/dixeo_designer:manage',
-                'nopermissions',
-                ''
-            );
+        if ((int) $submission->userid !== $userid && !is_siteadmin()) {
+            throw new \moodle_exception('nopermissions', 'error');
         }
         $submission->prompt = $prompt !== '' ? $prompt : null;
         $submission->templateid = $templateid !== '' ? $templateid : null;

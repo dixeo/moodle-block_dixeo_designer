@@ -81,9 +81,9 @@ final class save_structure extends external_api {
         $existing = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
 
         if ($existing) {
-            // Check user owns this structure (or has manage capability).
-            if ($existing->userid != $USER->id) {
-                require_capability('block/dixeo_designer:manage', $context);
+            // Check user owns this structure (or is a site administrator).
+            if ($existing->userid != $USER->id && !is_siteadmin()) {
+                throw new \moodle_exception('nopermissions', 'error');
             }
             $DB->set_field('block_dixeo_designer_structure', 'structure', $params['structure'], ['id' => $existing->id]);
             $DB->set_field('block_dixeo_designer_structure', 'timecreated', time(), ['id' => $existing->id]);
