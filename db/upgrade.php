@@ -29,8 +29,7 @@
  * @return bool always true
  */
 function xmldb_block_dixeo_designer_upgrade($oldversion) {
-    global $DB, $CFG;
-    require_once($CFG->dirroot.'/'.$CFG->admin.'/tool/certificate/db/upgradelib.php');
+    global $DB;
 
     $dbman = $DB->get_manager();
 
