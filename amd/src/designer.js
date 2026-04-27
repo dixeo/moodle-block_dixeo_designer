@@ -81,6 +81,10 @@ define([
         /** Cached promise for delete-confirm strings to avoid first-click latency. */
         deleteConfirmStringsPromise: null,
         imageStatusPollIntervalId: null,
+        /** @type {boolean} From get_structure: local_dixeo course image generation allowed */
+        imageCanGenerate: false,
+        /** @type {boolean} From get_structure: course image edit/regenerate allowed */
+        imageCanEdit: false,
 
         /** @type {number} Draft course id for WS language context (0 if not created yet). */
         courseId: 0,
@@ -236,13 +240,21 @@ define([
                     job_id: this.jobid
                 },
                 done: function(response) {
+                    self.imageCanGenerate = !!response.image_can_generate;
+                    self.imageCanEdit = !!response.image_can_edit;
                     var raw = JSON.parse(response.structure);
                     self.structure = raw.course_structure || raw;
                     self.history = [JSON.parse(JSON.stringify(self.structure))];
                     self.historyIndex = 0;
                     self.renderStructure();
                     self.updateUndoRedoButtons();
-                    if (!self.structure.image || (response.image_status && response.image_status !== 'completed')) {
+                    var st = response.image_status ? String(response.image_status) : '';
+                    var shouldPoll = self.imageCanGenerate && (
+                        !self.structure.image ||
+                        st === 'pending' ||
+                        st === 'processing'
+                    );
+                    if (shouldPoll) {
                         self.startImageStatusPoll();
                     }
                 },
@@ -299,7 +311,10 @@ define([
                 image: this.structure.image || null,
                 jobid: this.jobid,
                 hasSections: this.structure.sections && this.structure.sections.length > 0,
-                sections: []
+                sections: [],
+                designer_image_show_loading: Boolean(this.imageCanGenerate) && !this.structure.image,
+                designer_image_allow_edit: Boolean(this.imageCanEdit) && !!this.structure.image,
+                designer_show_course_image_area: Boolean(this.structure.image) || Boolean(this.imageCanGenerate)
             };
 
             // Process sections
@@ -457,6 +472,10 @@ define([
         startImageStatusPoll: function() {
             var self = this;
             this.clearImageStatusPoll();
+            if (!this.imageCanGenerate) {
+                this.setImageLoadingState(false);
+                return;
+            }
 
             var poll = function() {
                 Ajax.call([{

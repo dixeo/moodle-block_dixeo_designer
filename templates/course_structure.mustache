@@ -10,23 +10,32 @@
     * jobid - Job ID
     * sections - Array of sections
     * strings - From AMD (expand_all, module_summary_label, module_instructions_label, etc.)
+    * designer_image_show_loading - When true, show generating spinner (course image policy + no image yet)
+    * designer_image_allow_edit - When true, show regenerate control (course image edit policy + has image)
+    * designer_show_course_image_area - When false, hide the course image frame (no image and generation disabled)
 }}
 <div class="course-overview">
-    <div class="course-image {{^image}}is-loading{{/image}}" data-designer-course-image-root>
+    {{#designer_show_course_image_area}}
+    <div class="course-image {{#designer_image_show_loading}}is-loading{{/designer_image_show_loading}}" data-designer-course-image-root>
         {{#image}}
         <img src="{{image}}" alt="{{title}}" loading="lazy" width="280" height="157" decoding="async" data-designer-course-image>
         {{/image}}
         <div class="course-image-placeholder {{#image}}d-none{{/image}}" data-designer-course-image-placeholder>
+            {{#designer_image_show_loading}}
             <span class="fa fa-spinner fa-spin" aria-hidden="true"></span>
             <span class="course-image-placeholder-label">{{#str}} designer_image_generating_status, block_dixeo_designer {{/str}}</span>
+            {{/designer_image_show_loading}}
         </div>
+        {{#designer_image_allow_edit}}
         <button type="button"
                 class="course-image-regenerate-btn"
                 data-designer-image-regenerate-open
                 aria-label="{{#str}} designer_image_regenerate, block_dixeo_designer {{/str}}">
             <i class="fa fa-sync-alt" aria-hidden="true"></i>
         </button>
+        {{/designer_image_allow_edit}}
     </div>
+    {{/designer_show_course_image_area}}
     <h2 class="course-title editable" data-path="title">{{title}}</h2>
     <div class="edit-controls"></div>
     {{#summary}}

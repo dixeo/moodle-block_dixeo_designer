@@ -29,6 +29,7 @@ use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_dixeo\service\image_generation_policy;
 
 /**
  * External API class for retrieving course design structure.
@@ -38,6 +39,24 @@ use core_external\external_value;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class get_structure extends external_api {
+
+    /**
+     * Course image policy flags for the designer UI (local_dixeo settings).
+     *
+     * @return array{image_can_generate: bool, image_can_edit: bool}
+     */
+    private static function course_image_policy_flags(): array {
+        return [
+            'image_can_generate' => image_generation_policy::is_enabled(
+                image_generation_policy::ENTITY_COURSE,
+                image_generation_policy::ACTION_GENERATE
+            ),
+            'image_can_edit' => image_generation_policy::is_enabled(
+                image_generation_policy::ENTITY_COURSE,
+                image_generation_policy::ACTION_EDIT
+            ),
+        ];
+    }
 
     /**
      * Web service parameter definitions.
@@ -84,14 +103,19 @@ final class get_structure extends external_api {
             }
             $structures = new \block_dixeo_designer\service\structure\repository();
             $structures->save_structure($params['job_id'], (int) $USER->id, '', $result);
-            $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
+            $flags = self::course_image_policy_flags();
+            $imagestatus = 'idle';
+            if ($flags['image_can_generate']) {
+                $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
+                $imagestatus = 'pending';
+            }
             $structureJson = json_encode($result);
-            return [
+            return array_merge([
                 'structure' => $structureJson,
                 'job_id' => $params['job_id'],
-                'image_status' => 'pending',
+                'image_status' => $imagestatus,
                 'image_error' => null,
-            ];
+            ], $flags);
         }
 
         // Check user owns this structure (or is a site administrator).
@@ -99,12 +123,12 @@ final class get_structure extends external_api {
             throw new \moodle_exception('nopermissions', 'error');
         }
 
-        return [
+        return array_merge([
             'structure' => $structure->structure,
             'job_id' => $structure->jobid,
             'image_status' => $structure->imagestatus ?? '',
             'image_error' => $structure->imageerror ?? null,
-        ];
+        ], self::course_image_policy_flags());
     }
 
     /**
@@ -118,6 +142,8 @@ final class get_structure extends external_api {
             'job_id' => new external_value(PARAM_TEXT, 'Job ID'),
             'image_status' => new external_value(PARAM_TEXT, 'Image generation status', VALUE_OPTIONAL, ''),
             'image_error' => new external_value(PARAM_TEXT, 'Image generation error', VALUE_OPTIONAL, null, NULL_ALLOWED),
+            'image_can_generate' => new external_value(PARAM_BOOL, 'Whether course image generation is allowed', VALUE_OPTIONAL, false),
+            'image_can_edit' => new external_value(PARAM_BOOL, 'Whether course image edit/regenerate is allowed', VALUE_OPTIONAL, false),
         ]);
     }
 }

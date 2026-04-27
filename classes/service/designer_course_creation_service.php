@@ -187,6 +187,12 @@ class designer_course_creation_service {
             return null;
         }
 
+        $this->queue_section_images_after_finalize($jobid, $courseid, $userid, $sectiontotal);
+
+        if ($this->is_finalize_cancelled($jobid)) {
+            return null;
+        }
+
         $completionsync = new \local_dixeo\service\course_completion_sync_service();
         $completionsync->sync_activity_criteria_from_modules($courseid);
 
@@ -195,6 +201,7 @@ class designer_course_creation_service {
         }
 
         $certtrailing = false;
+        $placed = false;
         if ((bool) get_config('block_dixeo_designer', 'certificate_generation')) {
             $templateid = (int) get_config('block_dixeo_designer', 'certificate_template');
             $certlocation = (string) (get_config('block_dixeo_designer', 'certificate_location') ?: 'last');
@@ -217,6 +224,19 @@ class designer_course_creation_service {
             }
         }
 
+        if ($this->is_finalize_cancelled($jobid)) {
+            return null;
+        }
+
+        if ($placed === 'last') {
+            $this->queue_section_image_jobs_for_section_numbers(
+                $jobid,
+                $courseid,
+                $userid,
+                [$sectiontotal + 1]
+            );
+        }
+
         $this->apply_lti_publication_if_enabled($courseid);
 
         if ($this->is_finalize_cancelled($jobid)) {
@@ -225,11 +245,23 @@ class designer_course_creation_service {
 
         $resourcestargetsection = $sectiontotal + 1 + ($certtrailing ? 1 : 0);
         $fileService = new submission\file_service();
-        $fileService->relocate_designer_upload_resources_after_finalize($courseid, $sectiontotal, $resourcestargetsection);
+        $resourcesrelocated = $fileService->relocate_designer_upload_resources_after_finalize(
+            $courseid,
+            $sectiontotal,
+            $resourcestargetsection
+        );
 
-        // User may have cancelled during content generation: draft deleted while this request continues.
         if ($this->is_finalize_cancelled($jobid)) {
             return null;
+        }
+
+        if ($resourcesrelocated) {
+            $this->queue_section_image_jobs_for_section_numbers(
+                $jobid,
+                $courseid,
+                $userid,
+                [$resourcestargetsection]
+            );
         }
 
         $course = $DB->get_record('course', ['id' => $courseid], '*', IGNORE_MISSING);
@@ -294,6 +326,137 @@ class designer_course_creation_service {
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $data = $cache->get($jobid);
         return is_array($data) && !empty($data['cancelled']);
+    }
+
+    /**
+     * True when Dixeo format section images are allowed to be queued after finalize (all of):
+     * format_dixeo installed, site default new-course format dixeo, course format dixeo,
+     * and local_dixeo policy allows section image generation.
+     *
+     * @param int $courseid
+     * @return bool
+     */
+    private function section_images_after_finalize_allowed(int $courseid): bool {
+        global $DB;
+
+        if (!\local_dixeo\service\plugin_installation_service::is_component_installed('format_dixeo')) {
+            return false;
+        }
+
+        $defaultformat = get_config('moodlecourse', 'format') ?: 'topics';
+        if ($defaultformat !== 'dixeo') {
+            return false;
+        }
+
+        $courseformat = $DB->get_field('course', 'format', ['id' => $courseid], IGNORE_MISSING);
+        if ((string) $courseformat !== 'dixeo') {
+            return false;
+        }
+
+        if (!\local_dixeo\service\image_generation_policy::is_enabled(
+            \local_dixeo\service\image_generation_policy::ENTITY_SECTION,
+            \local_dixeo\service\image_generation_policy::ACTION_GENERATE
+        )) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Queue async section image jobs for designer content sections (1..N) after modules exist.
+     *
+     * @param string|null $jobid
+     * @param int $courseid
+     * @param int $userid
+     * @param int $sectiontotal Number of structure sections (course section numbers 1..N).
+     * @return void
+     */
+    private function queue_section_images_after_finalize(
+        ?string $jobid,
+        int $courseid,
+        int $userid,
+        int $sectiontotal
+    ): void {
+        if ($sectiontotal < 1) {
+            return;
+        }
+        $this->queue_section_image_jobs_for_section_numbers(
+            $jobid,
+            $courseid,
+            $userid,
+            range(1, $sectiontotal)
+        );
+    }
+
+    /**
+     * Queue async section image jobs for the given Moodle section numbers (course_sections.section).
+     *
+     * Used for structure sections (1..N), trailing certificate section, and Resources section.
+     * No-ops when {@see self::section_images_after_finalize_allowed()} is false or numbers are empty.
+     *
+     * @param string|null $jobid
+     * @param int $courseid
+     * @param int $userid
+     * @param int[] $sectionnumbers Section indices (e.g. 1, 2, or trailing Resources index).
+     * @return void
+     */
+    private function queue_section_image_jobs_for_section_numbers(
+        ?string $jobid,
+        int $courseid,
+        int $userid,
+        array $sectionnumbers
+    ): void {
+        global $DB;
+
+        $sectionnumbers = array_values(array_unique(array_map('intval', $sectionnumbers)));
+        sort($sectionnumbers, SORT_NUMERIC);
+        if ($sectionnumbers === [] || !$this->section_images_after_finalize_allowed($courseid)) {
+            return;
+        }
+
+        $imageservice = new \local_dixeo\service\image_generation_service(
+            \local_dixeo\external\service_factory::get_job_service()
+        );
+
+        foreach ($sectionnumbers as $sectionnumber) {
+            if ($sectionnumber < 1) {
+                continue;
+            }
+            if ($this->is_finalize_cancelled($jobid)) {
+                return;
+            }
+
+            $section = $DB->get_record('course_sections', [
+                'course' => $courseid,
+                'section' => $sectionnumber,
+            ], 'id', IGNORE_MISSING);
+            if (!$section) {
+                continue;
+            }
+
+            try {
+                $operation = $imageservice->submit_section_image_job((int) $section->id);
+                $remotejobid = trim((string) ($operation->jobid ?? ''));
+                if ($remotejobid === '') {
+                    continue;
+                }
+                \local_dixeo\service\image_poll_manager::queue_poll_task(
+                    $courseid,
+                    $remotejobid,
+                    $userid,
+                    0,
+                    \local_dixeo\service\image_poll_manager::SCOPE_FORMAT_SECTION,
+                    (int) $section->id
+                );
+            } catch (\Throwable $e) {
+                debugging(
+                    'designer_course_creation_service: section image job failed course=' . $courseid .
+                    ' sectionnum=' . $sectionnumber . ': ' . $e->getMessage(),
+                    DEBUG_DEVELOPER
+                );
+            }
+        }
     }
 
     /**

@@ -29,6 +29,7 @@ use block_dixeo_designer\service\structure\repository as structure_repository;
 use block_dixeo_designer\service\submission\file_service as submission_file_service;
 use block_dixeo_designer\service\submission\service as submission_service;
 use block_dixeo_designer\workflow_constants;
+use local_dixeo\service\image_generation_policy;
 use local_dixeo\service\image_generation_service;
 
 /**
@@ -778,7 +779,12 @@ class designer_service {
             throw new \moodle_exception('structurenotfound', 'block_dixeo_designer');
         }
 
-        $this->cancel_image_job_if_running($structure->imagejobid ?? null);
+        if (image_generation_policy::is_enabled(
+            image_generation_policy::ENTITY_COURSE,
+            image_generation_policy::ACTION_GENERATE
+        )) {
+            $this->cancel_image_job_if_running($structure->imagejobid ?? null);
+        }
 
         $decoded = json_decode((string) $structure->structure, true);
         [$payloadtitle, $payloadsummary] = is_array($decoded)
@@ -830,7 +836,12 @@ class designer_service {
             throw new \moodle_exception('invalidinput', 'block_dixeo_designer');
         }
 
-        $this->cancel_image_job_if_running($structure->imagejobid ?? null);
+        if (image_generation_policy::is_enabled(
+            image_generation_policy::ENTITY_COURSE,
+            image_generation_policy::ACTION_EDIT
+        )) {
+            $this->cancel_image_job_if_running($structure->imagejobid ?? null);
+        }
 
         $imagesbase64 = [course_image_writer::image_url_to_base64($currentimage)];
         $decoded = json_decode((string) $structure->structure, true);
@@ -881,7 +892,11 @@ class designer_service {
 
         if ($imagejobid === '') {
             // Auto-start when structure has no image yet (first visit after generation).
-            if (!$image && !empty($submission->courseid)) {
+            if (!$image && !empty($submission->courseid)
+                    && image_generation_policy::is_enabled(
+                        image_generation_policy::ENTITY_COURSE,
+                        image_generation_policy::ACTION_GENERATE
+                    )) {
                 $this->start_structure_image_generation($jobid, $userid);
                 return [
                     'status' => 'pending',
@@ -988,6 +1003,12 @@ class designer_service {
         $mode = trim($finalizemode);
 
         if ($mode === 'quick') {
+            if (!image_generation_policy::is_enabled(
+                image_generation_policy::ENTITY_COURSE,
+                image_generation_policy::ACTION_GENERATE
+            )) {
+                return;
+            }
             if ($struct && !empty($struct->imagejobid)) {
                 $this->cancel_image_job_if_running((string) $struct->imagejobid);
             }

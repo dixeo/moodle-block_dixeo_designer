@@ -29,6 +29,7 @@ use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_dixeo\service\image_generation_policy;
 
 /**
  * External API class for saving course design structure.
@@ -99,8 +100,13 @@ final class save_structure extends external_api {
             'timecreated' => time(),
         ]);
 
-        $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
-        $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
+        if (image_generation_policy::is_enabled(
+            image_generation_policy::ENTITY_COURSE,
+            image_generation_policy::ACTION_GENERATE
+        )) {
+            $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
+            $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
+        }
 
         return ['success' => true];
     }

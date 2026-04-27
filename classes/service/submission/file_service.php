@@ -237,13 +237,13 @@ class file_service {
      * @param int $courseid Draft/final course id.
      * @param int $structuresectioncount Number of content sections from the generated structure (excludes resources/certificate).
      * @param int|null $targetsectionnum If set, section index for Resources; else structuresectioncount + 1.
-     * @return void
+     * @return bool True when a Resources section was created/updated and modules were moved; false if there was nothing to do.
      */
     public function relocate_designer_upload_resources_after_finalize(
         int $courseid,
         int $structuresectioncount,
         ?int $targetsectionnum = null
-    ): void {
+    ): bool {
         global $CFG, $DB;
 
         require_once($CFG->dirroot . '/course/lib.php');
@@ -255,7 +255,7 @@ class file_service {
             'id ASC'
         );
         if (empty($cmrecords)) {
-            return;
+            return false;
         }
 
         if ($targetsectionnum === null) {
@@ -289,6 +289,8 @@ class file_service {
         }
 
         rebuild_course_cache($courseid, true);
+
+        return true;
     }
 
     /**
