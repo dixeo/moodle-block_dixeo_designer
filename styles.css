@@ -1260,6 +1260,42 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
     text-align: center;
 }
 
+#page-blocks-dixeo_designer-designer .module-type-select-toggle-main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#page-blocks-dixeo_designer-designer .dixeo-designer-module-type-icon {
+    display: inline-block;
+    flex-shrink: 0;
+    vertical-align: middle;
+    box-sizing: border-box;
+    -webkit-mask-image: var(--dixeo-activity-icon);
+    mask-image: var(--dixeo-activity-icon);
+    -webkit-mask-size: contain;
+    mask-size: contain;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+    -webkit-mask-position: center;
+    mask-position: center;
+    background-color: var(--primary);
+}
+
+#page-blocks-dixeo_designer-designer .module-type-option:hover .dixeo-designer-module-type-icon--option {
+    background-color: #fff;
+}
+
+#page-blocks-dixeo_designer-designer .module-type-option .dixeo-designer-module-type-icon--option {
+    width: 24px;
+    height: 24px;
+}
+
+#page-blocks-dixeo_designer-designer .module-type-select-toggle .dixeo-designer-module-type-icon--toggle {
+    width: 32px;
+    height: 32px;
+}
+
 #page-blocks-dixeo_designer-designer .module-details .editing {
     padding: 8px;
 }

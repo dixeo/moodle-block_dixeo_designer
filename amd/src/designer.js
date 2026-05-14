@@ -51,20 +51,78 @@ define([
     designerUndoMixin
 ) {
 
-    /** Module type options: value, label, icon. Filled from API (local_dixeo_get_module_types) with fallback. */
+    /**
+     * Infer Moodle component from catalogue type id when the API omits component.
+     *
+     * @param {string} type Machine type (e.g. page, h5p_quiz)
+     * @return {string} Component name e.g. mod_page
+     */
+    function inferModuleComponentFromType(type) {
+        var t = (type || '').toString();
+        if (!t) {
+            return '';
+        }
+        if (/^h5p_/i.test(t)) {
+            return 'mod_h5pactivity';
+        }
+        return 'mod_' + t.toLowerCase().replace(/^mod_/, '');
+    }
+
+    /**
+     * Monologo URL for a module type: installed mod uses plugin monologo; otherwise block fallback pix.
+     *
+     * @param {string} component Moodle component e.g. mod_page
+     * @param {boolean} installed When false, use designer fallback asset (avoids requests to missing plugin pix).
+     * @return {string}
+     */
+    function getModuleMonologoUrl(component, installed) {
+        var fallback = Config.wwwroot + '/blocks/dixeo_designer/pix/monologo.svg';
+        if (!installed) {
+            return fallback;
+        }
+        if (component && component.indexOf('mod_') === 0) {
+            return Config.wwwroot + '/mod/' + component.substring(4) + '/pix/monologo.svg';
+        }
+        return fallback;
+    }
+
+    /**
+     * Attach iconurl to each MODULE_TYPE_OPTIONS row (catalogue shape: value, label, component, installed).
+     */
+    function applyModuleTypeOptionIconurls() {
+        MODULE_TYPE_OPTIONS = MODULE_TYPE_OPTIONS.map(function(row) {
+            var installed = row.installed !== false;
+            var component = row.component || inferModuleComponentFromType(row.value);
+            return {
+                value: row.value,
+                label: row.label,
+                component: component,
+                installed: installed,
+                iconurl: getModuleMonologoUrl(component, installed)
+            };
+        });
+    }
+
+    /**
+     * Default catalogue when local_dixeo_get_module_types is unavailable (shape matches API rows).
+     */
     var MODULE_TYPE_OPTIONS = [
-        {value: 'Page', label: 'Page', icon: 'fa-file-alt'},
-        {value: 'Text and Media area', label: 'Text and Media area', icon: 'fa-book'},
-        {value: 'Glossary', label: 'Glossary', icon: 'fa-list-alt'},
-        {value: 'Slideshow', label: 'Slideshow', icon: 'fa-images'},
-        {value: 'URL', label: 'URL', icon: 'fa-link'},
-        {value: 'Simple Quiz', label: 'Simple Quiz', icon: 'fa-question-circle'},
-        {value: 'Quiz', label: 'Quiz', icon: 'fa-check-square'},
-        {value: 'H5P Quiz', label: 'H5P Quiz', icon: 'fa-puzzle-piece'},
-        {value: 'Flash Cards', label: 'Flash Cards', icon: 'fa-id-card'},
-        {value: 'Crosswords', label: 'Crosswords', icon: 'fa-th-large'},
-        {value: 'Find the words', label: 'Find the words', icon: 'fa-search'}
+        {value: 'page', label: 'Page', component: 'mod_page', installed: true},
+        {value: 'book', label: 'Book', component: 'mod_book', installed: true},
+        {value: 'label', label: 'Text and media area', component: 'mod_label', installed: true},
+        {value: 'url', label: 'URL', component: 'mod_url', installed: true},
+        {value: 'glossary', label: 'Glossary', component: 'mod_glossary', installed: true},
+        {value: 'lesson', label: 'Lesson', component: 'mod_lesson', installed: true},
+        {value: 'quiz', label: 'Quiz', component: 'mod_quiz', installed: true},
+        {value: 'simplequiz', label: 'Simple quiz', component: 'mod_simplequiz', installed: true},
+        {value: 'simplequiz2', label: 'MCQ', component: 'mod_simplequiz2', installed: true},
+        {value: 'h5p_quiz', label: 'Quiz', component: 'mod_h5pactivity', installed: true},
+        {value: 'h5p_flashcards', label: 'Flashcards', component: 'mod_h5pactivity', installed: true},
+        {value: 'h5p_crossword', label: 'Crossword', component: 'mod_h5pactivity', installed: true},
+        {value: 'h5p_findthewords', label: 'Find the words', component: 'mod_h5pactivity', installed: true},
+        {value: 'slideshow', label: 'Slideshow', component: 'mod_slideshow', installed: true}
     ];
+    applyModuleTypeOptionIconurls();
 
     var Designer = {
         jobid: null,
@@ -193,25 +251,29 @@ define([
         },
 
         /**
-         * Load module types from API (same as block_dixeo_modulegen), fallback to default list on error
+         * Load module types from API; fallback to default list on error
          */
         loadModuleTypes: function() {
-            var self = this;
             return Ajax.call([{
                 methodname: 'local_dixeo_get_module_types',
                 args: {courseid: this.courseId || 0}
             }])[0].then(function(response) {
                 if (response.success && response.types && response.types.length > 0) {
                     MODULE_TYPE_OPTIONS = response.types.map(function(t) {
+                        var installed = t.installed !== false;
+                        var component = t.component || inferModuleComponentFromType(t.type);
                         return {
                             value: t.type,
                             label: t.label || t.type,
-                            icon: self.getModuleIconFromType(t.type)
+                            component: component,
+                            installed: installed,
+                            iconurl: getModuleMonologoUrl(component, installed)
                         };
                     });
                 }
             }).catch(function() {
-                // Keep default MODULE_TYPE_OPTIONS
+                // Keep default MODULE_TYPE_OPTIONS; ensure icon URLs use monologo rules.
+                applyModuleTypeOptionIconurls();
             });
         },
 
@@ -333,8 +395,8 @@ define([
                     // Process modules
                     if (section.modules && section.modules.length > 0) {
                         section.modules.forEach(function(module, moduleIdx) {
-                            var iconClass = self.getModuleIcon(module.type);
                             var moduleType = module.type || '';
+                            var iconurl = self.getModuleIconUrlForModuleType(moduleType);
                             sectionData.modules.push({
                                 index: moduleIdx,
                                 sectionIndex: sectionIdx,
@@ -343,7 +405,7 @@ define([
                                 title: module.title || '',
                                 summary: module.summary || null,
                                 instructions: module.instructions || null,
-                                icon: iconClass,
+                                iconurl: iconurl,
                                 jobid: self.jobid,
                                 moduleTypeOptions: MODULE_TYPE_OPTIONS
                             });
@@ -670,22 +732,47 @@ define([
         },
 
         /**
-         * Get Font Awesome icon class for module type (for display)
-         * @param {string} type Module type
-         * @return {string} Font Awesome icon class
+         * Monologo URL for a module type (uses catalogue options and monologo URL rules).
+         *
+         * @param {string} type Machine type id
+         * @return {string}
          */
-        getModuleIcon: function(type) {
+        getModuleIconUrlForModuleType: function(type) {
             if (!type) {
-                return 'fa-file-alt';
+                return getModuleMonologoUrl('', false);
             }
-            var t = type.toLowerCase();
+            var tl = type.toString().toLowerCase();
             var i;
             for (i = 0; i < MODULE_TYPE_OPTIONS.length; i++) {
-                if (MODULE_TYPE_OPTIONS[i].value.toLowerCase() === t) {
-                    return MODULE_TYPE_OPTIONS[i].icon;
+                if (MODULE_TYPE_OPTIONS[i].value.toLowerCase() === tl) {
+                    return MODULE_TYPE_OPTIONS[i].iconurl;
                 }
             }
-            return 'fa-file-alt';
+            var comp = inferModuleComponentFromType(type);
+            return getModuleMonologoUrl(comp, true);
+        },
+
+        /**
+         * Update the toggle button main icon (monologo, primary-tinted via CSS mask) to match a catalogue option.
+         *
+         * @param {JQuery} $toggle The .module-type-select-toggle element
+         * @param {{iconurl: string}} opt Selected option
+         */
+        setModuleTypeToggleMainIcon: function($toggle, opt) {
+            var $main = $toggle.find('.module-type-select-toggle-main');
+            if (!$main.length || !opt || !opt.iconurl) {
+                return;
+            }
+            var safe = String(opt.iconurl).replace(/'/g, '%27');
+            $main.empty();
+            $('<span>', {
+                'class': 'dixeo-designer-module-type-icon dixeo-designer-module-type-icon--toggle',
+                role: 'presentation',
+                'aria-hidden': 'true',
+                css: {
+                    '--dixeo-activity-icon': 'url(\'' + safe + '\')'
+                }
+            }).appendTo($main);
         },
 
         /**
@@ -704,33 +791,13 @@ define([
                     return MODULE_TYPE_OPTIONS[i].label;
                 }
             }
-            return t;
-        },
-
-        /**
-         * Get icon for a type string (used when building options from API)
-         * @param {string} type Module type from API
-         * @return {string} Font Awesome icon class
-         */
-        getModuleIconFromType: function(type) {
-            var fallbackIcons = {
-                'page': 'fa-file-alt',
-                'text and media area': 'fa-book',
-                'glossary': 'fa-list-alt',
-                'slideshow': 'fa-images',
-                'url': 'fa-link',
-                'simple quiz': 'fa-question-circle',
-                'quiz': 'fa-check-square',
-                'h5p quiz': 'fa-puzzle-piece',
-                'flash cards': 'fa-id-card',
-                'crosswords': 'fa-th-large',
-                'find the words': 'fa-search'
-            };
-            if (!type) {
-                return 'fa-file-alt';
+            var tl = t.toLowerCase();
+            for (i = 0; i < MODULE_TYPE_OPTIONS.length; i++) {
+                if (MODULE_TYPE_OPTIONS[i].value.toLowerCase() === tl) {
+                    return MODULE_TYPE_OPTIONS[i].label;
+                }
             }
-            var t = type.toLowerCase();
-            return fallbackIcons[t] || 'fa-file-alt';
+            return t;
         },
 
         /**
@@ -853,9 +920,8 @@ define([
                 // Update structure
                 self.structure.sections[sectionIdx].modules[moduleIdx].type = value;
 
-                // Update UI: icon and type text (exclude chevron) – use human-readable label
-                $wrapper.find('.module-type-select-toggle i').not('.module-type-select-chevron')
-                    .removeClass().addClass('fa ' + opt.icon + ' fa-2x');
+                // Update UI: monologo icon and type text – use human-readable label
+                self.setModuleTypeToggleMainIcon($wrapper.find('.module-type-select-toggle'), opt);
                 var $moduleType = $wrapper.closest('.module-item').find('.module-type');
                 if ($moduleType.length) {
                     $moduleType.text(opt.label);
