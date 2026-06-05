@@ -68,6 +68,20 @@ final class submission_service_test extends advanced_testcase {
         $this->assertNull($this->service->get_submission('unknown-' . uniqid()));
     }
 
+    public function test_begin_sync_phase_clears_stale_draft_course(): void {
+        $jobid = 'job-' . uniqid();
+        $sub = $this->service->save_submission($jobid, $this->user->id, 'P', null);
+        $course = $this->getDataGenerator()->create_course();
+        $this->service->set_draft_and_remote_job($sub, $course->id, 'remote-123');
+        $sub = $this->service->get_submission($jobid);
+
+        $this->service->begin_sync_phase($sub);
+        $sub = $this->service->get_submission($jobid);
+        $this->assertNull($sub->courseid);
+        $this->assertNull($sub->remotejobid);
+        $this->assertEquals(workflow_constants::SUBMISSION_STATUS_SYNCING_FILES, $sub->status);
+    }
+
     public function test_set_draft_and_remote_job_and_attach_course(): void {
         $jobid = 'job-' . uniqid();
         $sub = $this->service->save_submission($jobid, $this->user->id, 'P', null);

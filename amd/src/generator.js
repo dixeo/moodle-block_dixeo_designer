@@ -436,10 +436,6 @@ define([
                 },
             }])[0];
 
-            // Begin polling as soon as the user starts generation so the bar can advance while
-            // trigger_sync runs on the server (session must be released there via write_close).
-            this.startStep2Progress(createcourse, runId);
-
             startPromise.then((startResp) => {
                 if (runId !== this.generationRunId) {
                     return;
@@ -457,7 +453,9 @@ define([
                     window.location.href = Config.wwwroot + '/blocks/dixeo_designer/designer.php?id=' + this.getJobId();
                     return;
                 }
-                // File-sync polling is already running; step 2 starts from the poll when sync completes.
+                // Poll only after prepare_generation has bound the draft course for this run.
+                // Polling in parallel allowed stale course sync state to trigger an early submit.
+                this.startStep2Progress(createcourse, runId);
             })
             .catch(async error => {
                 if (runId !== this.generationRunId) {

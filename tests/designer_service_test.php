@@ -306,7 +306,7 @@ final class designer_service_test extends advanced_testcase {
             'courseid' => 55,
             'templateid' => null,
             'prompt' => 'short',
-            'status' => 'draft',
+            'status' => workflow_constants::SUBMISSION_STATUS_SYNCING_FILES,
             'remotejobid' => null,
         ];
 

@@ -175,7 +175,7 @@ class designer_service {
         $oldTemplateId = $existing->templateid ?? null;
 
         $submission = $this->submissions->save_submission($jobid, $userid, $trimmeddescription, $templateid);
-        $this->submissions->mark_status($submission, workflow_constants::SUBMISSION_STATUS_SYNCING_FILES);
+        $this->submissions->begin_sync_phase($submission);
 
         $newPrompt = $submission->prompt ?? null;
         $newTemplateId = $submission->templateid ?? null;
@@ -208,7 +208,7 @@ class designer_service {
 
             // Reuse the existing draft course when the vector-store input is unchanged.
             if ($fileManifestUnchanged && $fileSyncReady) {
-                $this->submissions->set_draft_and_remote_job($submission, $existingCourseId, null);
+                $this->submissions->set_draft_course_pending_sync($submission, $existingCourseId);
 
                 $promptTemplateUnchanged = ($oldPrompt === $newPrompt) && ($oldTemplateId === $newTemplateId);
                 $structureExists = $this->structures->get_latest_structure($jobid) !== null;
@@ -233,7 +233,7 @@ class designer_service {
         prepare_progress_cache::begin($jobid, !empty($submissionFiles), count($submissionFiles));
 
         $course = $this->coursecreation->create_draft_course($userid);
-        $this->submissions->set_draft_and_remote_job($submission, (int) $course->id, null);
+        $this->submissions->set_draft_course_pending_sync($submission, (int) $course->id);
 
         try {
             // Allow concurrent get_filesync_status polls while files are copied and trigger_sync runs.
@@ -275,6 +275,14 @@ class designer_service {
 
         $hasfiles = $this->submission_has_source_files((int) $submission->id);
         $prep = prepare_progress_cache::get($jobid);
+
+        if (($submission->status ?? '') !== workflow_constants::SUBMISSION_STATUS_SYNCING_FILES) {
+            return $this->filesync_status_preparing($hasfiles, $prep);
+        }
+
+        if ($prep && !empty($prep['active'])) {
+            return $this->filesync_status_preparing($hasfiles, $prep);
+        }
 
         if (empty($submission->courseid)) {
             return $this->filesync_status_preparing($hasfiles, $prep);
@@ -389,6 +397,10 @@ class designer_service {
                 'remotejobid' => '',
                 'courseid' => (int) $submission->courseid,
             ];
+        }
+
+        if (($submission->status ?? '') !== workflow_constants::SUBMISSION_STATUS_SYNCING_FILES) {
+            throw new \moodle_exception('invalidinput', 'block_dixeo_designer');
         }
 
         $instructions = trim((string) ($submission->prompt ?? ''));

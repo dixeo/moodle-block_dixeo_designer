@@ -99,6 +99,36 @@ class service {
     }
 
     /**
+     * Reset draft course linkage while a new prepare/sync cycle starts.
+     *
+     * Clears stale course ids so concurrent file-sync polls cannot submit
+     * against a previous draft before prepare_generation finishes.
+     *
+     * @param \stdClass $submission
+     * @return void
+     */
+    public function begin_sync_phase(\stdClass $submission): void {
+        $submission->courseid = null;
+        $submission->remotejobid = null;
+        $submission->status = workflow_constants::SUBMISSION_STATUS_SYNCING_FILES;
+        $this->repository->update($submission);
+    }
+
+    /**
+     * Attach a draft course while file sync is still in progress.
+     *
+     * @param \stdClass $submission
+     * @param int $courseid
+     * @return void
+     */
+    public function set_draft_course_pending_sync(\stdClass $submission, int $courseid): void {
+        $submission->courseid = $courseid;
+        $submission->remotejobid = null;
+        $submission->status = workflow_constants::SUBMISSION_STATUS_SYNCING_FILES;
+        $this->repository->update($submission);
+    }
+
+    /**
      * Bind a created course to a submission.
      *
      * @param \stdClass $submission
