@@ -282,6 +282,8 @@ class designer_course_creation_service {
             ]);
         }
 
+        $this->mark_course_as_recently_viewed((int) $course->id, $userid);
+
         return $course;
     }
 
@@ -629,6 +631,35 @@ class designer_course_creation_service {
 
             $enrol->enrol_user($instance, $userid, $CFG->creatornewroleid);
         }
+    }
+
+    /**
+     * Mark the course as recently viewed for the creator (My courses / last access).
+     *
+     * @param int $courseid
+     * @param int $userid
+     * @return void
+     */
+    private function mark_course_as_recently_viewed(int $courseid, int $userid): void {
+        global $DB;
+
+        $now = time();
+        $existing = $DB->get_record('user_lastaccess', [
+            'courseid' => $courseid,
+            'userid' => $userid,
+        ], 'id', IGNORE_MISSING);
+
+        if ($existing) {
+            $DB->set_field('user_lastaccess', 'timeaccess', $now, ['id' => $existing->id]);
+            return;
+        }
+
+        $lastaccess = (object) [
+            'courseid' => $courseid,
+            'userid' => $userid,
+            'timeaccess' => $now,
+        ];
+        $DB->insert_record('user_lastaccess', $lastaccess);
     }
 
     private function wait_for_initial_file_sync(\local_dixeo\service\file_sync_service $filesync, int $courseid): void {

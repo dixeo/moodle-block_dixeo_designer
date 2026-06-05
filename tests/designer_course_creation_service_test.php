@@ -107,6 +107,10 @@ final class designer_course_creation_service_test extends advanced_testcase {
         $this->assertSame('My created course', $created->fullname);
         $this->assertSame('', (string) $created->idnumber);
         $this->assertSame(1, (int) $DB->count_records('course_sections', ['course' => $course->id, 'section' => 1]));
+        $this->assertSame(
+            1,
+            (int) $DB->count_records('user_lastaccess', ['courseid' => $course->id, 'userid' => $userid])
+        );
 
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cached = $cache->get($jobid);
