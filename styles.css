@@ -893,6 +893,11 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
     margin-right: 0;
 }
 
+#page-blocks-dixeo_designer-designer .editor-toolbar-footer #btn-create-course img {
+    display: inline;
+    height: var(--dixeo-designer-generate-icon-size);
+}
+
 #page-blocks-dixeo_designer-designer .editor-toolbar-footer .btn-label {
     padding-left: 0.5rem;
 }
