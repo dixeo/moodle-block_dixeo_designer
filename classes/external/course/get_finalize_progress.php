@@ -66,7 +66,7 @@ final class get_finalize_progress extends external_api {
 
         $context = \context_system::instance();
         self::validate_context($context);
-        require_capability('block/dixeo_designer:create', $context);
+        require_capability('local/dixeo:create', $context);
         require_sesskey();
 
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');

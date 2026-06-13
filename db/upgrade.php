@@ -200,5 +200,11 @@ function xmldb_block_dixeo_designer_upgrade($oldversion) {
         upgrade_block_savepoint(true, 2026042200, 'dixeo_designer');
     }
 
+    if ($oldversion < 2026061200) {
+        update_capabilities('block_dixeo_designer');
+
+        upgrade_block_savepoint(true, 2026061200, 'dixeo_designer');
+    }
+
     return true;
 }

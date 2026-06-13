@@ -33,7 +33,7 @@ $functions = [
         'description' => 'Begins course design.',
         'type'        => 'read',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_start_generation' => [
@@ -43,7 +43,7 @@ $functions = [
         'description' => 'Prepare generation and start async file sync.',
         'type'        => 'write',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_get_filesync_status' => [
@@ -53,7 +53,7 @@ $functions = [
         'description' => 'Poll file sync status for a draft course.',
         'type'        => 'read',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_submit_structure_job' => [
@@ -63,7 +63,7 @@ $functions = [
         'description' => 'Submit remote structure generation job after file sync.',
         'type'        => 'write',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_get_structure' => [
@@ -73,7 +73,7 @@ $functions = [
         'description' => 'Get course design structure by job ID',
         'type'        => 'read',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_save_structure' => [
@@ -83,7 +83,7 @@ $functions = [
         'description' => 'Save course design structure (single row per job)',
         'type'        => 'write',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_validate_structure_for_finalize' => [
@@ -93,7 +93,7 @@ $functions = [
         'description' => 'Validate structure before finalize (read-only; no save or jobs)',
         'type'        => 'read',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_get_structure_status' => [
@@ -103,7 +103,7 @@ $functions = [
         'description' => 'Get remote structure generation job status',
         'type'        => 'read',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_finalize_course' => [
@@ -113,7 +113,7 @@ $functions = [
         'description' => 'Finalize draft course after structure is ready',
         'type'        => 'write',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_get_finalize_progress' => [
@@ -123,7 +123,7 @@ $functions = [
         'description' => 'Get finalize course progress (Section X of Y) for UI polling',
         'type'        => 'read',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_get_image_status' => [
@@ -133,7 +133,7 @@ $functions = [
         'description' => 'Get structure image generation/edit status',
         'type'        => 'read',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_start_image_edit' => [
@@ -143,7 +143,7 @@ $functions = [
         'description' => 'Start async structure image edit',
         'type'        => 'write',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
     'block_dixeo_designer_cancel_draft' => [
@@ -153,7 +153,7 @@ $functions = [
         'description' => 'Cancel draft course and revert to prompt',
         'type'        => 'write',
         'ajax'        => true,
-        'capabilities' => 'block/dixeo_designer:create',
+        'capabilities' => 'local/dixeo:create',
         'loginrequired' => true,
     ],
 ];

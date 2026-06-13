@@ -35,7 +35,6 @@ $string['designacourse'] = 'Einen Kurs gestalten';
 // Capabilities.
 $string['dixeo_designer:addinstance'] = 'Einen Dixeo-Kursdesigner-Block hinzufügen';
 $string['dixeo_designer:myaddinstance'] = 'Einen neuen Dixeo-Kursdesigner-Block zu meiner Übersicht hinzufügen';
-$string['dixeo_designer:create'] = 'Kurse mit dem Dixeo-Kursdesigner erstellen';
 $string['dixeo_designer:manage'] = 'Dixeo-Kursdesigner verwalten';
 $string['manage'] = 'Dixeo-Kursdesigner verwalten';
 $string['myaddinstance'] = 'Einen neuen Dixeo-Kursdesigner-Block zu meiner Übersicht hinzufügen';

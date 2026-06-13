@@ -78,7 +78,7 @@ final class finalize_course extends external_api {
 
         $context = \context_system::instance();
         self::validate_context($context);
-        require_capability('block/dixeo_designer:create', $context);
+        require_capability('local/dixeo:create', $context);
         require_sesskey();
 
         // Release the session lock early so concurrent polling requests

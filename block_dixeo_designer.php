@@ -84,7 +84,7 @@ class block_dixeo_designer extends block_base {
         require_once($CFG->dirroot . '/blocks/dixeo_designer/lib.php');
 
         // We can exit early if the current user doesn't have the capability to create courses.
-        if (!has_capability('block/dixeo_designer:create', $this->context)) {
+        if (!has_capability('local/dixeo:create', $this->context)) {
             return null;
         }
 

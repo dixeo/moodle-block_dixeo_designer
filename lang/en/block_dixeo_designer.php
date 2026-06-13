@@ -35,7 +35,6 @@ $string['designacourse'] = 'Design a course';
 // Capabilities.
 $string['dixeo_designer:addinstance'] = 'Add a Dixeo Course Designer block';
 $string['dixeo_designer:myaddinstance'] = 'Add a new Dixeo Course Designer block to my dashboard';
-$string['dixeo_designer:create'] = 'Create courses using Dixeo Course Designer';
 $string['dixeo_designer:manage'] = 'Manage Dixeo Course Designer';
 $string['manage'] = 'Manage Dixeo Course Designer';
 $string['myaddinstance'] = 'Add a new Dixeo Course Designer block to my dashboard';

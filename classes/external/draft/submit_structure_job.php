@@ -60,7 +60,7 @@ final class submit_structure_job extends external_api {
 
         $context = \context_system::instance();
         self::validate_context($context);
-        require_capability('block/dixeo_designer:create', $context);
+        require_capability('local/dixeo:create', $context);
         require_sesskey();
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();

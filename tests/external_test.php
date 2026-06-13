@@ -99,7 +99,7 @@ final class external_test extends advanced_testcase {
     private function assign_capability(): void {
         $sysctx = \context_system::instance();
         $roleid = $this->getDataGenerator()->create_role();
-        assign_capability('block/dixeo_designer:create', CAP_ALLOW, $roleid, $sysctx->id);
+        assign_capability('local/dixeo:create', CAP_ALLOW, $roleid, $sysctx->id);
         role_assign($roleid, $this->user->id, $sysctx->id);
     }
 
@@ -251,7 +251,7 @@ final class external_test extends advanced_testcase {
     public function test_external_requires_create_capability(): void {
         $other = $this->getDataGenerator()->create_user();
         $this->setUser($other);
-        // $other has no block/dixeo_designer:create capability.
+        // $other has no local/dixeo:create capability.
 
         $this->expectException(\required_capability_exception::class);
         generate_course::generate_course('job-1', 'D', null, sesskey(), false);

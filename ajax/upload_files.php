@@ -22,7 +22,7 @@ require_login();
 require_sesskey();
 
 $context = context_system::instance();
-require_capability('block/dixeo_designer:create', $context);
+require_capability('local/dixeo:create', $context);
 
 $jobid = required_param('jobid', PARAM_TEXT);
 

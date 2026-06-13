@@ -75,7 +75,6 @@ $string['self_enrol_generate_key_desc'] = 'Se attivata, viene impostata una chia
 
 $string['dixeo_designer:addinstance'] = 'Aggiungi un blocco Progettatore di Corsi Dixeo';
 $string['dixeo_designer:myaddinstance'] = 'Aggiungi un nuovo blocco Progettatore di Corsi Dixeo alla mia dashboard';
-$string['dixeo_designer:create'] = 'Creare corsi con il Progettatore di Corsi Dixeo';
 $string['dixeo_designer:manage'] = 'Gestire il Progettatore di Corsi Dixeo';
 $string['manage'] = 'Gestire il Progettatore di Corsi Dixeo';
 $string['draganddrop'] = 'Trascina e rilascia i tuoi file per caricarli';

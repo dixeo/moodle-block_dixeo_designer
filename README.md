@@ -63,7 +63,7 @@ You can also create a [free Dixeo account](https://dixeo.com/login/signup.php) t
 
 ## 🔐 Permissions
 
-Ensure that users have the `block/dixeo_designer:create` capability to access and use the plugin features.
+Ensure that users have the `local/dixeo:create` capability to access and use the plugin features.
 
 ---
 

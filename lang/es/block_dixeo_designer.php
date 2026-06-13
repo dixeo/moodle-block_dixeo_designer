@@ -75,7 +75,6 @@ $string['self_enrol_generate_key_desc'] = 'Si está activada, se define una clav
 
 $string['dixeo_designer:addinstance'] = 'Agregar un bloque Diseñador de Cursos Dixeo';
 $string['dixeo_designer:myaddinstance'] = 'Agregar un nuevo bloque Diseñador de Cursos Dixeo a mi panel';
-$string['dixeo_designer:create'] = 'Crear cursos con el Diseñador de Cursos Dixeo';
 $string['dixeo_designer:manage'] = 'Gestionar el Diseñador de Cursos Dixeo';
 $string['manage'] = 'Gestionar el Diseñador de Cursos Dixeo';
 $string['draganddrop'] = 'Arrastra y suelta tus archivos para subirlos';

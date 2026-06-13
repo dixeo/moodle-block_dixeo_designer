@@ -75,7 +75,6 @@ $string['self_enrol_generate_key_desc'] = 'Si activé, une clé d’inscription 
 
 $string['dixeo_designer:addinstance'] = 'Ajouter un bloc Concepteur de Cours Dixeo';
 $string['dixeo_designer:myaddinstance'] = 'Ajouter un nouveau bloc Concepteur de Cours Dixeo à mon tableau de bord';
-$string['dixeo_designer:create'] = 'Créer des cours avec le Concepteur de Cours Dixeo';
 $string['dixeo_designer:manage'] = 'Gérer le Concepteur de Cours Dixeo';
 $string['manage'] = 'Gérer le Concepteur de Cours Dixeo';
 $string['draganddrop'] = 'Glissez-déposez vos fichiers pour les télécharger';

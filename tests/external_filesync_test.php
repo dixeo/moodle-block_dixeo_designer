@@ -81,7 +81,7 @@ final class external_filesync_test extends advanced_testcase {
     private function assign_capability(): void {
         $sysctx = \context_system::instance();
         $roleid = $this->getDataGenerator()->create_role();
-        assign_capability('block/dixeo_designer:create', CAP_ALLOW, $roleid, $sysctx->id);
+        assign_capability('local/dixeo:create', CAP_ALLOW, $roleid, $sysctx->id);
         role_assign($roleid, $this->user->id, $sysctx->id);
     }
 

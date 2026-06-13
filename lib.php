@@ -60,7 +60,7 @@ function block_dixeo_designer_pluginfile(
     }
 
     require_login();
-    require_capability('block/dixeo_designer:create', $context);
+    require_capability('local/dixeo:create', $context);
 
     if (count($args) < 2) {
         return false;
