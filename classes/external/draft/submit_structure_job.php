@@ -86,4 +86,3 @@ final class submit_structure_job extends external_api {
         ]);
     }
 }
-

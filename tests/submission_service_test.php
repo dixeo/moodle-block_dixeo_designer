@@ -30,7 +30,6 @@ use block_dixeo_designer\service\submission\service;
  * @covers     \block_dixeo_designer\service\submission\repository
  */
 final class submission_service_test extends advanced_testcase {
-
     /** @var service */
     private $service;
 

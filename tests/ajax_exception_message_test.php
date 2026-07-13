@@ -39,7 +39,6 @@ require_once($CFG->dirroot . '/blocks/dixeo_designer/lib.php');
  * @covers     ::block_dixeo_designer_format_ajax_exception_message
  */
 final class ajax_exception_message_test extends \advanced_testcase {
-
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest(true);

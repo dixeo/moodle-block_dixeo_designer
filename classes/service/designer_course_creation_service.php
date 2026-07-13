@@ -29,7 +29,6 @@ use block_dixeo_designer\workflow_constants;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class designer_course_creation_service {
-
     /** @var string idnumber prefix for draft courses (cleanup matches this). */
     public const IDNUMBER_DRAFT_PREFIX = 'dixeo_draft_';
 
@@ -360,10 +359,12 @@ class designer_course_creation_service {
             return false;
         }
 
-        if (!\local_dixeo\service\image_generation_policy::is_enabled(
-            \local_dixeo\service\image_generation_policy::ENTITY_SECTION,
-            \local_dixeo\service\image_generation_policy::ACTION_GENERATE
-        )) {
+        if (
+            !\local_dixeo\service\image_generation_policy::is_enabled(
+                \local_dixeo\service\image_generation_policy::ENTITY_SECTION,
+                \local_dixeo\service\image_generation_policy::ACTION_GENERATE
+            )
+        ) {
             return false;
         }
 
@@ -776,8 +777,10 @@ class designer_course_creation_service {
             return false;
         }
         $status = $info->get_status();
-        if ($status === \core_plugin_manager::PLUGIN_STATUS_MISSING
-                || $status === \core_plugin_manager::PLUGIN_STATUS_DELETE) {
+        if (
+            $status === \core_plugin_manager::PLUGIN_STATUS_MISSING
+                || $status === \core_plugin_manager::PLUGIN_STATUS_DELETE
+        ) {
             return false;
         }
         if ($info->is_enabled() === false) {

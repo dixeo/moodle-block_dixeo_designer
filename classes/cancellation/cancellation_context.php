@@ -24,7 +24,6 @@ namespace block_dixeo_designer\cancellation;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cancellation_context {
-
     /** @var bool Whether a structure row exists for the job. */
     public bool $hassavedstructure;
 

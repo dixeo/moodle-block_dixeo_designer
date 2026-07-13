@@ -30,7 +30,6 @@ use block_dixeo_designer\external\draft\dto\cancel_draft_result;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cancel_draft extends external_api {
-
     /**
      * Web service parameter definitions.
      *

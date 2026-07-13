@@ -24,7 +24,6 @@ namespace block_dixeo_designer\cancellation;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cancellation_plan {
-
     /** @var bool Delete rows in block_dixeo_designer_structure for this job. */
     public bool $deletestructurerows;
 

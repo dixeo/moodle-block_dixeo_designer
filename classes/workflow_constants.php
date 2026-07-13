@@ -56,4 +56,3 @@ final class workflow_constants {
     /** @var int Minimum instruction length enforced by remote structure generation. */
     public const MIN_INSTRUCTIONS_LEN = 20;
 }
-

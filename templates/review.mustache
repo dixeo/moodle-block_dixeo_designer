@@ -23,6 +23,21 @@
 
     Context variables required for this template:
     * jobid - The job identifier
+    * designercourseid - Draft course id (number or null)
+    * loading, save, cancel, cancelling, undo, redo, create_course - UI strings
+
+    Example context (json):
+    {
+        "jobid": "d123example",
+        "designercourseid": 0,
+        "loading": "Loading…",
+        "save": "Save",
+        "cancel": "Cancel",
+        "cancelling": "Cancelling…",
+        "undo": "Undo",
+        "redo": "Redo",
+        "create_course": "Create course"
+    }
 }}
 
 <div class="block_dixeo_designer designer-container">

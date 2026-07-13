@@ -46,7 +46,7 @@ final class course_template_helper_test extends advanced_testcase {
 
         $options = course_template_helper::get_course_template_options('');
 
-        $selected = array_values(array_filter($options, static function(array $option): bool {
+        $selected = array_values(array_filter($options, static function (array $option): bool {
             return !empty($option['selected']);
         }));
 
@@ -64,7 +64,7 @@ final class course_template_helper_test extends advanced_testcase {
 
         $options = course_template_helper::get_course_template_options('tpl-alt');
 
-        $selected = array_values(array_filter($options, static function(array $option): bool {
+        $selected = array_values(array_filter($options, static function (array $option): bool {
             return !empty($option['selected']);
         }));
 

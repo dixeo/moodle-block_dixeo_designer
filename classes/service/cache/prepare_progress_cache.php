@@ -24,7 +24,6 @@ namespace block_dixeo_designer\service\cache;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class prepare_progress_cache {
-
     /**
      * Return the prepare progress cache store.
      *

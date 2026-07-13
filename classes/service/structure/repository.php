@@ -24,7 +24,6 @@ namespace block_dixeo_designer\service\structure;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class repository {
-
     /** @var string Table name. */
     private const TABLE = 'block_dixeo_designer_structure';
 

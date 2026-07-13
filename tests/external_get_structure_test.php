@@ -34,7 +34,6 @@ use block_dixeo_designer\external\course\get_structure;
  * @covers     \block_dixeo_designer\external\course\get_structure
  */
 final class external_get_structure_test extends advanced_testcase {
-
     /** @var \stdClass */
     private $user;
 

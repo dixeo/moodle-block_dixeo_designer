@@ -13,6 +13,62 @@
     * designer_image_show_loading - When true, show generating spinner (course image policy + no image yet)
     * designer_image_allow_edit - When true, show regenerate control (course image edit policy + has image)
     * designer_show_course_image_area - When false, hide the course image frame (no image and generation disabled)
+
+    Example context (json):
+    {
+        "title": "Sample course",
+        "summary": "A short course summary.",
+        "image": "https://example.com/course-image.jpg",
+        "jobid": "d123example",
+        "designer_show_course_image_area": true,
+        "designer_image_show_loading": false,
+        "designer_image_allow_edit": true,
+        "hasSections": true,
+        "sections": [
+            {
+                "index": 0,
+                "title": "Introduction",
+                "summary": "Getting started",
+                "hasModules": true,
+                "modules": [
+                    {
+                        "index": 0,
+                        "sectionIndex": 0,
+                        "title": "Welcome page",
+                        "summary": "Overview",
+                        "instructions": "Read this first.",
+                        "typeLabel": "Page",
+                        "iconurl": "https://example.com/mod/page/pix/monologo.svg",
+                        "moduleTypeOptions": [
+                            {
+                                "value": "page",
+                                "label": "Page",
+                                "iconurl": "https://example.com/mod/page/pix/monologo.svg"
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "strings": {
+            "expand_all": "Expand all",
+            "collapse_all": "Collapse all",
+            "add_section": "Add section",
+            "add_activity": "Add activity",
+            "duplicate": "Duplicate",
+            "delete": "Delete",
+            "change_activity_type": "Change activity type",
+            "module_summary_label": "Summary",
+            "module_instructions_label": "Instructions",
+            "placeholder_course_title": "Course title",
+            "placeholder_course_summary": "Course summary",
+            "placeholder_section_title": "Section title",
+            "placeholder_section_summary": "Section summary",
+            "placeholder_module_title": "Activity title",
+            "placeholder_module_summary": "Activity summary",
+            "placeholder_module_instructions": "Activity instructions"
+        }
+    }
 }}
 <div class="course-overview">
     {{#designer_show_course_image_area}}
@@ -43,6 +99,7 @@
     <div class="edit-controls"></div>
 </div>
 
+{{#image}}
 <div class="designer-image-preview-modal d-none" data-designer-image-preview-modal aria-hidden="true">
     <div class="designer-image-preview-backdrop" data-designer-image-preview-close></div>
     <div class="designer-image-preview-dialog" role="dialog" aria-modal="true" aria-label="{{title}}">
@@ -55,6 +112,7 @@
         <img src="{{image}}" alt="{{#title}}{{title}}{{/title}}{{^title}}{{#str}} designer_placeholder_course_title, block_dixeo_designer {{/str}}{{/title}}" loading="lazy" decoding="async" data-designer-image-preview-img>
     </div>
 </div>
+{{/image}}
 
 <div class="designer-image-regenerate-modal d-none" data-designer-image-regenerate-modal aria-hidden="true">
     <div class="designer-image-regenerate-backdrop" data-designer-image-regenerate-close></div>

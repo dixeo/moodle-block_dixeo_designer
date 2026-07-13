@@ -93,4 +93,3 @@ final class start_image_edit extends external_api {
         ]);
     }
 }
-

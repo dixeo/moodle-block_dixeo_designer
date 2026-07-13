@@ -24,7 +24,6 @@ namespace block_dixeo_designer\local;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class dixeo_capability {
-
     /**
      * Require local/dixeo:generate in the given course (CONTEXT_COURSE capability).
      *

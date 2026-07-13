@@ -37,7 +37,6 @@ use local_dixeo\service\designer_structure_finalize_validation_service;
  * @package    block_dixeo_designer
  */
 final class validate_structure_for_finalize extends external_api {
-
     /**
      * Parameter definitions for validate_structure_for_finalize.
      *

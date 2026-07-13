@@ -173,19 +173,16 @@ define([
     /**
      * Commit the field currently being edited (if any).
      *
-     * @param {Function} [done] Called with true when saved and valid, false when validation failed.
+     * @return {Promise<boolean>} Resolves true when saved and valid, false when validation failed.
      */
-    commitCurrentEdit: function(done) {
+    commitCurrentEdit: function() {
         if (!this.currentlyEditing) {
-            if (typeof done === 'function') {
-                done(true);
-            }
-            return;
+            return Promise.resolve(true);
         }
         var $element = this.currentlyEditing;
         var path = $element.data('path');
         var newText = this.readEditableValue($element);
-        this.saveEdit($element, path, newText, done);
+        return this.saveEdit($element, path, newText);
     },
 
     /**
@@ -224,11 +221,12 @@ define([
                 if (self.currentlyEditing[0] === $target[0]) {
                     return;
                 }
-                self.commitCurrentEdit(function(ok) {
+                self.commitCurrentEdit().then(function(ok) {
                     if (ok !== false) {
                         self.startEditing($target);
                     }
-                });
+                    return null;
+                }).catch(Notification.exception);
                 return;
             }
 
@@ -308,9 +306,9 @@ define([
      * @param {jQuery} $element Element being edited
      * @param {string} path Data path
      * @param {string} value New value
-     * @param {Function} [done] Called with true/false when validation finishes
+     * @return {Promise<boolean>} Resolves true when saved and valid, false when validation failed.
      */
-    saveEdit: function($element, path, value, done) {
+    saveEdit: function($element, path, value) {
         var self = this;
         var decodedValue = TextUtil.decodeHtml(value);
         var snapshot = JSON.parse(JSON.stringify(this.structure));
@@ -319,7 +317,7 @@ define([
         this.setValueByPath(this.structure, path, decodedValue);
         $controls.find('.save-edit, .cancel-edit').prop('disabled', true);
 
-        this.validateStructureForDesigner(path).then(function(resp) {
+        return this.validateStructureForDesigner(path).then(function(resp) {
             $controls.find('.save-edit, .cancel-edit').prop('disabled', false);
 
             if (resp && resp.valid) {
@@ -328,10 +326,7 @@ define([
                 self.applyEditableSavedValue($element, decodedValue);
                 self.cancelEdit($element);
                 self.syncEditablePlaceholder($element);
-                if (typeof done === 'function') {
-                    done(true);
-                }
-                return;
+                return true;
             }
 
             self.structure = snapshot;
@@ -340,17 +335,12 @@ define([
             self.applyEditableSavedValue($element, decodedValue);
             self.showStructureValidationErrors(fielderrors);
             $element.focus();
-
-            if (typeof done === 'function') {
-                done(false);
-            }
-        }).catch(function(err) {
+            return false;
+        }).catch(function(failure) {
             self.structure = snapshot;
             $controls.find('.save-edit, .cancel-edit').prop('disabled', false);
-            if (typeof done === 'function') {
-                done(false);
-            }
-            Notification.exception(err);
+            Notification.exception(failure);
+            return false;
         });
     },
 

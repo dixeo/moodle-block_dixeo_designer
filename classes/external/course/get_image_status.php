@@ -90,4 +90,3 @@ final class get_image_status extends external_api {
         ]);
     }
 }
-

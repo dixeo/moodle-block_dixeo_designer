@@ -40,7 +40,6 @@ use local_dixeo\service\image_generation_service;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class designer_service {
-
     /** @var submission_service */
     private submission_service $submissions;
 
@@ -237,7 +236,10 @@ class designer_service {
             // Allow concurrent get_filesync_status polls while files are copied and trigger_sync runs.
             \core\session\manager::write_close();
 
-            $this->files->copy_files_to_course_resources((int) $submission->id, (int) $course->id, $userid,
+            $this->files->copy_files_to_course_resources(
+                (int) $submission->id,
+                (int) $course->id,
+                $userid,
                 function (int $copied, int $total) use ($jobid): void {
                     prepare_progress_cache::set_copied($jobid, $copied);
                 }
@@ -816,10 +818,12 @@ class designer_service {
             throw new \moodle_exception('structurenotfound', 'block_dixeo_designer');
         }
 
-        if (image_generation_policy::is_enabled(
-            image_generation_policy::ENTITY_COURSE,
-            image_generation_policy::ACTION_GENERATE
-        )) {
+        if (
+            image_generation_policy::is_enabled(
+                image_generation_policy::ENTITY_COURSE,
+                image_generation_policy::ACTION_GENERATE
+            )
+        ) {
             $this->cancel_image_job_if_running($structure->imagejobid ?? null);
         }
 
@@ -873,10 +877,12 @@ class designer_service {
             throw new \moodle_exception('invalidinput', 'block_dixeo_designer');
         }
 
-        if (image_generation_policy::is_enabled(
-            image_generation_policy::ENTITY_COURSE,
-            image_generation_policy::ACTION_EDIT
-        )) {
+        if (
+            image_generation_policy::is_enabled(
+                image_generation_policy::ENTITY_COURSE,
+                image_generation_policy::ACTION_EDIT
+            )
+        ) {
             $this->cancel_image_job_if_running($structure->imagejobid ?? null);
         }
 
@@ -923,11 +929,13 @@ class designer_service {
 
         if ($imagejobid === '') {
             // Auto-start when structure has no image yet (first visit after generation).
-            if (!$image && !empty($submission->courseid)
+            if (
+                !$image && !empty($submission->courseid)
                     && image_generation_policy::is_enabled(
                         image_generation_policy::ENTITY_COURSE,
                         image_generation_policy::ACTION_GENERATE
-                    )) {
+                    )
+            ) {
                 $this->start_structure_image_generation($jobid, $userid);
                 return [
                     'status' => 'pending',
@@ -1038,10 +1046,12 @@ class designer_service {
         $mode = trim($finalizemode);
 
         if ($mode === 'quick') {
-            if (!image_generation_policy::is_enabled(
-                image_generation_policy::ENTITY_COURSE,
-                image_generation_policy::ACTION_GENERATE
-            )) {
+            if (
+                !image_generation_policy::is_enabled(
+                    image_generation_policy::ENTITY_COURSE,
+                    image_generation_policy::ACTION_GENERATE
+                )
+            ) {
                 return;
             }
             if ($struct && !empty($struct->imagejobid)) {

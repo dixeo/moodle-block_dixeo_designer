@@ -34,7 +34,6 @@ use block_dixeo_designer\service\designer_course_creation_service;
  * @covers     \block_dixeo_designer\service\designer_service
  */
 final class designer_service_test extends advanced_testcase {
-
     /** @var \stdClass */
     private $user;
 
@@ -395,7 +394,7 @@ final class designer_service_test extends advanced_testcase {
         $mocksubmissions->expects($this->never())->method('delete_submission');
         $mocksubmissions->expects($this->once())
             ->method('mark_status')
-            ->with($this->callback(function($sub) {
+            ->with($this->callback(function ($sub) {
                 return (int) ($sub->courseid ?? 0) === 0 && ($sub->remotejobid ?? null) === null;
             }), workflow_constants::SUBMISSION_STATUS_DRAFT);
 
@@ -414,7 +413,13 @@ final class designer_service_test extends advanced_testcase {
             ->with($courseid, $userid, true);
 
         $service = new designer_service(
-            $mocksubmissions, null, $mockstructures, $mockcoursecreation, null, null, $mockfilesync
+            $mocksubmissions,
+            null,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            null,
+            $mockfilesync
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
@@ -440,7 +445,7 @@ final class designer_service_test extends advanced_testcase {
         $mocksubmissions->expects($this->never())->method('delete_submission');
         $mocksubmissions->expects($this->once())
             ->method('mark_status')
-            ->with($this->callback(function($sub) {
+            ->with($this->callback(function ($sub) {
                 return (int) ($sub->courseid ?? 0) === 0 && ($sub->remotejobid ?? null) === null;
             }), workflow_constants::SUBMISSION_STATUS_DRAFT);
 
@@ -460,7 +465,13 @@ final class designer_service_test extends advanced_testcase {
             ->with($courseid, $userid, true);
 
         $service = new designer_service(
-            $mocksubmissions, null, $mockstructures, $mockcoursecreation, null, $mockjobservice, $mockfilesync
+            $mocksubmissions,
+            null,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            $mockjobservice,
+            $mockfilesync
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
@@ -506,7 +517,13 @@ final class designer_service_test extends advanced_testcase {
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, false);
 
         $service = new designer_service(
-            $mocksubmissions, null, $mockstructures, $mockcoursecreation, null, $mockjobservice, $mockfilesync
+            $mocksubmissions,
+            null,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            $mockjobservice,
+            $mockfilesync
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
@@ -568,7 +585,13 @@ final class designer_service_test extends advanced_testcase {
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, false);
 
         $service = new designer_service(
-            $mocksubmissions, null, $mockstructures, $mockcoursecreation, null, $mockjobservice, $mockfilesync
+            $mocksubmissions,
+            null,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            $mockjobservice,
+            $mockfilesync
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
@@ -617,7 +640,13 @@ final class designer_service_test extends advanced_testcase {
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, false);
 
         $service = new designer_service(
-            $mocksubmissions, null, $mockstructures, $mockcoursecreation, null, $mockjobservice, $mockfilesync
+            $mocksubmissions,
+            null,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            $mockjobservice,
+            $mockfilesync
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
@@ -643,7 +672,7 @@ final class designer_service_test extends advanced_testcase {
         $mocksubmissions->expects($this->never())->method('delete_submission');
         $mocksubmissions->expects($this->once())
             ->method('mark_status')
-            ->with($this->callback(function($sub) {
+            ->with($this->callback(function ($sub) {
                 return (int) ($sub->courseid ?? 0) === 0 && ($sub->remotejobid ?? null) === null;
             }), workflow_constants::SUBMISSION_STATUS_DRAFT);
 
@@ -661,7 +690,13 @@ final class designer_service_test extends advanced_testcase {
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, true);
 
         $service = new designer_service(
-            $mocksubmissions, null, $mockstructures, $mockcoursecreation, null, $mockjobservice, $mockfilesync
+            $mocksubmissions,
+            null,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            $mockjobservice,
+            $mockfilesync
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
@@ -689,7 +724,13 @@ final class designer_service_test extends advanced_testcase {
         $mockfilesync->expects($this->once())->method('disable_sync')->with($course->id, $userid, true);
 
         $service = new designer_service(
-            $submissions, null, $structures, $mockcoursecreation, null, null, $mockfilesync
+            $submissions,
+            null,
+            $structures,
+            $mockcoursecreation,
+            null,
+            null,
+            $mockfilesync
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
@@ -728,7 +769,13 @@ final class designer_service_test extends advanced_testcase {
         $mockfilesync->expects($this->once())->method('disable_sync')->with($course->id, $userid, false);
 
         $service = new designer_service(
-            $submissions, null, $structures, $coursecreation, null, $mockjobservice, $mockfilesync
+            $submissions,
+            null,
+            $structures,
+            $coursecreation,
+            null,
+            $mockjobservice,
+            $mockfilesync
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
@@ -767,7 +814,7 @@ final class designer_service_test extends advanced_testcase {
         $mocksubmissions->expects($this->never())->method('delete_submission');
         $mocksubmissions->expects($this->once())
             ->method('mark_status')
-            ->with($this->callback(function($sub) {
+            ->with($this->callback(function ($sub) {
                 return (int) ($sub->courseid ?? 0) === 0 && ($sub->remotejobid ?? null) === null;
             }), workflow_constants::SUBMISSION_STATUS_DRAFT);
 
@@ -785,7 +832,13 @@ final class designer_service_test extends advanced_testcase {
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, true);
 
         $service = new designer_service(
-            $mocksubmissions, null, $mockstructures, $mockcoursecreation, null, $mockjobservice, $mockfilesync
+            $mocksubmissions,
+            null,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            $mockjobservice,
+            $mockfilesync
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid, true));
@@ -856,4 +909,3 @@ final class designer_service_test extends advanced_testcase {
         $this->assertSame(0, (int) ($finalize['module_total'] ?? 0));
     }
 }
-

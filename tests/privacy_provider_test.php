@@ -41,7 +41,6 @@ use core_privacy\local\request\writer;
  * @covers     \block_dixeo_designer\privacy\provider
  */
 final class privacy_provider_test extends \core_privacy\tests\provider_testcase {
-
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();

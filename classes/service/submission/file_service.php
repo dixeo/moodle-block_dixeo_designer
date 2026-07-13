@@ -85,7 +85,7 @@ class file_service {
      */
     public function store_uploaded_files(int $submissionid, int $userid, array $uploadedfiles): array {
         $existingfiles = $this->get_files($submissionid);
-        $totalsize = array_reduce($existingfiles, static function(int $carry, \stored_file $file): int {
+        $totalsize = array_reduce($existingfiles, static function (int $carry, \stored_file $file): int {
             return $carry + $file->get_filesize();
         }, 0);
 

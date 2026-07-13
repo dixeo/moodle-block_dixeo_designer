@@ -40,10 +40,9 @@ use core_privacy\local\request\writer;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class provider implements
-        \core_privacy\local\metadata\provider,
-        \core_privacy\local\request\plugin\provider,
-        \core_privacy\local\request\core_userlist_provider {
-
+    \core_privacy\local\metadata\provider,
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
     /** @var string File area for uploaded source materials (itemid = submission id). */
     public const FILEAREA_SUBMISSIONFILES = 'submissionfiles';
 
@@ -123,8 +122,10 @@ class provider implements
 
         $contextlist = new contextlist();
 
-        if ($DB->record_exists('block_dixeo_designer_submission', ['userid' => $userid])
-                || $DB->record_exists('block_dixeo_designer_structure', ['userid' => $userid])) {
+        if (
+            $DB->record_exists('block_dixeo_designer_submission', ['userid' => $userid])
+                || $DB->record_exists('block_dixeo_designer_structure', ['userid' => $userid])
+        ) {
             $contextlist->add_system_context();
             return $contextlist;
         }

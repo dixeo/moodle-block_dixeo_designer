@@ -8,6 +8,57 @@
     * template_selector.name - form field name
     * template_selector.select - choicelist export
     * template_selector.dropdown - dropdown/status export
+
+    Example context (json):
+    {
+        "template_selector": {
+            "id": "templateid",
+            "name": "templateid",
+            "select": {
+                "options": [
+                    {
+                        "value": "",
+                        "name": "None",
+                        "optionuniqid": "noneopt",
+                        "selected": true
+                    },
+                    {
+                        "value": "tpl-1",
+                        "name": "Sample template",
+                        "optionuniqid": "tpl1opt",
+                        "selected": false
+                    }
+                ]
+            },
+            "dropdown": {
+                "buttonid": "templateid_button",
+                "buttoncontent": "None",
+                "choices": {
+                    "hasoptions": true,
+                    "options": [
+                        {
+                            "optionid": "option_none",
+                            "value": "",
+                            "name": "None",
+                            "hasicon": false,
+                            "first": true,
+                            "optionnumber": 1,
+                            "optionuniqid": "noneopt",
+                            "selected": true
+                        },
+                        {
+                            "optionid": "option_tpl1",
+                            "value": "tpl-1",
+                            "name": "Sample template",
+                            "hasicon": false,
+                            "optionnumber": 2,
+                            "optionuniqid": "tpl1opt"
+                        }
+                    ]
+                }
+            }
+        }
+    }
 }}
 <div class="template-selector" title="{{#str}} coursetemplate, block_dixeo_designer {{/str}}">
     <select

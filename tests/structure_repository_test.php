@@ -29,7 +29,6 @@ use block_dixeo_designer\service\structure\repository;
  * @covers     \block_dixeo_designer\service\structure\repository
  */
 final class structure_repository_test extends advanced_testcase {
-
     /** @var repository */
     private $structures;
 

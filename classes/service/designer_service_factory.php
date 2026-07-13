@@ -26,7 +26,6 @@ use block_dixeo_designer\service\remote\dixeo_remote_adapter;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class designer_service_factory {
-
     /** @var designer_service|null Test instance for unit tests. */
     private static ?designer_service $testinstance = null;
 

@@ -32,6 +32,15 @@ define([
     const SESSION_RETURN_TO_KEY = 'block_dixeo_designer_return_to';
     const SESSION_RETURN_TO_JOBID_KEY = 'block_dixeo_designer_return_to_jobid';
 
+    // API / template keys that must remain snake_case for the server (accessed via consts).
+    const KEY_JOB_ID = 'job_id';
+    const KEY_FINALIZE_MODE = 'finalize_mode';
+    const KEY_GENERATE_ANOTHER_URL = 'generate_another_url';
+    const KEY_MODULE_TOTAL = 'module_total';
+    const KEY_MODULE_INDEX = 'module_index';
+    const KEY_SECTION_TOTAL = 'section_total';
+    const KEY_SECTION_INDEX = 'section_index';
+
     /**
      * Dispatched on document when generation/finalize UI should release backdrop + polls
      * (e.g. generator cancel must unlock designer.js Create Course lock).
@@ -49,6 +58,192 @@ define([
      * detail: { job_id: string, fielderrors: {path, message}[] }
      */
     const STRUCTURE_FIELD_VALIDATION_EVENT = 'dixeo_designer_structure_field_validation';
+
+    /**
+     * Resolve after ms (flattenable alternative to setTimeout + promises).
+     *
+     * @param {number} ms
+     * @returns {Promise}
+     */
+    function delay(ms) {
+        return new Promise(function(resolve) {
+            setTimeout(resolve, ms);
+        });
+    }
+
+    /**
+     * Best-effort step label update (swallows string fetch failures).
+     *
+     * @param {object} self Progress instance
+     * @param {number} step Step number
+     * @param {string} key Lang string key
+     * @param {object} [params] Lang string params
+     * @returns {Promise}
+     */
+    function updateStepLabel(self, step, key, params) {
+        return Str.get_string(key, 'block_dixeo_designer', params).then(function(str) {
+            self.setStepLabel(step, str);
+            return null;
+        }).catch(function() {
+            return null;
+        });
+    }
+
+    /**
+     * Alert using a lang string as fallback when failure.message is missing.
+     *
+     * @param {Error|object|null} failure
+     * @param {string} stringKey
+     * @returns {Promise}
+     */
+    function alertErrorWithString(failure, stringKey) {
+        return Str.get_string(stringKey, 'block_dixeo_designer').then(function(msg) {
+            Notification.alert('', (failure && failure.message) ? failure.message : msg);
+            return null;
+        }).catch(function() {
+            return null;
+        });
+    }
+
+    /**
+     * Handle invalid structure validation response (field events + optional alert).
+     *
+     * @param {object} self Progress instance
+     * @param {object|null} vresp Validation response
+     * @returns {Promise}
+     */
+    function handleInvalidStructure(self, vresp) {
+        self.resetProgress();
+        const fielderrors = (vresp && vresp.fielderrors) ? vresp.fielderrors : [];
+        if (fielderrors.length) {
+            const detail = {
+                fielderrors: fielderrors
+            };
+            detail[KEY_JOB_ID] = self.getJobId();
+            document.dispatchEvent(new CustomEvent(
+                STRUCTURE_FIELD_VALIDATION_EVENT,
+                {
+                    bubbles: true,
+                    detail: detail
+                }
+            ));
+        }
+        const errs = (vresp && vresp.errors && vresp.errors.length) ?
+            vresp.errors :
+            ['Validation failed'];
+        const body = errs.join('\n\n');
+        if (!fielderrors.length) {
+            return Str.get_string(
+                'designer_structure_validation_failed_title',
+                'block_dixeo_designer'
+            ).then(function(title) {
+                Notification.alert(title, body);
+                return null;
+            }).catch(function() {
+                Notification.alert('', body);
+                return null;
+            });
+        }
+        return Promise.resolve(null);
+    }
+
+    /**
+     * Start quick finalize + begin polling (preserves fire-and-forget finalize call).
+     *
+     * @param {object} self Progress instance
+     * @param {*} runId Generation run id
+     * @returns {Promise}
+     */
+    function startQuickFinalize(self, runId) {
+        const finalizeArgs = {
+            createcourse: true,
+            sesskey: M.cfg.sesskey
+        };
+        finalizeArgs[KEY_JOB_ID] = self.getJobId();
+        finalizeArgs[KEY_FINALIZE_MODE] = 'quick';
+
+        const finalizePromise = Ajax.call([{
+            methodname: 'block_dixeo_designer_finalize_course',
+            args: finalizeArgs,
+        }])[0].catch(function(err) {
+            if (runId !== self.generationRunId) {
+                return null;
+            }
+            self.resetProgress();
+            return alertErrorWithString(err, 'designer_error_finalize_failed');
+        });
+        self.pollFinalizeProgress(runId);
+        return finalizePromise;
+    }
+
+    /**
+     * Validate structure then finalize for create-course flow.
+     *
+     * @param {object} self Progress instance
+     * @param {string} structureJson
+     * @param {*} runId Generation run id
+     * @returns {Promise}
+     */
+    function finalizeAfterStructure(self, structureJson, runId) {
+        const validateArgs = {
+            structure: structureJson,
+            sesskey: M.cfg.sesskey
+        };
+        validateArgs[KEY_JOB_ID] = self.getJobId();
+
+        return Ajax.call([{
+            methodname: 'block_dixeo_designer_validate_structure_for_finalize',
+            args: validateArgs,
+        }])[0]
+        .then(function(vresp) {
+            if (runId !== self.generationRunId) {
+                return null;
+            }
+            if (!vresp || !vresp.valid) {
+                return handleInvalidStructure(self, vresp);
+            }
+            return startQuickFinalize(self, runId);
+        })
+        .catch(function(err) {
+            if (runId !== self.generationRunId) {
+                return null;
+            }
+            self.resetProgress();
+            return alertErrorWithString(err, 'designer_error_finalize_failed');
+        });
+    }
+
+    /**
+     * Save structure and navigate to designer for the current job.
+     *
+     * @param {object} self Progress instance
+     * @param {string} structureJson
+     * @returns {Promise}
+     */
+    function saveStructureAndNavigate(self, structureJson) {
+        const saveArgs = {
+            structure: structureJson,
+            sesskey: M.cfg.sesskey
+        };
+        saveArgs[KEY_JOB_ID] = self.getJobId();
+
+        return Ajax.call([{
+            methodname: 'block_dixeo_designer_save_structure',
+            args: saveArgs,
+        }])[0]
+        .then(function() {
+            document.dispatchEvent(
+                new CustomEvent(ALLOW_NAVIGATION_EVENT, {bubbles: true})
+            );
+            window.location.href = Config.wwwroot +
+                '/blocks/dixeo_designer/designer.php?id=' + self.getJobId();
+            return null;
+        })
+        .catch(function(err) {
+            self.resetProgress();
+            return alertErrorWithString(err, 'designer_error_save_structure_failed');
+        });
+    }
 
     /**
      * Map progress percentage to an active step.
@@ -183,22 +378,23 @@ define([
                     if (runId !== self.generationRunId) {
                         return;
                     }
+                    const syncArgs = {
+                        sesskey: M.cfg.sesskey
+                    };
+                    syncArgs[KEY_JOB_ID] = self.getJobId();
                     Ajax.call([{
                         methodname: 'block_dixeo_designer_get_filesync_status',
-                        args: {
-                            job_id: self.getJobId(),
-                            sesskey: M.cfg.sesskey
-                        },
+                        args: syncArgs,
                     }])[0]
                     .then(function(data) {
                         if (runId !== self.generationRunId) {
-                            return;
+                            return null;
                         }
                         if (data && data.errormessage) {
                             self.clearAllProgressPolls();
                             self.resetProgress();
                             Notification.alert('', data.errormessage);
-                            return;
+                            return null;
                         }
 
                         const hasSubmissionFiles = data.hassubmissionfiles === true || data.hassubmissionfiles === 1;
@@ -216,26 +412,27 @@ define([
                         }
 
                         const labelSpec = filesyncMap.resolveLabel(data, hasSubmissionFiles);
-                        Str.get_string(labelSpec.key, 'block_dixeo_designer', labelSpec.params || {})
-                            .then(function(label) {
-                                self.setStepLabel(1, label);
-                            });
+                        const labelPromise = updateStepLabel(
+                            self,
+                            1,
+                            labelSpec.key,
+                            labelSpec.params || {}
+                        );
 
                         if (!submitted && (data.status === 'synchronized' || noneReady)) {
                             submitted = true;
                             self.cancelFileSyncProgressAnimation();
                             self.submitStructureAndPoll(createcourse, runId, startStep2Fake);
                         }
+                        return labelPromise;
                     })
                     .catch(function(err) {
                         if (runId !== self.generationRunId) {
-                            return;
+                            return null;
                         }
                         self.clearAllProgressPolls();
                         self.resetProgress();
-                        Str.get_string('designer_error_status_check_failed', 'block_dixeo_designer').then(function(msg) {
-                            Notification.alert('', (err && err.message) ? err.message : msg);
-                        });
+                        return alertErrorWithString(err, 'designer_error_status_check_failed');
                     });
                 };
 
@@ -254,20 +451,19 @@ define([
                     this.filesyncPollIntervalId = null;
                 }
 
-                Str.get_string('step_generating_structure', 'block_dixeo_designer').then(function(str) {
-                    self.setStepLabel(2, str);
-                });
+                updateStepLabel(self, 2, 'step_generating_structure');
 
+                const structureArgs = {
+                    sesskey: M.cfg.sesskey
+                };
+                structureArgs[KEY_JOB_ID] = self.getJobId();
                 Ajax.call([{
                     methodname: 'block_dixeo_designer_submit_structure_job',
-                    args: {
-                        job_id: self.getJobId(),
-                        sesskey: M.cfg.sesskey
-                    },
+                    args: structureArgs,
                 }])[0]
                 .then(function() {
                     if (runId !== self.generationRunId) {
-                        return;
+                        return null;
                     }
                     self.structureSubmitDone = true;
                     self.setProgress(20, true);
@@ -275,16 +471,15 @@ define([
                         startStep2Fake();
                     }
                     self.pollStructureCompletion(createcourse, runId);
+                    return null;
                 })
                 .catch(function(err) {
                     if (runId !== self.generationRunId) {
-                        return;
+                        return null;
                     }
                     self.clearAllProgressPolls();
                     self.resetProgress();
-                    Str.get_string('designer_error_structure_start_failed', 'block_dixeo_designer').then(function(msg) {
-                        Notification.alert('', err.message || msg);
-                    });
+                    return alertErrorWithString(err, 'designer_error_structure_start_failed');
                 });
             },
 
@@ -295,155 +490,64 @@ define([
                     if (runId !== self.generationRunId) {
                         return;
                     }
+                    let afterStructure = null;
+                    const statusArgs = {
+                        sesskey: M.cfg.sesskey
+                    };
+                    statusArgs[KEY_JOB_ID] = self.getJobId();
                     Ajax.call([{
                         methodname: 'block_dixeo_designer_get_structure_status',
-                        args: {
-                            job_id: self.getJobId(),
-                            sesskey: M.cfg.sesskey
-                        },
+                        args: statusArgs,
                     }])[0]
                     .then(function(data) {
                         if (runId !== self.generationRunId) {
-                            return;
+                            return null;
                         }
                         if (data.failed) {
                             self.clearAllProgressPolls();
                             self.resetProgress();
-                            Str.get_string('designer_error_generation_failed_inline', 'block_dixeo_designer').then(function(msg) {
-                                Notification.alert('', data.error || msg);
-                            });
-                            return;
+                            return alertErrorWithString(
+                                {message: data.error},
+                                'designer_error_generation_failed_inline'
+                            );
                         }
 
                         if (!data.completed) {
-                            return;
+                            return null;
                         }
 
                         self.clearAllProgressPolls();
                         self.setProgress(40);
-                        const delayMs = createcourse ? 500 : 1000;
-                        setTimeout(function() {
-                            if (createcourse) {
-                                const structureJson = (typeof data.result === 'string')
-                                    ? data.result
-                                    : JSON.stringify(data.result || {});
-                                Ajax.call([{
-                                    methodname: 'block_dixeo_designer_validate_structure_for_finalize',
-                                    args: {
-                                        job_id: self.getJobId(),
-                                        structure: structureJson,
-                                        sesskey: M.cfg.sesskey
-                                    },
-                                }])[0]
-                                    .then(function(vresp) {
-                                        if (runId !== self.generationRunId) {
-                                            return;
-                                        }
-                                        if (!vresp || !vresp.valid) {
-                                            self.resetProgress();
-                                            const fielderrors = (vresp && vresp.fielderrors) ? vresp.fielderrors : [];
-                                            if (fielderrors.length) {
-                                                document.dispatchEvent(new CustomEvent(
-                                                    STRUCTURE_FIELD_VALIDATION_EVENT,
-                                                    {
-                                                        bubbles: true,
-                                                        detail: {
-                                                            job_id: self.getJobId(),
-                                                            fielderrors: fielderrors
-                                                        }
-                                                    }
-                                                ));
-                                            }
-                                            const errs = (vresp && vresp.errors && vresp.errors.length) ?
-                                                vresp.errors :
-                                                ['Validation failed'];
-                                            const body = errs.join('\n\n');
-                                            if (!fielderrors.length) {
-                                                Str.get_string(
-                                                    'designer_structure_validation_failed_title',
-                                                    'block_dixeo_designer'
-                                                ).then(function(title) {
-                                                    Notification.alert(title, body);
-                                                }).catch(function() {
-                                                    Notification.alert('', body);
-                                                });
-                                            }
-                                            return;
-                                        }
-                                        Ajax.call([{
-                                            methodname: 'block_dixeo_designer_finalize_course',
-                                            args: {
-                                                job_id: self.getJobId(),
-                                                createcourse: true,
-                                                sesskey: M.cfg.sesskey,
-                                                finalize_mode: 'quick'
-                                            },
-                                        }])[0].catch(function(err) {
-                                            if (runId !== self.generationRunId) {
-                                                return;
-                                            }
-                                            self.resetProgress();
-                                            Str.get_string(
-                                                'designer_error_finalize_failed',
-                                                'block_dixeo_designer'
-                                            ).then(function(msg) {
-                                                Notification.alert('', err.message || msg);
-                                            });
-                                        });
-                                        self.pollFinalizeProgress(runId);
-                                    })
-                                    .catch(function(err) {
-                                        if (runId !== self.generationRunId) {
-                                            return;
-                                        }
-                                        self.resetProgress();
-                                        Str.get_string(
-                                            'designer_error_finalize_failed',
-                                            'block_dixeo_designer'
-                                        ).then(function(msg) {
-                                            Notification.alert('', err.message || msg);
-                                        });
-                                    });
-                            } else {
-                                var structureJson = (typeof data.result === 'string')
-                                    ? data.result
-                                    : JSON.stringify(data.result || {});
-                                Ajax.call([{
-                                    methodname: 'block_dixeo_designer_save_structure',
-                                    args: {
-                                        job_id: self.getJobId(),
-                                        structure: structureJson,
-                                        sesskey: M.cfg.sesskey
-                                    },
-                                }])[0]
-                                .then(function() {
-                                    document.dispatchEvent(
-                                        new CustomEvent(ALLOW_NAVIGATION_EVENT, {bubbles: true})
-                                    );
-                                    window.location.href = Config.wwwroot +
-                                        '/blocks/dixeo_designer/designer.php?id=' + self.getJobId();
-                                })
-                                .catch(function(err) {
-                                    self.resetProgress();
-                                    Str.get_string(
-                                        'designer_error_save_structure_failed',
-                                        'block_dixeo_designer'
-                                    ).then(function(msg) {
-                                        Notification.alert('', err.message || msg);
-                                    });
-                                });
-                            }
-                        }, delayMs);
+                        afterStructure = {
+                            structureJson: (typeof data.result === 'string')
+                                ? data.result
+                                : JSON.stringify(data.result || {}),
+                            createcourse: createcourse,
+                            runId: runId
+                        };
+                        return delay(createcourse ? 500 : 1000);
                     })
-                    .catch(function(err) {
+                    .then(function() {
+                        if (!afterStructure) {
+                            return null;
+                        }
+                        const pending = afterStructure;
+                        afterStructure = null;
+                        if (pending.runId !== self.generationRunId) {
+                            return null;
+                        }
+                        if (pending.createcourse) {
+                            return finalizeAfterStructure(self, pending.structureJson, pending.runId);
+                        }
+                        return saveStructureAndNavigate(self, pending.structureJson);
+                    })
+                    .catch(function(failure) {
                         if (runId !== self.generationRunId) {
-                            return;
+                            return null;
                         }
                         self.clearAllProgressPolls();
                         self.resetProgress();
-                        Str.get_string('designer_error_status_check_failed', 'block_dixeo_designer').then(function(msg) {
-                            Notification.alert('', err.message || msg);
-                        });
+                        return alertErrorWithString(failure, 'designer_error_status_check_failed');
                     });
                 };
 
@@ -473,16 +577,17 @@ define([
                         return;
                     }
                     pollInFlight = true;
+                    const progressArgs = {
+                        sesskey: M.cfg.sesskey
+                    };
+                    progressArgs[KEY_JOB_ID] = self.getJobId();
                     Ajax.call([{
                         methodname: 'block_dixeo_designer_get_finalize_progress',
-                        args: {
-                            job_id: self.getJobId(),
-                            sesskey: M.cfg.sesskey
-                        },
+                        args: progressArgs,
                     }])[0]
                     .then(function(data) {
                         if (runId !== undefined && runId !== null && runId !== self.generationRunId) {
-                            return;
+                            return null;
                         }
                         if (data.phase === PHASE_GENERATING_CONTENT) {
                             const parsed = ContentPhaseProgress.parseIndexAndTotal(data);
@@ -490,48 +595,55 @@ define([
                                 contentPhaseAnimator.onGeneratingContentPoll(data, function(pct, force) {
                                     self.setProgress(pct, force);
                                 });
-                                Str.get_string('step_generating_content_count', 'block_dixeo_designer', {
+                                return updateStepLabel(self, 3, 'step_generating_content_count', {
                                     current: parsed.current,
                                     total: parsed.total
-                                }).then(function(str) {
-                                    self.setStepLabel(3, str);
                                 });
-                            } else {
-                                let total = 0;
-                                let current = 0;
-                                if (Number(data.module_total) > 0) {
-                                    total = Number(data.module_total) || 0;
-                                    const moduleIndex = Number(data.module_index) || 0;
-                                    current = Math.min(total, Math.max(1, moduleIndex));
-                                } else if (Number(data.section_total) > 0) {
-                                    total = Number(data.section_total) || 0;
-                                    const sectionIndex = Number(data.section_index) || 0;
-                                    current = Math.min(total, Math.max(1, sectionIndex));
-                                }
-                                if (total > 0) {
-                                    const completed = Math.max(0, current - 1);
-                                    const pct = 40 + 40 * (completed / total);
-                                    self.setProgress(pct);
-                                    Str.get_string('step_generating_content_count', 'block_dixeo_designer', {
-                                        current: current,
-                                        total: total
-                                    }).then(function(str) {
-                                        self.setStepLabel(3, str);
-                                    });
-                                }
                             }
-                        } else if (data.phase === PHASE_FINALIZING) {
+                            let total = 0;
+                            let current = 0;
+                            if (Number(data[KEY_MODULE_TOTAL]) > 0) {
+                                total = Number(data[KEY_MODULE_TOTAL]) || 0;
+                                const moduleIndex = Number(data[KEY_MODULE_INDEX]) || 0;
+                                current = Math.min(total, Math.max(1, moduleIndex));
+                            } else if (Number(data[KEY_SECTION_TOTAL]) > 0) {
+                                total = Number(data[KEY_SECTION_TOTAL]) || 0;
+                                const sectionIndex = Number(data[KEY_SECTION_INDEX]) || 0;
+                                current = Math.min(total, Math.max(1, sectionIndex));
+                            }
+                            if (total > 0) {
+                                const completed = Math.max(0, current - 1);
+                                const pct = 40 + 40 * (completed / total);
+                                self.setProgress(pct);
+                                return updateStepLabel(self, 3, 'step_generating_content_count', {
+                                    current: current,
+                                    total: total
+                                });
+                            }
+                            return null;
+                        }
+                        if (data.phase === PHASE_FINALIZING) {
                             contentPhaseAnimator.reset();
                             self.setProgress(80);
-                        } else if (data.phase === PHASE_DONE && data.courseid) {
+                            return null;
+                        }
+                        if (data.phase === PHASE_DONE && data.courseid) {
                             self.clearFinalizePoll();
                             self.setProgress(100);
                             self.finishProgress(data.courseid, data.coursename);
+                            return null;
                         }
+                        return null;
                     })
-                    .catch(function() {})
+                    .catch(function() {
+                        return null;
+                    })
                     .then(function() {
                         pollInFlight = false;
+                        return null;
+                    })
+                    .catch(function() {
+                        return null;
                     });
                 };
                 poll();
@@ -667,15 +779,16 @@ define([
                     const returnToIsDesigner = returnTo && returnTo.indexOf('/blocks/dixeo_designer/designer.php') !== -1;
 
                     if (hasMatchingStoredJob) {
-                        context.generate_another_url = returnToIsDesigner ? freshDesignerUrl : returnTo;
+                        context[KEY_GENERATE_ANOTHER_URL] = returnToIsDesigner ? freshDesignerUrl : returnTo;
                     } else {
-                        context.generate_another_url = currentIsDesignerPage ? freshDesignerUrl : (Config.wwwroot + '/my/');
+                        context[KEY_GENERATE_ANOTHER_URL] = currentIsDesignerPage ? freshDesignerUrl : (Config.wwwroot + '/my/');
                     }
 
                     Template.render('block_dixeo_designer/success_message', context)
                         .then((html) => {
                             r.generationContainer.parentElement.insertAdjacentHTML('beforeend', html);
                             r.generationContainer.classList.replace('d-block', 'd-none');
+                            return null;
                         })
                         .catch((error) => {
                             Notification.exception(error);
@@ -718,18 +831,10 @@ define([
 
             resetStepLabels: function() {
                 const self = this;
-                Str.get_string('step_uploading_files', 'block_dixeo_designer').then(function(str) {
-                    self.setStepLabel(1, str);
-                });
-                Str.get_string('step_generating_structure', 'block_dixeo_designer').then(function(str) {
-                    self.setStepLabel(2, str);
-                });
-                Str.get_string('step_generating_content', 'block_dixeo_designer').then(function(str) {
-                    self.setStepLabel(3, str);
-                });
-                Str.get_string('step_finalizing_details', 'block_dixeo_designer').then(function(str) {
-                    self.setStepLabel(4, str);
-                });
+                updateStepLabel(self, 1, 'step_uploading_files');
+                updateStepLabel(self, 2, 'step_generating_structure');
+                updateStepLabel(self, 3, 'step_generating_content');
+                updateStepLabel(self, 4, 'step_finalizing_details');
             },
 
             setProgress: function(progress) {

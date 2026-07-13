@@ -24,7 +24,6 @@ namespace block_dixeo_designer\cancellation;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cancellation_policy_resolver {
-
     /**
      * Resolve the plan from context.
      *
@@ -51,14 +50,14 @@ final class cancellation_policy_resolver {
         // No saved structure: keep submission payload (prompt/template/files), but reset run state.
         if (!$ctx->hassavedstructure) {
             return new cancellation_plan(
-                true,  // Delete structure rows (no-op if none).
+                true, // Delete structure rows (no-op if none).
                 false, // Keep submission row.
-                true,  // Reset submission to draft.
-                true,  // Delete draft course.
+                true, // Reset submission to draft.
+                true, // Delete draft course.
                 false, // Delete generated modules only.
                 false, // Restore draft course metadata.
-                true,  // Disable file sync.
-                true,  // Remove files on disable sync.
+                true, // Disable file sync.
+                true, // Remove files on disable sync.
                 false  // Reset quick finalize progress fields.
             );
         }
@@ -69,11 +68,11 @@ final class cancellation_policy_resolver {
         return new cancellation_plan(
             false, // Keep structure rows.
             false, // Keep submission row.
-            true,  // Reset submission to draft.
+            true, // Reset submission to draft.
             false, // Keep draft course.
-            true,  // Delete generated modules only (preserve upload resources).
-            true,  // Restore draft-like metadata after finalize.
-            true,  // Disable file sync (pause / stop polling).
+            true, // Delete generated modules only (preserve upload resources).
+            true, // Restore draft-like metadata after finalize.
+            true, // Disable file sync (pause / stop polling).
             false, // Do not wipe vector store files — file resources stay tied to submission sync.
             $ctx->generationmode === 'quick'
         );

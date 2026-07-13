@@ -31,7 +31,6 @@ use ReflectionClass;
  * @covers     \block_dixeo_designer\service\designer_service_factory
  */
 final class designer_service_factory_test extends advanced_testcase {
-
     protected function tearDown(): void {
         designer_service_factory::reset();
         parent::tearDown();
@@ -50,4 +49,3 @@ final class designer_service_factory_test extends advanced_testcase {
         $this->assertSame($adapter, $prop->getValue($service));
     }
 }
-

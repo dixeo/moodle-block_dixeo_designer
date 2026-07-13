@@ -59,7 +59,10 @@ jobs:
           echo "NVM_DIR=$HOME/.nvm" >> $GITHUB_ENV
 
       - name: Install moodle-plugin-ci
-        run: moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
+        run: |
+          # Declared in version.php dependencies; required for caps, services, and PHPUnit mocks.
+          moodle-plugin-ci add-plugin dixeo/moodle-local_dixeo
+          moodle-plugin-ci install --plugin ./plugin --db-host=127.0.0.1
         env:
           DB: ${{ matrix.database }}
           MOODLE_BRANCH: ${{ matrix.moodle-branch }}

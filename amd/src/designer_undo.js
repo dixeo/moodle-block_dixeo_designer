@@ -31,15 +31,15 @@ define(['jquery'], function($) {
      * @param {string} value New value
      */
     setValueByPath: function(obj, path, value) {
-        var parts = path.match(/([^\[\]\.]+)|(\[\d+\])/g);
+        var parts = path.match(/([^[\].]+)|(\[\d+\])/g);
         var current = obj;
 
         for (var i = 0; i < parts.length - 1; i++) {
-            var key = parts[i].replace(/[\[\]]/g, '');
+            var key = parts[i].replace(/[[\]]/g, '');
             current = current[key];
         }
 
-        var finalKey = parts[parts.length - 1].replace(/[\[\]]/g, '');
+        var finalKey = parts[parts.length - 1].replace(/[[\]]/g, '');
         current[finalKey] = value;
     },
 
@@ -51,11 +51,11 @@ define(['jquery'], function($) {
      * @return {*}
      */
     getValueByPath: function(obj, path) {
-        var parts = path.match(/([^\[\]\.]+)|(\[\d+\])/g);
+        var parts = path.match(/([^[\].]+)|(\[\d+\])/g);
         var current = obj;
 
         for (var i = 0; i < parts.length; i++) {
-            var key = parts[i].replace(/[\[\]]/g, '');
+            var key = parts[i].replace(/[[\]]/g, '');
             if (current === undefined || current === null) {
                 return '';
             }

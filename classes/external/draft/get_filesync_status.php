@@ -128,4 +128,3 @@ final class get_filesync_status extends external_api {
         ]);
     }
 }
-

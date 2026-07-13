@@ -75,7 +75,8 @@ echo $OUTPUT->header();
 $filecontext = $designeruiservice->get_file_context($jobid, (int) $USER->id);
 
 echo html_writer::start_div('dixeo-designer-block-wrapper');
-echo html_writer::div($OUTPUT->render_from_template('block_dixeo_designer/course_designer',
+echo html_writer::div($OUTPUT->render_from_template(
+    'block_dixeo_designer/course_designer',
     \block_dixeo_designer\service\submission\render_helper::build_prompt_context(
         $OUTPUT,
         $jobid,

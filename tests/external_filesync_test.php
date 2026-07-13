@@ -43,7 +43,6 @@ use block_dixeo_designer\service\designer_service_factory;
  * @covers     \block_dixeo_designer\external\draft\submit_structure_job
  */
 final class external_filesync_test extends advanced_testcase {
-
     /** @var \stdClass */
     private $user;
 
@@ -152,4 +151,3 @@ final class external_filesync_test extends advanced_testcase {
         $this->assertSame(55, (int) $result['courseid']);
     }
 }
-

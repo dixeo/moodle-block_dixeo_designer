@@ -27,7 +27,6 @@ use block_dixeo_designer\service\submission\service as submission_service;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class designer_submission_ui_service {
-
     /** @var submission_service */
     private submission_service $submissions;
 

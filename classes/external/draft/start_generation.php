@@ -94,4 +94,3 @@ final class start_generation extends external_api {
         ]);
     }
 }
-

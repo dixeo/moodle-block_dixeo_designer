@@ -310,13 +310,14 @@ define([
                 self.resetProgress();
             };
 
+            // Quick generation happens outside designer.php, so a cancel must hard reset.
+            var cancelErr = null;
             Ajax.call([{
                 methodname: 'block_dixeo_designer_cancel_draft',
                 args: {
-                    job_id: this.getJobId(),
                     sesskey: M.cfg.sesskey,
-                    // Quick generation happens outside designer.php, so a cancel must hard reset.
-                    delete_structure: isHardReset
+                    ['job_id']: this.getJobId(),
+                    ['delete_structure']: isHardReset
                 },
             }])[0]
             .then(function() {
@@ -327,12 +328,22 @@ define([
                     );
                     window.location.href = Config.wwwroot + '/blocks/dixeo_designer/designer.php';
                 }
+                return null;
             })
             .catch(function(err) {
                 finishCancel();
-                Str.get_string('designer_error_cancel_failed', 'block_dixeo_designer').then(function(msg) {
-                    Notification.alert('', err.message || msg);
-                });
+                cancelErr = err;
+                return Str.get_string('designer_error_cancel_failed', 'block_dixeo_designer');
+            })
+            .then(function(msg) {
+                if (!cancelErr) {
+                    return null;
+                }
+                Notification.alert('', cancelErr.message || msg);
+                return null;
+            })
+            .catch(function() {
+                return null;
             });
         },
         getJobId: function() {
@@ -379,6 +390,10 @@ define([
                 Str.get_string('designer_instructions_too_short', 'block_dixeo_designer', {min: minInstructionLen})
                     .then(function(msg) {
                         Notification.alert('', msg);
+                        return null;
+                    })
+                    .catch(function() {
+                        return null;
                     });
                 return;
             }
@@ -395,7 +410,7 @@ define([
                 this.lockDesignerUI();
             }
 
-            // reviewStructure true = design only (no course), false = create full course. skip=1 means create course.
+            // ReviewStructure true = design only (no course), false = create full course. skip=1 means create course.
             const createcourse = !reviewStructure;
 
             const isLocalUploading = Boolean(
@@ -409,12 +424,18 @@ define([
                     const self = this;
                     Str.get_string('step_preparing_files', 'block_dixeo_designer').then(function(label) {
                         self.setStepLabel(1, label);
+                        return null;
+                    }).catch(function() {
+                        return null;
                     });
                 } else {
                     // If there are no files, the first step should show we are processing only the prompt.
                     const self = this;
                     Str.get_string('step_processing_prompt', 'block_dixeo_designer').then(function(label) {
                         self.setStepLabel(1, label);
+                        return null;
+                    }).catch(function() {
+                        return null;
                     });
                 }
             }
@@ -429,16 +450,16 @@ define([
             const startPromise = Ajax.call([{
                 methodname: 'block_dixeo_designer_start_generation',
                 args: {
-                    job_id: this.getJobId(),
                     description: courseDescriptionValue,
                     templateid: (templateSelect && templateSelect.value !== '') ? templateSelect.value : null,
-                    sesskey: M.cfg.sesskey
+                    sesskey: M.cfg.sesskey,
+                    ['job_id']: this.getJobId()
                 },
             }])[0];
 
             startPromise.then((startResp) => {
                 if (runId !== this.generationRunId) {
-                    return;
+                    return null;
                 }
                 // Regenerate no-op fast-path:
                 // If backend determined prompt/template/files are identical and the
@@ -451,20 +472,22 @@ define([
                         new CustomEvent(Progress.ALLOW_NAVIGATION_EVENT, {bubbles: true})
                     );
                     window.location.href = Config.wwwroot + '/blocks/dixeo_designer/designer.php?id=' + this.getJobId();
-                    return;
+                    return null;
                 }
                 // Poll only after prepare_generation has bound the draft course for this run.
                 // Polling in parallel allowed stale course sync state to trigger an early submit.
                 this.startStep2Progress(createcourse, runId);
+                return null;
             })
             .catch(async error => {
                 if (runId !== this.generationRunId) {
-                    return;
+                    return null;
                 }
                 this.resetProgress();
                 this.clearAllProgressPolls();
                 const errorTitle = await Str.get_string('error_title', 'block_dixeo_designer');
                 Notification.alert(errorTitle, error.message);
+                return null;
             });
         },
         designerUiLockEl: null,
@@ -550,6 +573,9 @@ define([
                             }).then(function(stepStr) {
                                 self.setStepLabel(1, stepStr);
                                 self.updateFileUploadProgress(stepStr, uploadedMB + ' MB / ' + totalMBVal + ' MB', pct);
+                                return null;
+                            }).catch(function() {
+                                return null;
                             });
                         }
                     });
@@ -603,6 +629,9 @@ define([
                 filesContainer.classList.add('d-none');
                 Str.get_string('designer_error_upload_failed', 'block_dixeo_designer').then(function(msg) {
                     Notification.alert('', error.message || msg);
+                    return null;
+                }).catch(function() {
+                    return null;
                 });
             } finally {
                 tempCourseFiles.value = '';
@@ -738,8 +767,10 @@ define([
                         filesContainer.classList.add('d-none');
                     }
                     this.bindDeleteHandlers();
+                    return null;
                 }).catch((error) => {
                     Notification.exception(error);
+                    return null;
                 });
             }
         },

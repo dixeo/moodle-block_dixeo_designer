@@ -40,7 +40,6 @@ require_once($CFG->dirroot . '/blocks/dixeo_designer/lib.php');
  * @covers     ::block_dixeo_designer_pluginfile
  */
 final class pluginfile_test extends \advanced_testcase {
-
     /** @var \stdClass */
     private $user;
 

@@ -29,7 +29,6 @@ use block_dixeo_designer\local\dixeo_capability;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class dixeo_remote_adapter {
-
     /**
      * Submit an async course-structure generation request.
      *
@@ -115,4 +114,3 @@ class dixeo_remote_adapter {
         }
     }
 }
-

@@ -39,7 +39,6 @@ use local_dixeo\service\image_generation_policy;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class get_structure extends external_api {
-
     /**
      * Course image policy flags for the designer UI (local_dixeo settings).
      *

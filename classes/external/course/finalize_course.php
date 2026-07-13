@@ -30,7 +30,6 @@ use block_dixeo_designer\external\course\dto\finalize_course_result;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class finalize_course extends external_api {
-
     /**
      * Web service parameter definitions.
      *

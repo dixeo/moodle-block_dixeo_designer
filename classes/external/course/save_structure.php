@@ -39,7 +39,6 @@ use local_dixeo\service\image_generation_policy;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class save_structure extends external_api {
-
     /**
      * Web service parameter definitions.
      *
@@ -107,10 +106,12 @@ final class save_structure extends external_api {
             'timecreated' => time(),
         ]);
 
-        if (image_generation_policy::is_enabled(
-            image_generation_policy::ENTITY_COURSE,
-            image_generation_policy::ACTION_GENERATE
-        )) {
+        if (
+            image_generation_policy::is_enabled(
+                image_generation_policy::ENTITY_COURSE,
+                image_generation_policy::ACTION_GENERATE
+            )
+        ) {
             $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
             $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
         }

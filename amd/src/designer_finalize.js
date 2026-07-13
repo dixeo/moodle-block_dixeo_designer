@@ -153,11 +153,13 @@ define([
                 var modal = host.querySelector('[data-designer-image-finalize-notice-modal]');
                 if (!modal) {
                     resolve('background');
-                    return;
+                    return null;
                 }
                 wireAndOpen(modal);
+                return null;
             }).catch(function() {
                 resolve('background');
+                return null;
             });
         });
     },
@@ -206,12 +208,13 @@ define([
          */
         function runValidateThenMaybeProceed() {
             self.clearStructureValidationErrors();
+            var validationBody = null;
             Ajax.call([{
                 methodname: 'block_dixeo_designer_validate_structure_for_finalize',
                 args: {
-                    job_id: self.jobid,
                     structure: JSON.stringify(self.structure),
-                    sesskey: M.cfg.sesskey
+                    sesskey: M.cfg.sesskey,
+                    ['job_id']: self.jobid
                 }
             }])[0].then(function(resp) {
                 if (!resp || !resp.valid) {
@@ -222,29 +225,30 @@ define([
                     var errs = (resp && resp.errors && resp.errors.length) ?
                         resp.errors :
                         ['Validation failed'];
-                    var body = errs.join('\n\n');
-                    var reenableBtn = function() {
-                        $btn.prop('disabled', false);
-                    };
+                    validationBody = errs.join('\n\n');
                     if (!fielderrors.length) {
-                        Str.get_string('designer_structure_validation_failed_title', 'block_dixeo_designer')
-                            .then(function(title) {
-                                Notification.alert(title, body);
-                                reenableBtn();
-                            })
-                            .catch(function() {
-                                Notification.alert('', body);
-                                reenableBtn();
-                            });
-                    } else {
-                        reenableBtn();
+                        return Str.get_string('designer_structure_validation_failed_title', 'block_dixeo_designer');
                     }
-                    return;
+                    $btn.prop('disabled', false);
+                    return null;
                 }
                 maybeWarnPendingImageThenProceed();
+                return null;
+            }).then(function(title) {
+                if (typeof title !== 'string') {
+                    return null;
+                }
+                Notification.alert(title, validationBody);
+                $btn.prop('disabled', false);
+                return null;
             }).catch(function(err) {
                 $btn.prop('disabled', false);
+                if (validationBody !== null) {
+                    Notification.alert('', validationBody);
+                    return null;
+                }
                 Notification.exception(err);
+                return null;
             });
         }
 
@@ -270,6 +274,9 @@ define([
             if (!hasFiles) {
                 Str.get_string('step_processing_prompt', 'block_dixeo_designer').then(function(label) {
                     self.setGenerationStepLabel(1, label);
+                    return null;
+                }).catch(function() {
+                    return null;
                 });
             }
 
@@ -281,31 +288,20 @@ define([
             Ajax.call([{
                 methodname: 'block_dixeo_designer_save_structure',
                 args: {
-                    job_id: self.jobid,
                     structure: JSON.stringify(self.structure),
-                    sesskey: M.cfg.sesskey
+                    sesskey: M.cfg.sesskey,
+                    ['job_id']: self.jobid
                 }
             }])[0].then(function() {
-                Ajax.call([{
+                return Ajax.call([{
                     methodname: 'block_dixeo_designer_finalize_course',
                     args: {
-                        job_id: self.jobid,
                         createcourse: true,
                         sesskey: M.cfg.sesskey,
-                        finalize_mode: 'twostep'
+                        ['job_id']: self.jobid,
+                        ['finalize_mode']: 'twostep'
                     }
-                }])[0].catch(function(err) {
-                    self.clearFinalizePoll();
-                    self.unlockDesignerUI();
-                    self.setDesignerEditingLocked(false);
-
-                    if (promptContainer && generationContainer) {
-                        promptContainer.classList.replace('d-none', 'd-block');
-                        generationContainer.classList.replace('d-block', 'd-none');
-                    }
-                    $('#btn-create-course').prop('disabled', false);
-                    Notification.exception(err);
-                });
+                }])[0];
             }).catch(function(err) {
                 self.clearFinalizePoll();
                 self.unlockDesignerUI();
@@ -317,6 +313,7 @@ define([
                 }
                 $('#btn-create-course').prop('disabled', false);
                 Notification.exception(err);
+                return null;
             });
         }
 
@@ -329,37 +326,41 @@ define([
             Ajax.call([{
                 methodname: 'block_dixeo_designer_get_image_status',
                 args: {
-                    job_id: self.jobid,
-                    sesskey: M.cfg.sesskey
+                    sesskey: M.cfg.sesskey,
+                    ['job_id']: self.jobid
                 }
             }])[0].then(function(resp) {
                 var st = resp && resp.status ? String(resp.status) : '';
                 if (st === 'pending' || st === 'processing') {
-                    return self.showImageFinalizeBackgroundModal().then(function(choice) {
-                        if (choice === 'wait') {
-                            self.setDesignerEditingLocked(false);
-                            $btn.prop('disabled', false);
-                            return null;
-                        }
-                        return 'go';
-                    });
+                    return self.showImageFinalizeBackgroundModal();
                 }
                 return 'go';
             }).catch(function() {
                 return 'go';
-            }).then(function(go) {
-                if (go !== 'go') {
-                    return;
+            }).then(function(choice) {
+                if (choice === 'wait') {
+                    self.setDesignerEditingLocked(false);
+                    $btn.prop('disabled', false);
+                    return null;
                 }
-                self.scrollPageToTopSmooth()
-                    .then(function() {
-                        return self.ensureDesignerBlockExpanded();
-                    })
-                    .then(function() {
-                        requestAnimationFrame(function() {
-                            requestAnimationFrame(runFinalizeFlow);
-                        });
-                    });
+                // Proceed for 'go' (no pending image) or 'background' (user chose not to wait).
+                return self.scrollPageToTopSmooth();
+            }).then(function(scrollResult) {
+                // Null means user chose wait; undefined means scroll finished.
+                if (scrollResult === null) {
+                    return null;
+                }
+                return self.ensureDesignerBlockExpanded();
+            }).then(function(expandResult) {
+                if (expandResult === null) {
+                    return null;
+                }
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(runFinalizeFlow);
+                });
+                return null;
+            }).catch(function() {
+                return null;
             });
         }
 
@@ -378,8 +379,8 @@ define([
             Ajax.call([{
                 methodname: 'block_dixeo_designer_get_finalize_progress',
                 args: {
-                    job_id: self.jobid,
-                    sesskey: M.cfg.sesskey
+                    sesskey: M.cfg.sesskey,
+                    ['job_id']: self.jobid
                 }
             }])[0].then(function(data) {
                 if (data.phase === DesignerProgress.PHASE_GENERATING_CONTENT) {
@@ -389,36 +390,31 @@ define([
                             self.setGenerationProgress(pct);
                         });
                         self.updateGenerationActiveStepFromProgress();
-                        Str.get_string('step_generating_content_count', 'block_dixeo_designer', {
+                        return Str.get_string('step_generating_content_count', 'block_dixeo_designer', {
                             current: parsed.current,
                             total: parsed.total
-                        }).then(function(str) {
-                            self.setGenerationStepLabel(3, str);
                         });
-                    } else {
-                        var total = 0;
-                        var current = 0;
-                        if (Number(data.module_total) > 0) {
-                            total = Number(data.module_total) || 0;
-                            var moduleIndex = Number(data.module_index) || 0;
-                            current = Math.min(total, Math.max(1, moduleIndex));
-                        } else if (Number(data.section_total) > 0) {
-                            total = Number(data.section_total) || 0;
-                            var sectionIndex = Number(data.section_index) || 0;
-                            current = Math.min(total, Math.max(1, sectionIndex));
-                        }
-                        if (total > 0) {
-                            var completed = Math.max(0, current - 1);
-                            var pct = 40 + 40 * (completed / total);
-                            self.setGenerationProgress(pct);
-                            self.updateGenerationActiveStepFromProgress();
-                            Str.get_string('step_generating_content_count', 'block_dixeo_designer', {
-                                current: current,
-                                total: total
-                            }).then(function(str) {
-                                self.setGenerationStepLabel(3, str);
-                            });
-                        }
+                    }
+                    var total = 0;
+                    var current = 0;
+                    if (Number(data.module_total) > 0) {
+                        total = Number(data.module_total) || 0;
+                        var moduleIndex = Number(data.module_index) || 0;
+                        current = Math.min(total, Math.max(1, moduleIndex));
+                    } else if (Number(data.section_total) > 0) {
+                        total = Number(data.section_total) || 0;
+                        var sectionIndex = Number(data.section_index) || 0;
+                        current = Math.min(total, Math.max(1, sectionIndex));
+                    }
+                    if (total > 0) {
+                        var completed = Math.max(0, current - 1);
+                        var pct = 40 + 40 * (completed / total);
+                        self.setGenerationProgress(pct);
+                        self.updateGenerationActiveStepFromProgress();
+                        return Str.get_string('step_generating_content_count', 'block_dixeo_designer', {
+                            current: current,
+                            total: total
+                        });
                     }
                 } else if (data.phase === DesignerProgress.PHASE_FINALIZING) {
                     contentPhaseAnimator.reset();
@@ -427,7 +423,7 @@ define([
                 } else if (data.phase === DesignerProgress.PHASE_DONE && data.courseid) {
                     // Avoid rendering/locking twice if multiple poll loops are active.
                     if (self.finalizeProgressCompleted) {
-                        return;
+                        return null;
                     }
                     self.finalizeProgressCompleted = true;
                     self.clearFinalizePoll();
@@ -436,8 +432,16 @@ define([
                     self.finishProgress(data.courseid, data.coursename);
                     self.unlockDesignerUI();
                 }
-            }).catch(function() {}).then(function() {
+                return null;
+            }).then(function(str) {
+                if (typeof str === 'string') {
+                    self.setGenerationStepLabel(3, str);
+                }
                 pollInFlight = false;
+                return null;
+            }).catch(function() {
+                pollInFlight = false;
+                return null;
             });
         };
         poll();
@@ -645,7 +649,7 @@ define([
             courseid: courseid,
             coursename: coursename,
             wwwroot: Config.wwwroot,
-            generate_another_url: generateAnotherUrl
+            ['generate_another_url']: generateAnotherUrl
         };
 
         Templates.render('block_dixeo_designer/success_message', context)
@@ -662,9 +666,11 @@ define([
                         self.suppressBeforeUnload = true;
                     });
                 }
+                return null;
             })
             .catch(function(error) {
                 Notification.exception(error);
+                return null;
             });
     }
 };

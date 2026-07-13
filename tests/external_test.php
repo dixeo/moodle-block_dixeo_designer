@@ -54,7 +54,6 @@ use block_dixeo_designer\service\designer_service_factory;
  * @covers     \block_dixeo_designer\external\course\validate_structure_for_finalize
  */
 final class external_test extends advanced_testcase {
-
     /** @var \stdClass */
     private $user;
 

@@ -29,7 +29,6 @@ use block_dixeo_designer\service\cache\prepare_progress_cache;
  * @covers     \block_dixeo_designer\service\cache\prepare_progress_cache
  */
 final class prepare_progress_cache_test extends advanced_testcase {
-
     public function test_begin_and_get_round_trip(): void {
         $this->resetAfterTest(true);
 
