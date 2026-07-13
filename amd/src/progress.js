@@ -331,7 +331,8 @@ define([
                                     methodname: 'block_dixeo_designer_validate_structure_for_finalize',
                                     args: {
                                         job_id: self.getJobId(),
-                                        structure: structureJson
+                                        structure: structureJson,
+                                        sesskey: M.cfg.sesskey
                                     },
                                 }])[0]
                                     .then(function(vresp) {
@@ -411,7 +412,8 @@ define([
                                     methodname: 'block_dixeo_designer_save_structure',
                                     args: {
                                         job_id: self.getJobId(),
-                                        structure: structureJson
+                                        structure: structureJson,
+                                        sesskey: M.cfg.sesskey
                                     },
                                 }])[0]
                                 .then(function() {

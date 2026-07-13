@@ -269,7 +269,8 @@ define([
         validateStructureForDesigner: function(scopePath) {
             var args = {
                 job_id: this.jobid,
-                structure: JSON.stringify(this.structure)
+                structure: JSON.stringify(this.structure),
+                sesskey: M.cfg.sesskey
             };
             if (scopePath) {
                 args.scope_path = String(scopePath);
@@ -381,7 +382,8 @@ define([
             Ajax.call([{
                 methodname: 'block_dixeo_designer_get_structure',
                 args: {
-                    job_id: this.jobid
+                    job_id: this.jobid,
+                    sesskey: M.cfg.sesskey
                 },
                 done: function(response) {
                     self.imageCanGenerate = !!response.image_can_generate;
@@ -420,7 +422,8 @@ define([
                 methodname: 'block_dixeo_designer_save_structure',
                 args: {
                     job_id: this.jobid,
-                    structure: JSON.stringify(this.structure)
+                    structure: JSON.stringify(this.structure),
+                    sesskey: M.cfg.sesskey
                 },
                 done: function() {
                     self.showSavedIndicator();

@@ -49,6 +49,7 @@ final class save_structure extends external_api {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job ID', VALUE_REQUIRED),
             'structure' => new external_value(PARAM_RAW, 'JSON structure', VALUE_REQUIRED),
+            'sesskey' => new external_value(PARAM_RAW, 'Session key', VALUE_REQUIRED),
         ]);
     }
 
@@ -58,23 +59,26 @@ final class save_structure extends external_api {
      *
      * @param string $jobid The job identifier
      * @param string $structure JSON structure data
+     * @param string $sesskey Session key
      * @return array Save result
      */
     public static function execute(
         string $jobid,
-        string $structure
+        string $structure,
+        string $sesskey
     ): array {
         global $DB, $USER;
 
         $params = self::validate_parameters(self::execute_parameters(), [
             'job_id' => $jobid,
             'structure' => $structure,
+            'sesskey' => $sesskey,
         ]);
 
         $context = \context_system::instance();
         self::validate_context($context);
-
-        require_login();
+        require_capability('local/dixeo:create', $context);
+        require_sesskey();
 
         // Validate JSON.
         $decoded = json_decode($params['structure'], true);

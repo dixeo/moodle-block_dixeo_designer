@@ -330,7 +330,7 @@ final class external_test extends advanced_testcase {
         $jobid = 'job-save-' . uniqid();
         $structure = json_encode(['course_structure' => ['title' => 'New Course', 'sections' => []]]);
 
-        $result = save_structure::execute($jobid, $structure);
+        $result = save_structure::execute($jobid, $structure, $this->sesskey);
 
         $this->assertTrue($result['success']);
 
@@ -355,7 +355,11 @@ final class external_test extends advanced_testcase {
             'timecreated' => time(),
         ]);
 
-        $result = save_structure::execute($jobid, json_encode(['course_structure' => ['title' => 'Updated']]));
+        $result = save_structure::execute(
+            $jobid,
+            json_encode(['course_structure' => ['title' => 'Updated']]),
+            $this->sesskey
+        );
 
         $this->assertTrue($result['success']);
         $records = $DB->get_records('block_dixeo_designer_structure', ['jobid' => $jobid]);
@@ -366,11 +370,34 @@ final class external_test extends advanced_testcase {
 
     public function test_save_structure_throws_on_invalid_json(): void {
         $this->expectException(\moodle_exception::class);
-        save_structure::execute('job-1', 'not valid json{');
+        save_structure::execute('job-1', 'not valid json{', $this->sesskey);
+    }
+
+    public function test_save_structure_requires_create_capability(): void {
+        $other = $this->getDataGenerator()->create_user();
+        $this->setUser($other);
+        $_POST['sesskey'] = sesskey();
+
+        $this->expectException(\required_capability_exception::class);
+        save_structure::execute(
+            'job-1',
+            json_encode(['course_structure' => ['title' => 'X', 'sections' => []]]),
+            sesskey()
+        );
+    }
+
+    public function test_save_structure_requires_sesskey(): void {
+        $_POST['sesskey'] = 'wrong-sesskey';
+        $this->expectException(\moodle_exception::class);
+        save_structure::execute(
+            'job-1',
+            json_encode(['course_structure' => ['title' => 'X', 'sections' => []]]),
+            'wrong-sesskey'
+        );
     }
 
     public function test_validate_structure_for_finalize_returns_invalid_for_bad_json(): void {
-        $result = validate_structure_for_finalize::execute('job-1', 'not valid json{');
+        $result = validate_structure_for_finalize::execute('job-1', 'not valid json{', $this->sesskey);
         $this->assertFalse($result['valid']);
         $this->assertNotEmpty($result['errors']);
         $this->assertArrayHasKey('fielderrors', $result);
@@ -396,7 +423,7 @@ final class external_test extends advanced_testcase {
                 ],
             ],
         ]);
-        $result = validate_structure_for_finalize::execute('job-val-' . uniqid(), $structure);
+        $result = validate_structure_for_finalize::execute('job-val-' . uniqid(), $structure, $this->sesskey);
         $this->assertTrue($result['valid'], json_encode($result['errors']));
         $this->assertSame([], $result['errors']);
         $this->assertSame([], $result['fielderrors']);
@@ -409,7 +436,7 @@ final class external_test extends advanced_testcase {
                 'sections' => [],
             ],
         ]);
-        $result = validate_structure_for_finalize::execute('job-val-' . uniqid(), $structure);
+        $result = validate_structure_for_finalize::execute('job-val-' . uniqid(), $structure, $this->sesskey);
         $this->assertFalse($result['valid']);
         $this->assertNotEmpty($result['errors']);
         $this->assertNotEmpty($result['fielderrors']);
@@ -436,13 +463,14 @@ final class external_test extends advanced_testcase {
             ],
         ]);
         $jobid = 'job-val-' . uniqid();
-        $full = validate_structure_for_finalize::execute($jobid, $structure);
+        $full = validate_structure_for_finalize::execute($jobid, $structure, $this->sesskey);
         $this->assertFalse($full['valid']);
         $this->assertGreaterThan(1, count($full['fielderrors']));
 
         $scoped = validate_structure_for_finalize::execute(
             $jobid,
             $structure,
+            $this->sesskey,
             'sections[0].modules[0].title'
         );
         $this->assertFalse($scoped['valid']);
@@ -452,6 +480,7 @@ final class external_test extends advanced_testcase {
         $summaryscoped = validate_structure_for_finalize::execute(
             $jobid,
             $structure,
+            $this->sesskey,
             'sections[0].modules[0].summary'
         );
         $this->assertTrue($summaryscoped['valid'], json_encode($summaryscoped['fielderrors']));
@@ -477,6 +506,7 @@ final class external_test extends advanced_testcase {
         $titleok = validate_structure_for_finalize::execute(
             $jobid,
             $filledtitle,
+            $this->sesskey,
             'sections[0].modules[0].title'
         );
         $this->assertTrue($titleok['valid'], json_encode($titleok['fielderrors']));
@@ -496,6 +526,23 @@ final class external_test extends advanced_testcase {
         ]);
 
         $this->expectException(\moodle_exception::class);
-        validate_structure_for_finalize::execute($jobid, json_encode(['course_structure' => ['title' => 'Y', 'sections' => []]]));
+        validate_structure_for_finalize::execute(
+            $jobid,
+            json_encode(['course_structure' => ['title' => 'Y', 'sections' => []]]),
+            $this->sesskey
+        );
+    }
+
+    public function test_validate_structure_for_finalize_requires_create_capability(): void {
+        $other = $this->getDataGenerator()->create_user();
+        $this->setUser($other);
+        $_POST['sesskey'] = sesskey();
+
+        $this->expectException(\required_capability_exception::class);
+        validate_structure_for_finalize::execute(
+            'job-1',
+            json_encode(['course_structure' => ['title' => 'Y', 'sections' => []]]),
+            sesskey()
+        );
     }
 }

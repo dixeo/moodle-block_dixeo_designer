@@ -66,6 +66,7 @@ final class get_structure extends external_api {
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job ID', VALUE_REQUIRED),
+            'sesskey' => new external_value(PARAM_RAW, 'Session key', VALUE_REQUIRED),
         ]);
     }
 
@@ -73,19 +74,21 @@ final class get_structure extends external_api {
      * Get the persisted structure by job ID (single row per job).
      *
      * @param string $jobid The job identifier
+     * @param string $sesskey Session key
      * @return array Structure data
      */
-    public static function execute(string $jobid): array {
+    public static function execute(string $jobid, string $sesskey): array {
         global $DB, $USER;
 
         $params = self::validate_parameters(self::execute_parameters(), [
             'job_id' => $jobid,
+            'sesskey' => $sesskey,
         ]);
 
         $context = \context_system::instance();
         self::validate_context($context);
-
-        require_login();
+        require_capability('local/dixeo:create', $context);
+        require_sesskey();
 
         $structure = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
         if (!$structure) {

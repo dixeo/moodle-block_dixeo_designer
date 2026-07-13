@@ -210,7 +210,8 @@ define([
                 methodname: 'block_dixeo_designer_validate_structure_for_finalize',
                 args: {
                     job_id: self.jobid,
-                    structure: JSON.stringify(self.structure)
+                    structure: JSON.stringify(self.structure),
+                    sesskey: M.cfg.sesskey
                 }
             }])[0].then(function(resp) {
                 if (!resp || !resp.valid) {
@@ -281,7 +282,8 @@ define([
                 methodname: 'block_dixeo_designer_save_structure',
                 args: {
                     job_id: self.jobid,
-                    structure: JSON.stringify(self.structure)
+                    structure: JSON.stringify(self.structure),
+                    sesskey: M.cfg.sesskey
                 }
             }])[0].then(function() {
                 Ajax.call([{
