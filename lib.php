@@ -89,3 +89,32 @@ function block_dixeo_designer_pluginfile(
 
     return true;
 }
+
+/**
+ * Build a client-safe AJAX error message and log technical details.
+ *
+ * Only Moodle language strings from this plugin (or core error/moodle) are returned.
+ * Raw Throwable text is never passed to the browser.
+ *
+ * @param Throwable $exception Caught exception.
+ * @param string $fallbackstring Language string id in block_dixeo_designer.
+ * @return string
+ */
+function block_dixeo_designer_format_ajax_exception_message(
+    Throwable $exception,
+    string $fallbackstring
+): string {
+    debugging(
+        $exception->getMessage() . "\n" . $exception->getTraceAsString(),
+        DEBUG_DEVELOPER
+    );
+
+    if ($exception instanceof moodle_exception) {
+        $module = (string) $exception->module;
+        if ($module === 'block_dixeo_designer' || $module === 'error' || $module === 'moodle') {
+            return get_string($exception->errorcode, $module, $exception->a);
+        }
+    }
+
+    return get_string($fallbackstring, 'block_dixeo_designer');
+}

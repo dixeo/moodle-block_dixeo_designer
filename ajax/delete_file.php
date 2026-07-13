@@ -25,6 +25,7 @@
 define('AJAX_SCRIPT', true);
 
 require_once(__DIR__ . '/../../../config.php');
+require_once($CFG->dirroot . '/blocks/dixeo_designer/lib.php');
 
 require_login();
 require_sesskey();
@@ -51,6 +52,6 @@ try {
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage(),
+        'message' => block_dixeo_designer_format_ajax_exception_message($e, 'designer_error_delete_failed'),
     ]);
 }
