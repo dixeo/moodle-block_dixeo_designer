@@ -53,6 +53,8 @@ function block_dixeo_designer_pluginfile(
     bool $forcedownload,
     array $options = []
 ): bool {
+    global $USER;
+
     if ($context->contextlevel !== CONTEXT_SYSTEM || $filearea !== 'generated_images') {
         return false;
     }
@@ -65,6 +67,12 @@ function block_dixeo_designer_pluginfile(
     }
 
     $itemid = (int) array_shift($args);
+
+    // Generated images are stored with itemid = owner userid.
+    if ($itemid !== (int) $USER->id && !is_siteadmin()) {
+        throw new \moodle_exception('nopermissions', 'error');
+    }
+
     $filename = array_pop($args);
     $filepath = '/' . implode('/', $args) . '/';
     if ($filepath === '//') {
@@ -78,4 +86,6 @@ function block_dixeo_designer_pluginfile(
     }
 
     send_stored_file($file, 60 * 60, 0, $forcedownload, $options);
+
+    return true;
 }
