@@ -16,8 +16,6 @@
 
 namespace block_dixeo_designer;
 
-defined('MOODLE_INTERNAL') || die();
-
 use advanced_testcase;
 use block_dixeo_designer\service\submission\service;
 

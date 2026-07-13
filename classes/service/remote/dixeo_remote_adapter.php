@@ -16,8 +16,6 @@
 
 namespace block_dixeo_designer\service\remote;
 
-defined('MOODLE_INTERNAL') || die();
-
 use block_dixeo_designer\local\dixeo_capability;
 
 /**
@@ -72,11 +70,11 @@ class dixeo_remote_adapter {
 
         // Avoid remote polling when the course is already synchronized/none.
         $status = $filesync->get_status($courseid);
-        $localStatus = (string) ($status->status ?? 'none');
+        $localstatus = (string) ($status->status ?? 'none');
         $uploadbytes = (int) ($status->uploadbytes ?? 0);
         $uploadtotal = (int) ($status->uploadbytestotal ?? 0);
-        $outbounduploadactive = $localStatus === 'syncing' && $uploadtotal > 0 && $uploadbytes < $uploadtotal;
-        if (!in_array($localStatus, ['synchronized', 'none'], true) && !$outbounduploadactive) {
+        $outbounduploadactive = $localstatus === 'syncing' && $uploadtotal > 0 && $uploadbytes < $uploadtotal;
+        if (!in_array($localstatus, ['synchronized', 'none'], true) && !$outbounduploadactive) {
             $status = $filesync->poll_status($courseid);
         }
 
@@ -109,7 +107,7 @@ class dixeo_remote_adapter {
         try {
             $client->delete_files($jobid);
         } catch (\Throwable $e) {
-            // Ignore so first-time uploads work.
+            debugging('sync_files_to_remote: delete_files ignored: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
 
         if (!empty($files)) {

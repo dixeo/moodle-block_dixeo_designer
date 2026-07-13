@@ -36,7 +36,7 @@ final class finalize_course extends external_api {
      *
      * @return external_function_parameters
      */
-    public static function finalize_course_parameters(): external_function_parameters {
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job id', VALUE_REQUIRED),
             'createcourse' => new external_value(PARAM_BOOL, 'Create full course (false = structure only)', VALUE_REQUIRED),
@@ -53,27 +53,28 @@ final class finalize_course extends external_api {
     /**
      * Finalize a draft course after structure generation.
      *
-     * @param string $job_id Job identifier.
+     * @param string $jobid Job identifier.
      * @param bool $createcourse When false, finalize only structure (no course creation).
      * @param string $sesskey Session key.
+     * @param string $finalizemode Finalize source mode: quick or twostep.
      * @return array {
      *     courseid: int,
      *     coursename: string
      * }
      */
-    public static function finalize_course(
-        string $job_id,
+    public static function execute(
+        string $jobid,
         bool $createcourse,
         string $sesskey,
-        string $finalize_mode = ''
+        string $finalizemode = ''
     ): array {
         global $USER;
 
-        self::validate_parameters(self::finalize_course_parameters(), [
-            'job_id' => $job_id,
+        self::validate_parameters(self::execute_parameters(), [
+            'job_id' => $jobid,
             'createcourse' => $createcourse,
             'sesskey' => $sesskey,
-            'finalize_mode' => $finalize_mode,
+            'finalize_mode' => $finalizemode,
         ]);
 
         $context = \context_system::instance();
@@ -86,10 +87,10 @@ final class finalize_course extends external_api {
         \core\session\manager::write_close();
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
-        $course = $service->finalize_course($job_id, (int) $USER->id, $createcourse, $finalize_mode);
+        $course = $service->finalize_course($jobid, (int) $USER->id, $createcourse, $finalizemode);
         if ($createcourse && (!$course || empty($course->id))) {
             $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
-            $progress = $cache->get($job_id);
+            $progress = $cache->get($jobid);
             if (!(is_array($progress) && !empty($progress['cancelled']))) {
                 throw new \moodle_exception('designer_error_finalize_failed', 'block_dixeo_designer');
             }
@@ -103,7 +104,7 @@ final class finalize_course extends external_api {
      *
      * @return external_single_structure
      */
-    public static function finalize_course_returns(): external_single_structure {
+    public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'courseid' => new external_value(PARAM_INT, 'Course ID'),
             'coursename' => new external_value(PARAM_TEXT, 'Course name'),

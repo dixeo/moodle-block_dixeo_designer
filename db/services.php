@@ -28,7 +28,7 @@ defined('MOODLE_INTERNAL') || die();
 $functions = [
     'block_dixeo_designer_generate_course' => [
         'classname'   => 'block_dixeo_designer\\external\\draft\\generate_course',
-        'methodname'  => 'generate_course',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Begins course design.',
         'type'        => 'read',
@@ -38,7 +38,7 @@ $functions = [
     ],
     'block_dixeo_designer_start_generation' => [
         'classname'   => 'block_dixeo_designer\\external\\draft\\start_generation',
-        'methodname'  => 'start_generation',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Prepare generation and start async file sync.',
         'type'        => 'write',
@@ -48,7 +48,7 @@ $functions = [
     ],
     'block_dixeo_designer_get_filesync_status' => [
         'classname'   => 'block_dixeo_designer\\external\\draft\\get_filesync_status',
-        'methodname'  => 'get_filesync_status',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Poll file sync status for a draft course.',
         'type'        => 'read',
@@ -58,7 +58,7 @@ $functions = [
     ],
     'block_dixeo_designer_submit_structure_job' => [
         'classname'   => 'block_dixeo_designer\\external\\draft\\submit_structure_job',
-        'methodname'  => 'submit_structure_job',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Submit remote structure generation job after file sync.',
         'type'        => 'write',
@@ -68,7 +68,7 @@ $functions = [
     ],
     'block_dixeo_designer_get_structure' => [
         'classname'   => 'block_dixeo_designer\\external\\course\\get_structure',
-        'methodname'  => 'get_structure',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Get course design structure by job ID',
         'type'        => 'read',
@@ -78,7 +78,7 @@ $functions = [
     ],
     'block_dixeo_designer_save_structure' => [
         'classname'   => 'block_dixeo_designer\\external\\course\\save_structure',
-        'methodname'  => 'save_structure',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Save course design structure (single row per job)',
         'type'        => 'write',
@@ -98,7 +98,7 @@ $functions = [
     ],
     'block_dixeo_designer_get_structure_status' => [
         'classname'   => 'block_dixeo_designer\\external\\draft\\get_structure_status',
-        'methodname'  => 'get_structure_status',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Get remote structure generation job status',
         'type'        => 'read',
@@ -108,7 +108,7 @@ $functions = [
     ],
     'block_dixeo_designer_finalize_course' => [
         'classname'   => 'block_dixeo_designer\\external\\course\\finalize_course',
-        'methodname'  => 'finalize_course',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Finalize draft course after structure is ready',
         'type'        => 'write',
@@ -118,7 +118,7 @@ $functions = [
     ],
     'block_dixeo_designer_get_finalize_progress' => [
         'classname'   => 'block_dixeo_designer\\external\\course\\get_finalize_progress',
-        'methodname'  => 'get_finalize_progress',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Get finalize course progress (Section X of Y) for UI polling',
         'type'        => 'read',
@@ -128,7 +128,7 @@ $functions = [
     ],
     'block_dixeo_designer_get_image_status' => [
         'classname'   => 'block_dixeo_designer\\external\\course\\get_image_status',
-        'methodname'  => 'get_image_status',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Get structure image generation/edit status',
         'type'        => 'read',
@@ -138,7 +138,7 @@ $functions = [
     ],
     'block_dixeo_designer_start_image_edit' => [
         'classname'   => 'block_dixeo_designer\\external\\course\\start_image_edit',
-        'methodname'  => 'start_image_edit',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Start async structure image edit',
         'type'        => 'write',
@@ -148,7 +148,7 @@ $functions = [
     ],
     'block_dixeo_designer_cancel_draft' => [
         'classname'   => 'block_dixeo_designer\\external\\draft\\cancel_draft',
-        'methodname'  => 'cancel_draft',
+        'methodname'  => 'execute',
         'classpath'   => '',
         'description' => 'Cancel draft course and revert to prompt',
         'type'        => 'write',

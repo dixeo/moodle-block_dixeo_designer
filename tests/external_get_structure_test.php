@@ -47,7 +47,7 @@ final class external_get_structure_test extends advanced_testcase {
 
     public function test_get_structure_throws_when_no_structure(): void {
         $this->expectException(\moodle_exception::class);
-        get_structure::get_structure('job-nonexistent');
+        get_structure::execute('job-nonexistent');
     }
 
     public function test_get_structure_returns_persisted_record(): void {
@@ -63,7 +63,7 @@ final class external_get_structure_test extends advanced_testcase {
             'timecreated' => time(),
         ]);
 
-        $result = get_structure::get_structure($jobid);
+        $result = get_structure::execute($jobid);
 
         $this->assertArrayHasKey('structure', $result);
         $this->assertArrayHasKey('job_id', $result);

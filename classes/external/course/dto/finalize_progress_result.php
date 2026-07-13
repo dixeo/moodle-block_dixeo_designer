@@ -16,23 +16,49 @@
 
 namespace block_dixeo_designer\external\course\dto;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * DTO for block_dixeo_designer get_finalize_progress external response.
+ *
+ * @package    block_dixeo_designer
+ * @copyright  2026 Dixeo
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class finalize_progress_result {
+    /**
+     * Constructor.
+     *
+     * @param string $phase Finalize phase.
+     * @param int $sectionindex Current section index.
+     * @param int $sectiontotal Total sections.
+     * @param int $moduleindex Current module index.
+     * @param int $moduletotal Total modules.
+     * @param int $courseid Draft course id.
+     * @param string $coursename Draft course name.
+     */
     public function __construct(
+        /** @var string Finalize phase. */
         public string $phase,
-        public int $section_index,
-        public int $section_total,
-        public int $module_index,
-        public int $module_total,
+        /** @var int Current section index. */
+        public int $sectionindex,
+        /** @var int Total sections. */
+        public int $sectiontotal,
+        /** @var int Current module index. */
+        public int $moduleindex,
+        /** @var int Total modules. */
+        public int $moduletotal,
+        /** @var int Draft course id. */
         public int $courseid,
+        /** @var string Draft course name. */
         public string $coursename
     ) {
     }
 
+    /**
+     * Build a DTO from finalize progress cache data.
+     *
+     * @param array $data
+     * @return self
+     */
     public static function from_cache_array(array $data): self {
         return new self(
             (string) ($data['phase'] ?? ''),
@@ -45,16 +71,20 @@ final class finalize_progress_result {
         );
     }
 
+    /**
+     * Convert to webservice response array.
+     *
+     * @return array<string, int|string>
+     */
     public function to_array(): array {
         return [
             'phase' => $this->phase,
-            'section_index' => $this->section_index,
-            'section_total' => $this->section_total,
-            'module_index' => $this->module_index,
-            'module_total' => $this->module_total,
+            'section_index' => $this->sectionindex,
+            'section_total' => $this->sectiontotal,
+            'module_index' => $this->moduleindex,
+            'module_total' => $this->moduletotal,
             'courseid' => $this->courseid,
             'coursename' => $this->coursename,
         ];
     }
 }
-

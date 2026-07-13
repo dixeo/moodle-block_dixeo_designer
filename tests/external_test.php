@@ -96,6 +96,11 @@ final class external_test extends advanced_testcase {
         parent::tearDown();
     }
 
+    /**
+     * Assign local/dixeo:create to the test user.
+     *
+     * @return void
+     */
     private function assign_capability(): void {
         $sysctx = \context_system::instance();
         $roleid = $this->getDataGenerator()->create_role();
@@ -108,7 +113,7 @@ final class external_test extends advanced_testcase {
             ->with('job-123', $this->user->id, 'My course', null)
             ->willReturn((object) ['courseid' => 42, 'remotejobid' => 'remote-uuid']);
 
-        $result = generate_course::generate_course(
+        $result = generate_course::execute(
             'job-123',
             'My course',
             null,
@@ -125,13 +130,13 @@ final class external_test extends advanced_testcase {
             ->with('job-456', $this->user->id, 'Desc', 'template-uuid')
             ->willReturn((object) ['courseid' => 1, 'remotejobid' => 'r']);
 
-        generate_course::generate_course('job-456', 'Desc', 'template-uuid', $this->sesskey, false);
+        generate_course::execute('job-456', 'Desc', 'template-uuid', $this->sesskey, false);
     }
 
     public function test_generate_course_requires_sesskey(): void {
         $_POST['sesskey'] = 'wrong-sesskey';
         $this->expectException(\moodle_exception::class);
-        generate_course::generate_course('job-1', 'D', null, 'wrong-sesskey', false);
+        generate_course::execute('job-1', 'D', null, 'wrong-sesskey', false);
     }
 
     public function test_get_structure_status_returns_status_from_service(): void {
@@ -146,7 +151,7 @@ final class external_test extends advanced_testcase {
                 'error' => null,
             ]);
 
-        $result = get_structure_status::get_structure_status('job-1', $this->sesskey);
+        $result = get_structure_status::execute('job-1', $this->sesskey);
 
         $this->assertSame('processing', $result['status']);
         $this->assertSame(50, $result['progress']);
@@ -165,7 +170,7 @@ final class external_test extends advanced_testcase {
                 'error' => null,
             ]);
 
-        $result = get_structure_status::get_structure_status('job-1', $this->sesskey);
+        $result = get_structure_status::execute('job-1', $this->sesskey);
 
         $this->assertTrue($result['completed']);
         $this->assertIsString($result['result']);
@@ -178,7 +183,7 @@ final class external_test extends advanced_testcase {
             ->with('job-1', $this->user->id, true, '')
             ->willReturn($course);
 
-        $result = finalize_course::finalize_course('job-1', true, $this->sesskey);
+        $result = finalize_course::execute('job-1', true, $this->sesskey);
 
         $this->assertSame(10, $result['courseid']);
         $this->assertSame('My Course', $result['coursename']);
@@ -189,7 +194,7 @@ final class external_test extends advanced_testcase {
             ->with('job-1', $this->user->id, false, '')
             ->willReturn(null);
 
-        $result = finalize_course::finalize_course('job-1', false, $this->sesskey);
+        $result = finalize_course::execute('job-1', false, $this->sesskey);
 
         $this->assertSame(0, $result['courseid']);
         $this->assertSame('', $result['coursename']);
@@ -201,7 +206,7 @@ final class external_test extends advanced_testcase {
             ->willReturn(null);
 
         $this->expectException(\moodle_exception::class);
-        finalize_course::finalize_course('job-1', true, $this->sesskey);
+        finalize_course::execute('job-1', true, $this->sesskey);
     }
 
     public function test_finalize_course_returns_empty_when_createcourse_true_and_cancelled_flag_is_set(): void {
@@ -213,7 +218,7 @@ final class external_test extends advanced_testcase {
             ->with($jobid, $this->user->id, true, '')
             ->willReturn(null);
 
-        $result = finalize_course::finalize_course($jobid, true, $this->sesskey);
+        $result = finalize_course::execute($jobid, true, $this->sesskey);
 
         $this->assertSame(0, $result['courseid']);
         $this->assertSame('', $result['coursename']);
@@ -224,7 +229,7 @@ final class external_test extends advanced_testcase {
             ->with('job-1', $this->user->id, false)
             ->willReturn(true);
 
-        $result = cancel_draft::cancel_draft('job-1', $this->sesskey);
+        $result = cancel_draft::execute('job-1', $this->sesskey);
 
         $this->assertTrue($result['success']);
     }
@@ -234,7 +239,7 @@ final class external_test extends advanced_testcase {
             ->with('job-1', $this->user->id, true)
             ->willReturn(true);
 
-        $result = cancel_draft::cancel_draft('job-1', $this->sesskey, true);
+        $result = cancel_draft::execute('job-1', $this->sesskey, true);
 
         $this->assertTrue($result['success']);
     }
@@ -243,7 +248,7 @@ final class external_test extends advanced_testcase {
         $this->mockdesignerservice->method('cancel_draft')
             ->willReturn(false);
 
-        $result = cancel_draft::cancel_draft('job-unknown', $this->sesskey);
+        $result = cancel_draft::execute('job-unknown', $this->sesskey);
 
         $this->assertFalse($result['success']);
     }
@@ -251,14 +256,14 @@ final class external_test extends advanced_testcase {
     public function test_external_requires_create_capability(): void {
         $other = $this->getDataGenerator()->create_user();
         $this->setUser($other);
-        // $other has no local/dixeo:create capability.
+        // User $other has no local/dixeo:create capability.
 
         $this->expectException(\required_capability_exception::class);
-        generate_course::generate_course('job-1', 'D', null, sesskey(), false);
+        generate_course::execute('job-1', 'D', null, sesskey(), false);
     }
 
     public function test_get_finalize_progress_returns_empty_when_cache_missing(): void {
-        $result = get_finalize_progress::get_finalize_progress('job-no-cache-' . uniqid(), $this->sesskey);
+        $result = get_finalize_progress::execute('job-no-cache-' . uniqid(), $this->sesskey);
 
         $this->assertSame('', $result['phase']);
         $this->assertSame(0, $result['section_index']);
@@ -280,7 +285,7 @@ final class external_test extends advanced_testcase {
             'coursename' => '',
         ]);
 
-        $result = get_finalize_progress::get_finalize_progress($jobid, $this->sesskey);
+        $result = get_finalize_progress::execute($jobid, $this->sesskey);
 
         $this->assertSame('generating_content', $result['phase']);
         $this->assertSame(2, $result['section_index']);
@@ -300,7 +305,7 @@ final class external_test extends advanced_testcase {
             'coursename' => 'My Created Course',
         ]);
 
-        $result = get_finalize_progress::get_finalize_progress($jobid, $this->sesskey);
+        $result = get_finalize_progress::execute($jobid, $this->sesskey);
 
         $this->assertSame('done', $result['phase']);
         $this->assertSame(99, $result['courseid']);
@@ -310,7 +315,7 @@ final class external_test extends advanced_testcase {
     public function test_get_finalize_progress_requires_sesskey(): void {
         $_POST['sesskey'] = 'wrong';
         $this->expectException(\moodle_exception::class);
-        get_finalize_progress::get_finalize_progress('job-1', 'wrong');
+        get_finalize_progress::execute('job-1', 'wrong');
     }
 
     public function test_get_finalize_progress_requires_create_capability(): void {
@@ -318,14 +323,14 @@ final class external_test extends advanced_testcase {
         $this->setUser($other);
 
         $this->expectException(\required_capability_exception::class);
-        get_finalize_progress::get_finalize_progress('job-1', sesskey());
+        get_finalize_progress::execute('job-1', sesskey());
     }
 
     public function test_save_structure_inserts_new_record(): void {
         $jobid = 'job-save-' . uniqid();
         $structure = json_encode(['course_structure' => ['title' => 'New Course', 'sections' => []]]);
 
-        $result = save_structure::save_structure($jobid, $structure);
+        $result = save_structure::execute($jobid, $structure);
 
         $this->assertTrue($result['success']);
 
@@ -350,7 +355,7 @@ final class external_test extends advanced_testcase {
             'timecreated' => time(),
         ]);
 
-        $result = save_structure::save_structure($jobid, json_encode(['course_structure' => ['title' => 'Updated']]));
+        $result = save_structure::execute($jobid, json_encode(['course_structure' => ['title' => 'Updated']]));
 
         $this->assertTrue($result['success']);
         $records = $DB->get_records('block_dixeo_designer_structure', ['jobid' => $jobid]);
@@ -361,7 +366,7 @@ final class external_test extends advanced_testcase {
 
     public function test_save_structure_throws_on_invalid_json(): void {
         $this->expectException(\moodle_exception::class);
-        save_structure::save_structure('job-1', 'not valid json{');
+        save_structure::execute('job-1', 'not valid json{');
     }
 
     public function test_validate_structure_for_finalize_returns_invalid_for_bad_json(): void {
@@ -392,7 +397,7 @@ final class external_test extends advanced_testcase {
             ],
         ]);
         $result = validate_structure_for_finalize::execute('job-val-' . uniqid(), $structure);
-        $this->assertTrue($result['valid'], print_r($result['errors'], true));
+        $this->assertTrue($result['valid'], json_encode($result['errors']));
         $this->assertSame([], $result['errors']);
         $this->assertSame([], $result['fielderrors']);
     }
@@ -449,7 +454,7 @@ final class external_test extends advanced_testcase {
             $structure,
             'sections[0].modules[0].summary'
         );
-        $this->assertTrue($summaryscoped['valid'], print_r($summaryscoped['fielderrors'], true));
+        $this->assertTrue($summaryscoped['valid'], json_encode($summaryscoped['fielderrors']));
 
         $filledtitle = json_encode([
             'course_structure' => [
@@ -474,7 +479,7 @@ final class external_test extends advanced_testcase {
             $filledtitle,
             'sections[0].modules[0].title'
         );
-        $this->assertTrue($titleok['valid'], print_r($titleok['fielderrors'], true));
+        $this->assertTrue($titleok['valid'], json_encode($titleok['fielderrors']));
     }
 
     public function test_validate_structure_for_finalize_throws_when_structure_owned_by_other(): void {

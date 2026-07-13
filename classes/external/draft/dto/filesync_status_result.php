@@ -16,27 +16,61 @@
 
 namespace block_dixeo_designer\external\draft\dto;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * DTO for block_dixeo_designer get_filesync_status external response.
+ *
+ * @package    block_dixeo_designer
+ * @copyright  2026 Dixeo
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class filesync_status_result {
+    /**
+     * Constructor.
+     *
+     * @param string $status Sync status label.
+     * @param float|null $progresspercent Remote upload progress percent.
+     * @param int|null $filestotal Total remote files.
+     * @param int|null $filescompleted Completed remote files.
+     * @param int|null $uploadbytes Uploaded bytes so far.
+     * @param int|null $uploadbytestotal Total bytes to upload.
+     * @param string|null $errormessage Error message when failed.
+     * @param int|null $lastsynccompleted Last sync completion timestamp.
+     * @param bool $hassubmissionfiles Whether the submission has source files.
+     * @param bool $moodleprepareactive Whether Moodle prepare is active.
+     * @param float|null $moodlepreparepercent Moodle prepare progress percent.
+     */
     public function __construct(
+        /** @var string Sync status label. */
         public string $status,
+        /** @var float|null Remote upload progress percent. */
         public ?float $progresspercent,
+        /** @var int|null Total remote files. */
         public ?int $filestotal,
+        /** @var int|null Completed remote files. */
         public ?int $filescompleted,
+        /** @var int|null Uploaded bytes so far. */
         public ?int $uploadbytes,
+        /** @var int|null Total bytes to upload. */
         public ?int $uploadbytestotal,
+        /** @var string|null Error message when failed. */
         public ?string $errormessage,
+        /** @var int|null Last sync completion timestamp. */
         public ?int $lastsynccompleted,
+        /** @var bool Whether the submission has source files. */
         public bool $hassubmissionfiles,
+        /** @var bool Whether Moodle prepare is active. */
         public bool $moodleprepareactive,
+        /** @var float|null Moodle prepare progress percent. */
         public ?float $moodlepreparepercent
     ) {
     }
 
+    /**
+     * Build a DTO from the designer service status object.
+     *
+     * @param object $status
+     * @return self
+     */
     public static function from_service(object $status): self {
         $lastsync = $status->lastsynccompleted ?? null;
         $moodlepct = $status->moodlepreparepercent ?? null;
@@ -57,6 +91,11 @@ final class filesync_status_result {
         );
     }
 
+    /**
+     * Convert to webservice response array.
+     *
+     * @return array<string, bool|float|int|string|null>
+     */
     public function to_array(): array {
         return [
             'status' => $this->status,
@@ -73,4 +112,3 @@ final class filesync_status_result {
         ];
     }
 }
-

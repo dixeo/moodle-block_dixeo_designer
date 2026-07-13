@@ -63,7 +63,7 @@ final class get_structure extends external_api {
      *
      * @return external_function_parameters
      */
-    public static function get_structure_parameters(): external_function_parameters {
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job ID', VALUE_REQUIRED),
         ]);
@@ -72,14 +72,14 @@ final class get_structure extends external_api {
     /**
      * Get the persisted structure by job ID (single row per job).
      *
-     * @param string $job_id The job identifier
+     * @param string $jobid The job identifier
      * @return array Structure data
      */
-    public static function get_structure(string $job_id): array {
+    public static function execute(string $jobid): array {
         global $DB, $USER;
 
-        $params = self::validate_parameters(self::get_structure_parameters(), [
-            'job_id' => $job_id,
+        $params = self::validate_parameters(self::execute_parameters(), [
+            'job_id' => $jobid,
         ]);
 
         $context = \context_system::instance();
@@ -109,9 +109,9 @@ final class get_structure extends external_api {
                 $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
                 $imagestatus = 'pending';
             }
-            $structureJson = json_encode($result);
+            $structurejson = json_encode($result);
             return array_merge([
-                'structure' => $structureJson,
+                'structure' => $structurejson,
                 'job_id' => $params['job_id'],
                 'image_status' => $imagestatus,
                 'image_error' => null,
@@ -136,14 +136,24 @@ final class get_structure extends external_api {
      *
      * @return external_single_structure
      */
-    public static function get_structure_returns(): external_single_structure {
+    public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'structure' => new external_value(PARAM_RAW, 'JSON structure'),
             'job_id' => new external_value(PARAM_TEXT, 'Job ID'),
             'image_status' => new external_value(PARAM_TEXT, 'Image generation status', VALUE_OPTIONAL, ''),
             'image_error' => new external_value(PARAM_TEXT, 'Image generation error', VALUE_OPTIONAL, null, NULL_ALLOWED),
-            'image_can_generate' => new external_value(PARAM_BOOL, 'Whether course image generation is allowed', VALUE_OPTIONAL, false),
-            'image_can_edit' => new external_value(PARAM_BOOL, 'Whether course image edit/regenerate is allowed', VALUE_OPTIONAL, false),
+            'image_can_generate' => new external_value(
+                PARAM_BOOL,
+                'Whether course image generation is allowed',
+                VALUE_OPTIONAL,
+                false
+            ),
+            'image_can_edit' => new external_value(
+                PARAM_BOOL,
+                'Whether course image edit/regenerate is allowed',
+                VALUE_OPTIONAL,
+                false
+            ),
         ]);
     }
 }

@@ -45,7 +45,7 @@ final class save_structure extends external_api {
      *
      * @return external_function_parameters
      */
-    public static function save_structure_parameters(): external_function_parameters {
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job ID', VALUE_REQUIRED),
             'structure' => new external_value(PARAM_RAW, 'JSON structure', VALUE_REQUIRED),
@@ -56,15 +56,18 @@ final class save_structure extends external_api {
      * Save structure (single row per job; upsert).
      * Used when persisting the editor JSON (e.g. before finalize, or when landing from the generator).
      *
-     * @param string $job_id The job identifier
+     * @param string $jobid The job identifier
      * @param string $structure JSON structure data
      * @return array Save result
      */
-    public static function save_structure(string $job_id, string $structure): array {
+    public static function execute(
+        string $jobid,
+        string $structure
+    ): array {
         global $DB, $USER;
 
-        $params = self::validate_parameters(self::save_structure_parameters(), [
-            'job_id' => $job_id,
+        $params = self::validate_parameters(self::execute_parameters(), [
+            'job_id' => $jobid,
             'structure' => $structure,
         ]);
 
@@ -116,7 +119,7 @@ final class save_structure extends external_api {
      *
      * @return external_single_structure
      */
-    public static function save_structure_returns(): external_single_structure {
+    public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'success' => new external_value(PARAM_BOOL, 'Success status'),
         ]);

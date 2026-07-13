@@ -12,11 +12,9 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_dixeo_designer\service;
-
-defined('MOODLE_INTERNAL') || die();
 
 use block_dixeo_designer\cancellation\cancellation_context;
 use block_dixeo_designer\cancellation\cancellation_policy_resolver;
@@ -167,70 +165,70 @@ class designer_service {
             throw new \moodle_exception('invalidinput', 'block_dixeo_designer');
         }
 
-        $existingCourseId = ($existing && (int) $existing->userid === (int) $userid && !empty($existing->courseid))
+        $existingcourseid = ($existing && (int) $existing->userid === (int) $userid && !empty($existing->courseid))
             ? (int) $existing->courseid
             : null;
 
-        $oldPrompt = $existing->prompt ?? null;
-        $oldTemplateId = $existing->templateid ?? null;
+        $oldprompt = $existing->prompt ?? null;
+        $oldtemplateid = $existing->templateid ?? null;
 
         $submission = $this->submissions->save_submission($jobid, $userid, $trimmeddescription, $templateid);
         $this->submissions->begin_sync_phase($submission);
 
-        $newPrompt = $submission->prompt ?? null;
-        $newTemplateId = $submission->templateid ?? null;
+        $newprompt = $submission->prompt ?? null;
+        $newtemplateid = $submission->templateid ?? null;
 
         // Compute a deterministic manifest hash of the submission files.
         // Used to decide if we can reuse the existing draft course/vector store
         // without forcing a re-copy + re-sync.
-        $submissionFiles = $this->files->get_files((int) $submission->id);
-        $submissionFilesHash = $this->compute_file_manifest_hash($submissionFiles);
+        $submissionfiles = $this->files->get_files((int) $submission->id);
+        $submissionfileshash = $this->compute_file_manifest_hash($submissionfiles);
 
         prepare_progress_cache::purge($jobid);
 
-        if ($existingCourseId !== null) {
+        if ($existingcourseid !== null) {
             global $DB;
-            if (!$DB->record_exists('course', ['id' => $existingCourseId])) {
+            if (!$DB->record_exists('course', ['id' => $existingcourseid])) {
                 // Corrupted/missing draft course reference: force clean draft recreation.
-                $existingCourseId = null;
+                $existingcourseid = null;
             }
         }
 
-        if ($existingCourseId !== null) {
-            $courseAiRepo = new \local_dixeo\repository\course_ai_repository();
-            $courseAi = $courseAiRepo->get_by_courseid($existingCourseId);
+        if ($existingcourseid !== null) {
+            $courseairepo = new \local_dixeo\repository\course_ai_repository();
+            $courseai = $courseairepo->get_by_courseid($existingcourseid);
 
-            $storedFileHash = $courseAi->filehash ?? null;
-            $fileManifestUnchanged = $storedFileHash !== null && hash_equals((string) $storedFileHash, $submissionFilesHash);
+            $storedfilehash = $courseai->filehash ?? null;
+            $filemanifestunchanged = $storedfilehash !== null && hash_equals((string) $storedfilehash, $submissionfileshash);
 
-            $syncStatus = $courseAi->syncstatus ?? null;
-            $fileSyncReady = in_array((string) $syncStatus, ['synchronized', 'none'], true);
+            $syncstatus = $courseai->syncstatus ?? null;
+            $filesyncready = in_array((string) $syncstatus, ['synchronized', 'none'], true);
 
             // Reuse the existing draft course when the vector-store input is unchanged.
-            if ($fileManifestUnchanged && $fileSyncReady) {
-                $this->submissions->set_draft_course_pending_sync($submission, $existingCourseId);
+            if ($filemanifestunchanged && $filesyncready) {
+                $this->submissions->set_draft_course_pending_sync($submission, $existingcourseid);
 
-                $promptTemplateUnchanged = ($oldPrompt === $newPrompt) && ($oldTemplateId === $newTemplateId);
-                $structureExists = $this->structures->get_latest_structure($jobid) !== null;
+                $prompttemplateunchanged = ($oldprompt === $newprompt) && ($oldtemplateid === $newtemplateid);
+                $structureexists = $this->structures->get_latest_structure($jobid) !== null;
 
                 // Fast-path: identical prompt/template/files + structure already saved => no remote calls.
-                if ($promptTemplateUnchanged && $structureExists) {
+                if ($prompttemplateunchanged && $structureexists) {
                     $this->submissions->mark_status($submission, workflow_constants::SUBMISSION_STATUS_NOOP_GENERATION);
                     return (object) [
-                        'courseid' => (int) $existingCourseId,
+                        'courseid' => (int) $existingcourseid,
                         'noop' => true,
                     ];
                 }
 
                 return (object) [
-                    'courseid' => (int) $existingCourseId,
+                    'courseid' => (int) $existingcourseid,
                     'noop' => false,
                 ];
             }
         }
 
         // Fallback to the current behavior (new draft course) when we cannot safely reuse.
-        prepare_progress_cache::begin($jobid, !empty($submissionFiles), count($submissionFiles));
+        prepare_progress_cache::begin($jobid, !empty($submissionfiles), count($submissionfiles));
 
         $course = $this->coursecreation->create_draft_course($userid);
         $this->submissions->set_draft_course_pending_sync($submission, (int) $course->id);
@@ -293,6 +291,8 @@ class designer_service {
     }
 
     /**
+     * Whether the submission has uploaded source files.
+     *
      * @param int $submissionid
      * @return bool
      */
@@ -301,6 +301,8 @@ class designer_service {
     }
 
     /**
+     * Build an empty file-sync status object before a draft course exists.
+     *
      * @param bool $hasfiles
      * @return object
      */
@@ -321,6 +323,8 @@ class designer_service {
     }
 
     /**
+     * Build file-sync status while Moodle is still preparing the draft course.
+     *
      * @param bool $hasfiles
      * @param array|null $prep
      * @return object
@@ -343,6 +347,8 @@ class designer_service {
     }
 
     /**
+     * Merge remote file-sync fields with Moodle prepare progress.
+     *
      * @param bool $hasfiles
      * @param array|null $prep
      * @param object $remote
@@ -439,10 +445,14 @@ class designer_service {
      */
     public function get_structure_status(string $jobid, int $userid): object {
         $submission = $this->submissions->get_submission($jobid);
-        if ($submission && (int) $submission->userid === $userid && ($submission->status ?? '') === workflow_constants::SUBMISSION_STATUS_NOOP_COMPLETED) {
-            $structureJson = $this->structures->get_latest_structure($jobid);
-            if ($structureJson !== null) {
-                $decoded = json_decode($structureJson, true);
+        if (
+            $submission
+            && (int) $submission->userid === $userid
+            && ($submission->status ?? '') === workflow_constants::SUBMISSION_STATUS_NOOP_COMPLETED
+        ) {
+            $structurejson = $this->structures->get_latest_structure($jobid);
+            if ($structurejson !== null) {
+                $decoded = json_decode($structurejson, true);
                 $result = is_array($decoded) ? $decoded : null;
 
                 return (object) [
@@ -494,6 +504,7 @@ class designer_service {
      * @param string $jobid
      * @param int $userid
      * @param bool $createcourse
+     * @param string $finalizemode
      * @return \stdClass|null
      */
     public function finalize_course(string $jobid, int $userid, bool $createcourse, string $finalizemode = ''): ?\stdClass {
@@ -533,9 +544,9 @@ class designer_service {
             $cache->set($jobid, $merged);
         }
 
-        $structureJson = $this->structures->get_latest_structure($jobid);
-        if ($structureJson !== null) {
-            $result = json_decode($structureJson, true);
+        $structurejson = $this->structures->get_latest_structure($jobid);
+        if ($structurejson !== null) {
+            $result = json_decode($structurejson, true);
             $result = is_array($result) ? $result : [];
         } else {
             $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
@@ -723,30 +734,30 @@ class designer_service {
             image_poll_manager::delete_queued_poll_tasks($courseid);
         }
 
-        if ($plan->delete_draft_course && $courseid !== null) {
+        if ($plan->deletedraftcourse && $courseid !== null) {
             $this->coursecreation->delete_draft_course($courseid, true);
-        } else if ($plan->delete_generated_modules_only && $courseid !== null) {
+        } else if ($plan->deletegeneratedmodulesonly && $courseid !== null) {
             $this->coursecreation->delete_generated_content_modules_preserving_uploads($courseid);
-            if ($plan->restore_draft_course_metadata) {
+            if ($plan->restoredraftcoursemetadata) {
                 $this->coursecreation->restore_draft_course_metadata_after_cancel($courseid);
             }
         }
 
-        if ($plan->disable_file_sync && $courseid !== null && $this->filesyncservice !== null) {
+        if ($plan->disablefilesync && $courseid !== null && $this->filesyncservice !== null) {
             try {
-                $this->filesyncservice->disable_sync($courseid, $userid, $plan->remove_files_on_disable_sync);
+                $this->filesyncservice->disable_sync($courseid, $userid, $plan->removefilesondisablesync);
             } catch (\Throwable $e) {
                 debugging('cancel_draft: failed to disable file sync: ' . $e->getMessage(), DEBUG_DEVELOPER);
             }
         }
 
-        if ($plan->delete_structure_rows) {
+        if ($plan->deletestructurerows) {
             $this->structures->delete_by_jobid($jobid);
         }
-        if ($plan->delete_submission_row) {
+        if ($plan->deletesubmissionrow) {
             $this->submissions->delete_submission($jobid, $userid);
-        } else if ($plan->reset_submission_to_draft) {
-            if ($plan->delete_draft_course) {
+        } else if ($plan->resetsubmissiontodraft) {
+            if ($plan->deletedraftcourse) {
                 $submission->courseid = null;
             }
             $submission->remotejobid = null;
@@ -761,6 +772,7 @@ class designer_service {
      *
      * @param int $submissionid
      * @param string $jobid
+     * @param int $courseid
      * @return void
      */
     private function sync_submission_files_to_remote(int $submissionid, string $jobid, int $courseid): void {
@@ -948,7 +960,10 @@ class designer_service {
         }
 
         if ($jobstatus->is_failed()) {
-            $error = (string) ($jobstatus->errormessage ?? get_string('designer_image_generate_unavailable', 'block_dixeo_designer'));
+            $error = (string) ($jobstatus->errormessage ?? get_string(
+                'designer_image_generate_unavailable',
+                'block_dixeo_designer'
+            ));
             $this->structures->set_image_state($jobid, null, 'failed', $error);
             return [
                 'status' => 'failed',
@@ -982,7 +997,7 @@ class designer_service {
             try {
                 $this->jobservice->cancel_job((string) $submission->remotejobid);
             } catch (\Throwable $e) {
-                // Ignore cancellation failure for already completed jobs.
+                debugging('cancel_existing_jobs_for_regeneration: remote cancel failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
             }
         }
 
@@ -1004,7 +1019,8 @@ class designer_service {
      * @param int $userid
      * @param int $draftcourseid
      * @param string $finalizemode
-     * @param array $structureresult Structure payload (same shape as finalize_course $result); used for quick-mode image title/summary overrides.
+     * @param array $structureresult Structure payload (same shape as finalize_course $result);
+     *                              used for quick-mode image title/summary overrides.
      * @return void
      */
     private function queue_finalize_course_image_tracking(
@@ -1078,6 +1094,8 @@ class designer_service {
     }
 
     /**
+     * Best-effort cancel of a running structure image job.
+     *
      * @param string|null $imagejobid
      * @return void
      */
@@ -1088,11 +1106,13 @@ class designer_service {
         try {
             $this->jobservice->cancel_job($imagejobid);
         } catch (\Throwable $e) {
-            // Ignore cancellation failures.
+            debugging('cancel_image_job_if_running failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
     }
 
     /**
+     * Resolve the shared Dixeo job service.
+     *
      * @return \local_dixeo\service\job_service
      */
     private function get_job_service(): \local_dixeo\service\job_service {
@@ -1103,6 +1123,8 @@ class designer_service {
     }
 
     /**
+     * Resolve the course image generation service.
+     *
      * @return image_generation_service
      */
     private function get_image_service(): image_generation_service {
@@ -1138,6 +1160,8 @@ class designer_service {
     }
 
     /**
+     * Extract the course image URL from saved structure JSON.
+     *
      * @param string $structurejson
      * @return string|null
      */

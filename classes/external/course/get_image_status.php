@@ -30,9 +30,11 @@ use core_external\external_value;
  */
 final class get_image_status extends external_api {
     /**
+     * Parameter definitions for get_image_status.
+     *
      * @return external_function_parameters
      */
-    public static function get_image_status_parameters(): external_function_parameters {
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job id', VALUE_REQUIRED),
             'sesskey' => new external_value(PARAM_RAW, 'Session key', VALUE_REQUIRED),
@@ -40,14 +42,19 @@ final class get_image_status extends external_api {
     }
 
     /**
-     * @param string $job_id
-     * @param string $sesskey
+     * Poll image generation/edit status for a structure.
+     *
+     * @param string $jobid Job identifier.
+     * @param string $sesskey Session key.
      * @return array
      */
-    public static function get_image_status(string $job_id, string $sesskey): array {
+    public static function execute(
+        string $jobid,
+        string $sesskey
+    ): array {
         global $USER;
-        self::validate_parameters(self::get_image_status_parameters(), [
-            'job_id' => $job_id,
+        self::validate_parameters(self::execute_parameters(), [
+            'job_id' => $jobid,
             'sesskey' => $sesskey,
         ]);
 
@@ -57,7 +64,7 @@ final class get_image_status extends external_api {
         require_sesskey();
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
-        $status = $service->get_structure_image_status($job_id, (int) $USER->id);
+        $status = $service->get_structure_image_status($jobid, (int) $USER->id);
 
         return [
             'status' => (string) $status['status'],
@@ -69,9 +76,11 @@ final class get_image_status extends external_api {
     }
 
     /**
+     * Return structure for get_image_status response.
+     *
      * @return external_single_structure
      */
-    public static function get_image_status_returns(): external_single_structure {
+    public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'status' => new external_value(PARAM_TEXT, 'Image status'),
             'completed' => new external_value(PARAM_BOOL, 'Whether image is ready'),

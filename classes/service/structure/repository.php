@@ -12,11 +12,9 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.moodle.org/license>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_dixeo_designer\service\structure;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Repository for persisted designer structure (one row per job in block_dixeo_designer_structure).

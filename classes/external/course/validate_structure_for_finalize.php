@@ -12,7 +12,7 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
  * Validate course structure before finalize (no persistence or side effects).
@@ -31,8 +31,6 @@ use core_external\external_single_structure;
 use core_external\external_value;
 use local_dixeo\service\designer_structure_finalize_validation_service;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Read-only structure validation for the designer finalize flow.
  *
@@ -41,6 +39,8 @@ defined('MOODLE_INTERNAL') || die();
 final class validate_structure_for_finalize extends external_api {
 
     /**
+     * Parameter definitions for validate_structure_for_finalize.
+     *
      * @return external_function_parameters
      */
     public static function execute_parameters(): external_function_parameters {
@@ -59,18 +59,18 @@ final class validate_structure_for_finalize extends external_api {
     /**
      * Validate structure JSON for course creation (does not save or start jobs).
      *
-     * @param string $job_id
-     * @param string $structure
-     * @param string $scope_path Optional data-path; limits issues to that field for inline edit.
+     * @param string $jobid Job identifier.
+     * @param string $structure Structure JSON.
+     * @param string $scopepath Optional data-path; limits issues to that field for inline edit.
      * @return array{valid: bool, errors: string[], fielderrors: array<int, array{path: string, message: string}>}
      */
-    public static function execute(string $job_id, string $structure, string $scope_path = ''): array {
+    public static function execute(string $jobid, string $structure, string $scopepath = ''): array {
         global $DB, $USER;
 
         $params = self::validate_parameters(self::execute_parameters(), [
-            'job_id' => $job_id,
+            'job_id' => $jobid,
             'structure' => $structure,
-            'scope_path' => $scope_path,
+            'scope_path' => $scopepath,
         ]);
 
         $context = \context_system::instance();
@@ -112,6 +112,8 @@ final class validate_structure_for_finalize extends external_api {
     }
 
     /**
+     * Return structure for validate_structure_for_finalize response.
+     *
      * @return external_single_structure
      */
     public static function execute_returns(): external_single_structure {

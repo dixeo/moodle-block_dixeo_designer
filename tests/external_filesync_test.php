@@ -38,6 +38,9 @@ use block_dixeo_designer\service\designer_service_factory;
  * @category   test
  * @copyright  2026 Dixeo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @covers     \block_dixeo_designer\external\draft\start_generation
+ * @covers     \block_dixeo_designer\external\draft\get_filesync_status
+ * @covers     \block_dixeo_designer\external\draft\submit_structure_job
  */
 final class external_filesync_test extends advanced_testcase {
 
@@ -66,7 +69,7 @@ final class external_filesync_test extends advanced_testcase {
             ->onlyMethods([
                 'prepare_generation',
                 'get_filesync_status',
-                'submit_structure_generation'
+                'submit_structure_generation',
             ])
             ->getMock();
 
@@ -78,6 +81,11 @@ final class external_filesync_test extends advanced_testcase {
         parent::tearDown();
     }
 
+    /**
+     * Assign local/dixeo:create to the test user.
+     *
+     * @return void
+     */
     private function assign_capability(): void {
         $sysctx = \context_system::instance();
         $roleid = $this->getDataGenerator()->create_role();
@@ -90,7 +98,7 @@ final class external_filesync_test extends advanced_testcase {
             ->with('job-2', $this->user->id, 'My description', 'tpl-1')
             ->willReturn((object) ['courseid' => 12, 'noop' => true]);
 
-        $result = start_generation::start_generation(
+        $result = start_generation::execute(
             'job-2',
             'My description',
             'tpl-1',
@@ -118,7 +126,7 @@ final class external_filesync_test extends advanced_testcase {
                 'moodlepreparepercent' => null,
             ]);
 
-        $result = get_filesync_status::get_filesync_status('job-3', $this->sesskey);
+        $result = get_filesync_status::execute('job-3', $this->sesskey);
 
         $this->assertSame('syncing', $result['status']);
         $this->assertSame(15.5, (float) $result['progresspercent']);
@@ -138,7 +146,7 @@ final class external_filesync_test extends advanced_testcase {
             ->with('job-4', $this->user->id)
             ->willReturn((object) ['remotejobid' => 'remote-1', 'courseid' => 55]);
 
-        $result = submit_structure_job::submit_structure_job('job-4', $this->sesskey);
+        $result = submit_structure_job::execute('job-4', $this->sesskey);
 
         $this->assertSame('remote-1', $result['remotejobid']);
         $this->assertSame(55, (int) $result['courseid']);

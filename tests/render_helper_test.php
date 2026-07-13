@@ -16,8 +16,6 @@
 
 namespace block_dixeo_designer;
 
-defined('MOODLE_INTERNAL') || die();
-
 use advanced_testcase;
 use block_dixeo_designer\service\submission\render_helper;
 use local_dixeo\external\service_factory;
@@ -79,6 +77,11 @@ final class render_helper_test extends advanced_testcase {
         $this->assertSame(get_string('regenerate_structure_tooltip', 'block_dixeo_designer'), $ctx['generate_structure_tooltip']);
     }
 
+    /**
+     * Create a mock course template service with a default template.
+     *
+     * @return course_template_service
+     */
     private function mock_templates_service(): course_template_service {
         $mockservice = $this->createMock(course_template_service::class);
         $mockservice->method('is_configured')->willReturn(true);

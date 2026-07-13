@@ -16,18 +16,34 @@
 
 namespace block_dixeo_designer\external\course\dto;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * DTO for block_dixeo_designer finalize_course external response.
+ *
+ * @package    block_dixeo_designer
+ * @copyright  2026 Dixeo
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class finalize_course_result {
+    /**
+     * Constructor.
+     *
+     * @param int $courseid Finalized course id.
+     * @param string $coursename Finalized course full name.
+     */
     public function __construct(
+        /** @var int Finalized course id. */
         public int $courseid,
+        /** @var string Finalized course full name. */
         public string $coursename
     ) {
     }
 
+    /**
+     * Build a DTO from a course record.
+     *
+     * @param object|null $course
+     * @return self
+     */
     public static function from_course(?object $course): self {
         if ($course === null) {
             return new self(0, '');
@@ -36,6 +52,11 @@ final class finalize_course_result {
         return new self((int) ($course->id ?? 0), (string) ($course->fullname ?? ''));
     }
 
+    /**
+     * Convert to webservice response array.
+     *
+     * @return array{courseid: int, coursename: string}
+     */
     public function to_array(): array {
         return [
             'courseid' => $this->courseid,
@@ -43,4 +64,3 @@ final class finalize_course_result {
         ];
     }
 }
-
