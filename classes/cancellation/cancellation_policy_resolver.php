@@ -12,11 +12,9 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_dixeo_designer\cancellation;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Maps cancellation_context to cancellation_plan (see docs/cancellation-decision-matrix.yml).
@@ -26,7 +24,6 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cancellation_policy_resolver {
-
     /**
      * Resolve the plan from context.
      *
@@ -36,7 +33,7 @@ final class cancellation_policy_resolver {
     public static function resolve(cancellation_context $ctx): cancellation_plan {
         // Hard reset only on explicit delete_structure request (footer/dashboard).
         // Keep submission payload (prompt/template/files) so users can regenerate without re-entering inputs.
-        if ($ctx->delete_structure_requested) {
+        if ($ctx->deletestructurerequested) {
             return new cancellation_plan(
                 true,
                 false,
@@ -51,17 +48,17 @@ final class cancellation_policy_resolver {
         }
 
         // No saved structure: keep submission payload (prompt/template/files), but reset run state.
-        if (!$ctx->has_saved_structure) {
+        if (!$ctx->hassavedstructure) {
             return new cancellation_plan(
-                true,  // delete_structure_rows (no-op if none).
-                false, // keep submission row.
-                true,  // reset submission to draft.
-                true,  // delete_draft_course.
-                false, // delete_generated_modules_only.
-                false, // restore_draft_course_metadata.
-                true,  // disable_file_sync.
-                true,  // remove_files_on_disable_sync.
-                false  // reset_quick_finalize_progress_fields.
+                true, // Delete structure rows (no-op if none).
+                false, // Keep submission row.
+                true, // Reset submission to draft.
+                true, // Delete draft course.
+                false, // Delete generated modules only.
+                false, // Restore draft course metadata.
+                true, // Disable file sync.
+                true, // Remove files on disable sync.
+                false  // Reset quick finalize progress fields.
             );
         }
 
@@ -69,15 +66,15 @@ final class cancellation_policy_resolver {
         // remove generated modules only; restore course metadata; lighter vector reset.
         // Quick-mode cancel from designer.php uses this branch too, but still resets quick progress fields.
         return new cancellation_plan(
-            false, // keep structure rows.
-            false, // keep submission row.
-            true,  // reset submission to draft.
-            false, // keep draft course.
-            true,  // delete generated modules only (preserve upload resources).
-            true,  // restore draft-like metadata after finalize.
-            true,  // disable_file sync (pause / stop polling).
-            false, // do not wipe vector store files — file resources stay tied to submission sync.
-            $ctx->generation_mode === 'quick'
+            false, // Keep structure rows.
+            false, // Keep submission row.
+            true, // Reset submission to draft.
+            false, // Keep draft course.
+            true, // Delete generated modules only (preserve upload resources).
+            true, // Restore draft-like metadata after finalize.
+            true, // Disable file sync (pause / stop polling).
+            false, // Do not wipe vector store files — file resources stay tied to submission sync.
+            $ctx->generationmode === 'quick'
         );
     }
 }

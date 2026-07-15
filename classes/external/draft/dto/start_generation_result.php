@@ -16,25 +16,43 @@
 
 namespace block_dixeo_designer\external\draft\dto;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * DTO for block_dixeo_designer start_generation external response.
+ *
+ * @package    block_dixeo_designer
+ * @copyright  2026 Dixeo
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class start_generation_result {
+    /**
+     * Constructor.
+     *
+     * @param int $courseid Draft course id.
+     * @param bool $noop Whether generation was skipped as a no-op.
+     */
     public function __construct(
+        /** @var int Draft course id. */
         public int $courseid,
+        /** @var bool Whether generation was skipped as a no-op. */
         public bool $noop
     ) {
     }
 
+    /**
+     * Build a DTO from the designer service response object.
+     *
+     * @param object $start
+     * @return self
+     */
     public static function from_service(object $start): self {
-        return new self(
-            (int) ($start->courseid ?? 0),
-            (bool) ($start->noop ?? false)
-        );
+        return new self((int) ($start->courseid ?? 0), (bool) ($start->noop ?? false));
     }
 
+    /**
+     * Convert to webservice response array.
+     *
+     * @return array{courseid: int, noop: bool}
+     */
     public function to_array(): array {
         return [
             'courseid' => $this->courseid,
@@ -42,4 +60,3 @@ final class start_generation_result {
         ];
     }
 }
-

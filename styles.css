@@ -13,6 +13,7 @@
 }
 
 .block_dixeo_designer.card .card-title {
+    /* stylelint-disable-next-line declaration-no-important -- Override Bootstrap card title when block is rendered as a card. */
     display: none !important;
 }
 
@@ -105,6 +106,7 @@
 #page-blocks-dixeo_designer-designer #page-header h1.h2,
 #page-blocks-dixeo_designer-designer #page-header .me-auto,
 #page-blocks-dixeo_designer-designer #page-header .mb-2 {
+    /* stylelint-disable-next-line declaration-no-important -- Reset Moodle page-header Bootstrap spacing utilities. */
     margin: 0 !important;
 }
 
@@ -221,7 +223,8 @@
 }
 
 .block_dixeo_designer .prompt-container .template-selector .dropdown-menu {
-    max-width: min(28rem, 100vw);
+    max-width: 28rem;
+    width: 100%;
 }
 
 .block_dixeo_designer .prompt-container .label_course_files {
@@ -601,6 +604,7 @@
 }
 
 #page-blocks-dixeo_designer-designer .course-structure-container [data-placeholder].editable.is-showing-placeholder {
+    /* stylelint-disable-next-line declaration-no-important -- Placeholder text must override theme editable color. */
     color: var(--dixeo-designer-text-muted, #6c757d) !important;
 }
 
@@ -1027,11 +1031,13 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
 #page-blocks-dixeo_designer-designer .btn-sm.btn-add-section,
 #page-blocks-dixeo_designer-designer .btn-sm.btn-add-module {
     margin: 0 0 1px 0;
+    /* stylelint-disable-next-line declaration-no-important -- Compact add controls override Bootstrap .btn-sm padding. */
     padding: 0 10px !important;
     height: 22px;
 }
 
 #page-blocks-dixeo_designer-designer .btn-sm {
+    /* stylelint-disable-next-line declaration-no-important -- Compact toolbar buttons override Bootstrap .btn-sm padding. */
     padding: 5px 10px !important;
 }
 
@@ -1121,11 +1127,13 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
 }
 
 #page-blocks-dixeo_designer-designer.dixeo-designer-editing-locked .course-structure-container .item-actions {
+    /* stylelint-disable-next-line declaration-no-important -- Locked edit mode must hide actions despite hover rules. */
     display: none !important;
 }
 
 #page-blocks-dixeo_designer-designer.dixeo-designer-editing-locked .course-structure-container .btn-add-section,
 #page-blocks-dixeo_designer-designer.dixeo-designer-editing-locked .course-structure-container .btn-add-module {
+    /* stylelint-disable-next-line declaration-no-important -- Locked edit mode must hide add buttons despite hover rules. */
     display: none !important;
 }
 

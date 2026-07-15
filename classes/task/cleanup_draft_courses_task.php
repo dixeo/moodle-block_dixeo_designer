@@ -16,8 +16,6 @@
 
 namespace block_dixeo_designer\task;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Scheduled task: delete draft courses (idnumber dixeo_draft_*) older than 1 hour.
  *

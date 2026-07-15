@@ -12,15 +12,12 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_dixeo_designer\service;
 
-defined('MOODLE_INTERNAL') || die();
-
 use core\output\choicelist;
 use core\output\local\dropdown\status;
-use local_dixeo\external\service_factory;
 
 /**
  * Thin helper for course template prompt options (UI only).
@@ -32,6 +29,17 @@ use local_dixeo\external\service_factory;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class course_template_helper {
+    /**
+     * Whether local_dixeo template services are available in this install.
+     *
+     * Settings and UI must remain safe during PHPUnit/plugin install when the
+     * dependency is not present yet or not installed in CI.
+     *
+     * @return bool
+     */
+    private static function is_template_service_available(): bool {
+        return class_exists(\local_dixeo\external\service_factory::class);
+    }
 
     /**
      * Returns remote course template choices from local_dixeo (cached there).
@@ -42,7 +50,11 @@ class course_template_helper {
      * @return array Map of template id => label.
      */
     public static function get_remote_course_template_choices(): array {
-        $service = service_factory::get_course_template_service();
+        if (!self::is_template_service_available()) {
+            return [];
+        }
+
+        $service = \local_dixeo\external\service_factory::get_course_template_service();
         if (!$service->is_configured()) {
             return [];
         }
@@ -108,7 +120,11 @@ class course_template_helper {
             $selectedtemplateid = self::get_selected_course_template();
         }
 
-        $service = service_factory::get_course_template_service();
+        if (!self::is_template_service_available()) {
+            return null;
+        }
+
+        $service = \local_dixeo\external\service_factory::get_course_template_service();
         if (!$service->is_configured()) {
             return null;
         }
@@ -149,7 +165,10 @@ class course_template_helper {
      * @param string|null $selectedtemplateid Selected template id.
      * @return array|null Element context or null when no templates.
      */
-    public static function export_template_selector(\core\output\renderer_base $output, ?string $selectedtemplateid = null): ?array {
+    public static function export_template_selector(
+        \core\output\renderer_base $output,
+        ?string $selectedtemplateid = null
+    ): ?array {
         $choicelist = self::build_course_template_choicelist($selectedtemplateid);
         if ($choicelist === null) {
             return null;

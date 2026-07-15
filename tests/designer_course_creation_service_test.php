@@ -39,7 +39,6 @@ use local_dixeo\service\module_generation_service;
  * @covers \block_dixeo_designer\service\designer_course_creation_service
  */
 final class designer_course_creation_service_test extends advanced_testcase {
-
     /** @var module_generation_service|\PHPUnit\Framework\MockObject\MockObject|null */
     private $mockmodulegen;
 
@@ -354,4 +353,3 @@ final class designer_course_creation_service_test extends advanced_testcase {
         $this->assertNotSame('', trim((string) $after->password));
     }
 }
-

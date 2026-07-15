@@ -12,7 +12,7 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
  * Library functions for the Dixeo Designer block.
@@ -21,8 +21,6 @@
  * @copyright  2026 Dixeo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Generate a unique job ID for designer submission tracking.
@@ -55,6 +53,8 @@ function block_dixeo_designer_pluginfile(
     bool $forcedownload,
     array $options = []
 ): bool {
+    global $USER;
+
     if ($context->contextlevel !== CONTEXT_SYSTEM || $filearea !== 'generated_images') {
         return false;
     }
@@ -67,6 +67,12 @@ function block_dixeo_designer_pluginfile(
     }
 
     $itemid = (int) array_shift($args);
+
+    // Generated images are stored with itemid = owner userid.
+    if ($itemid !== (int) $USER->id && !is_siteadmin()) {
+        throw new \moodle_exception('nopermissions', 'error');
+    }
+
     $filename = array_pop($args);
     $filepath = '/' . implode('/', $args) . '/';
     if ($filepath === '//') {
@@ -80,4 +86,35 @@ function block_dixeo_designer_pluginfile(
     }
 
     send_stored_file($file, 60 * 60, 0, $forcedownload, $options);
+
+    return true;
+}
+
+/**
+ * Build a client-safe AJAX error message and log technical details.
+ *
+ * Only Moodle language strings from this plugin (or core error/moodle) are returned.
+ * Raw Throwable text is never passed to the browser.
+ *
+ * @param Throwable $exception Caught exception.
+ * @param string $fallbackstring Language string id in block_dixeo_designer.
+ * @return string
+ */
+function block_dixeo_designer_format_ajax_exception_message(
+    Throwable $exception,
+    string $fallbackstring
+): string {
+    debugging(
+        $exception->getMessage() . "\n" . $exception->getTraceAsString(),
+        DEBUG_DEVELOPER
+    );
+
+    if ($exception instanceof moodle_exception) {
+        $module = (string) $exception->module;
+        if ($module === 'block_dixeo_designer' || $module === 'error' || $module === 'moodle') {
+            return get_string($exception->errorcode, $module, $exception->a);
+        }
+    }
+
+    return get_string($fallbackstring, 'block_dixeo_designer');
 }

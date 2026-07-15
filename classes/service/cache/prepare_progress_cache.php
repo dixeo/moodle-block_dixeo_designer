@@ -16,8 +16,6 @@
 
 namespace block_dixeo_designer\service\cache;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Tracks Moodle-side prepare progress (copy into draft course) for file-sync polling.
  *
@@ -26,9 +24,9 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class prepare_progress_cache {
-
     /**
-     * @param string $jobid
+     * Return the prepare progress cache store.
+     *
      * @return \cache
      */
     private static function store(): \cache {
@@ -87,6 +85,8 @@ final class prepare_progress_cache {
     }
 
     /**
+     * Read prepare progress for a job.
+     *
      * @param string $jobid
      * @return array<string, mixed>|null
      */

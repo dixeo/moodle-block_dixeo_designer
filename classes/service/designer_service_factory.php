@@ -12,11 +12,9 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_dixeo_designer\service;
-
-defined('MOODLE_INTERNAL') || die();
 
 use block_dixeo_designer\service\remote\dixeo_remote_adapter;
 
@@ -28,7 +26,6 @@ use block_dixeo_designer\service\remote\dixeo_remote_adapter;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class designer_service_factory {
-
     /** @var designer_service|null Test instance for unit tests. */
     private static ?designer_service $testinstance = null;
 

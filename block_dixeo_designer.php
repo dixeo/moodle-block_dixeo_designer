@@ -27,7 +27,6 @@
  * The Dixeo Course Designer block class
  */
 class block_dixeo_designer extends block_base {
-
     /**
      * Set the initial properties for the block
      */

@@ -30,13 +30,12 @@ use block_dixeo_designer\external\draft\dto\cancel_draft_result;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cancel_draft extends external_api {
-
     /**
      * Web service parameter definitions.
      *
      * @return external_function_parameters
      */
-    public static function cancel_draft_parameters(): external_function_parameters {
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job id', VALUE_REQUIRED),
             'sesskey' => new external_value(PARAM_RAW, 'Session key', VALUE_REQUIRED),
@@ -47,18 +46,22 @@ final class cancel_draft extends external_api {
     /**
      * Cancel draft course generation and reset submission state so user can regenerate.
      *
-     * @param string $job_id Job identifier.
+     * @param string $jobid Job identifier.
      * @param string $sesskey Session key.
-     * @param bool $delete_structure Force deleting saved structure (footer cancel).
+     * @param bool $deletestructure Force deleting saved structure (footer cancel).
      * @return array { success: bool }
      */
-    public static function cancel_draft(string $job_id, string $sesskey, bool $delete_structure = false): array {
+    public static function execute(
+        string $jobid,
+        string $sesskey,
+        bool $deletestructure = false
+    ): array {
         global $USER;
 
-        self::validate_parameters(self::cancel_draft_parameters(), [
-            'job_id' => $job_id,
+        self::validate_parameters(self::execute_parameters(), [
+            'job_id' => $jobid,
             'sesskey' => $sesskey,
-            'delete_structure' => $delete_structure,
+            'delete_structure' => $deletestructure,
         ]);
 
         $context = \context_system::instance();
@@ -67,7 +70,7 @@ final class cancel_draft extends external_api {
         require_sesskey();
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
-        $ok = $service->cancel_draft($job_id, (int) $USER->id, $delete_structure);
+        $ok = $service->cancel_draft($jobid, (int) $USER->id, $deletestructure);
 
         return cancel_draft_result::from_bool($ok)->to_array();
     }
@@ -77,7 +80,7 @@ final class cancel_draft extends external_api {
      *
      * @return external_single_structure
      */
-    public static function cancel_draft_returns(): external_single_structure {
+    public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'success' => new external_value(PARAM_BOOL, 'Whether cancel succeeded'),
         ]);

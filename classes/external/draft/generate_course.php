@@ -45,7 +45,7 @@ final class generate_course extends external_api {
      *
      * @return external_function_parameters The parameters definition, including job_id and sesskey.
      */
-    public static function generate_course_parameters(): external_function_parameters {
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job id', VALUE_REQUIRED),
             'description' => new external_value(PARAM_TEXT, 'Course description', VALUE_REQUIRED),
@@ -58,15 +58,15 @@ final class generate_course extends external_api {
     /**
      * Starts asynchronous generation: draft course, file sync, remote structure job; returns ids for polling.
      *
-     * @param string $job_id The unique identifier for the generation job.
+     * @param string $jobid The unique identifier for the generation job.
      * @param string $description The course description.
      * @param string|null $templateid The selected template identifier.
      * @param string $sesskey The session key for security verification.
      * @param bool $skip Reserved for API compatibility; not yet passed to the service layer.
      * @return array { courseid, remotejobid }
      */
-    public static function generate_course(
-        string $job_id,
+    public static function execute(
+        string $jobid,
         string $description,
         ?string $templateid,
         string $sesskey,
@@ -74,15 +74,15 @@ final class generate_course extends external_api {
     ): array {
         global $USER;
 
-        self::validate_parameters(self::generate_course_parameters(), [
-            'job_id' => $job_id,
+        self::validate_parameters(self::execute_parameters(), [
+            'job_id' => $jobid,
             'description' => $description,
             'templateid' => $templateid,
             'sesskey' => $sesskey,
             'skip' => $skip,
         ]);
 
-        // $skip is accepted for WS compatibility; start_generation does not use it yet.
+        // The $skip parameter is accepted for WS compatibility; start_generation does not use it yet.
 
         $context = \context_system::instance();
         self::validate_context($context);
@@ -91,7 +91,7 @@ final class generate_course extends external_api {
         require_sesskey();
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
-        $start = $service->start_generation($job_id, (int) $USER->id, $description, $templateid);
+        $start = $service->start_generation($jobid, (int) $USER->id, $description, $templateid);
 
         return [
             'courseid' => $start->courseid,
@@ -104,7 +104,7 @@ final class generate_course extends external_api {
      *
      * @return external_single_structure
      */
-    public static function generate_course_returns(): external_single_structure {
+    public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'courseid' => new external_value(PARAM_INT, 'Draft course ID'),
             'remotejobid' => new external_value(PARAM_TEXT, 'Remote structure job ID for polling'),

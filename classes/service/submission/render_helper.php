@@ -16,8 +16,6 @@
 
 namespace block_dixeo_designer\service\submission;
 
-defined('MOODLE_INTERNAL') || die();
-
 use block_dixeo_designer\service\course_template_helper;
 
 /**

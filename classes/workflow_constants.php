@@ -16,8 +16,6 @@
 
 namespace block_dixeo_designer;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Constants for designer workflow phases and submission statuses.
  *
@@ -29,24 +27,32 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class workflow_constants {
+    /**
+     * Prevent instantiation.
+     */
     private function __construct() {
-        // Static class.
     }
 
-    // Submission statuses.
+    /** @var string Submission is editable and not running a remote job. */
     public const SUBMISSION_STATUS_DRAFT = 'draft';
+    /** @var string Remote structure generation is in progress. */
     public const SUBMISSION_STATUS_GENERATING_STRUCTURE = 'generating_structure';
+    /** @var string Submission files are being synced to the remote vector store. */
     public const SUBMISSION_STATUS_SYNCING_FILES = 'syncing_files';
+    /** @var string Generation was skipped because inputs did not change. */
     public const SUBMISSION_STATUS_NOOP_GENERATION = 'noop_generation';
+    /** @var string No-op generation finished; structure is ready to edit. */
     public const SUBMISSION_STATUS_NOOP_COMPLETED = 'noop_completed';
+    /** @var string Finalized course was created from this submission. */
     public const SUBMISSION_STATUS_COURSE_CREATED = 'course_created';
 
-    // Finalize progress phases (polled by the UI).
+    /** @var string Finalize progress: module content is being generated. */
     public const FINALIZE_PHASE_GENERATING_CONTENT = 'generating_content';
+    /** @var string Finalize progress: course metadata and enrolment are being applied. */
     public const FINALIZE_PHASE_FINALIZING = 'finalizing';
+    /** @var string Finalize progress: all steps completed. */
     public const FINALIZE_PHASE_DONE = 'done';
 
-    // Remote structure generation validates the minimum instruction length.
+    /** @var int Minimum instruction length enforced by remote structure generation. */
     public const MIN_INSTRUCTIONS_LEN = 20;
 }
-

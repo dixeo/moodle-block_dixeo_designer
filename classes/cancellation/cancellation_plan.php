@@ -12,11 +12,9 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_dixeo_designer\cancellation;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Resolved cancellation actions (source of truth for cancel_draft execution order).
@@ -26,73 +24,81 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cancellation_plan {
-
     /** @var bool Delete rows in block_dixeo_designer_structure for this job. */
-    public bool $delete_structure_rows;
+    public bool $deletestructurerows;
 
     /** @var bool Remove submission row entirely. */
-    public bool $delete_submission_row;
+    public bool $deletesubmissionrow;
 
     /**
      * Clear remote job id and set status draft. When the draft course is kept (two-step resume),
      * courseid is preserved so {@see designer_service::prepare_generation()} can reuse the course.
+     *
+     * @var bool
      */
-    public bool $reset_submission_to_draft;
+    public bool $resetsubmissiontodraft;
 
     /** @var bool Delete the Moodle course (and all modules). */
-    public bool $delete_draft_course;
+    public bool $deletedraftcourse;
 
     /**
      * Delete only AI-generated activity modules; preserve submission file resources (course_modules.idnumber = upload tag).
      * Only used when delete_draft_course is false and courseid is set.
+     *
+     * @var bool
      */
-    public bool $delete_generated_modules_only;
+    public bool $deletegeneratedmodulesonly;
 
     /** @var bool Restore course fullname/shortname/idnumber/summary to draft-like after finalize overwrote them. */
-    public bool $restore_draft_course_metadata;
+    public bool $restoredraftcoursemetadata;
 
     /** @var bool Call file_sync_service->disable_sync. */
-    public bool $disable_file_sync;
+    public bool $disablefilesync;
 
     /**
      * Second argument to disable_sync: remove remote VectorStore files and reset local_dixeo_course_ai state.
      * For resume (keep course), false preserves vector inputs while file resources remain in the course.
+     *
+     * @var bool
      */
-    public bool $remove_files_on_disable_sync;
+    public bool $removefilesondisablesync;
 
     /** @var bool Clear finalize_progress phase/index fields for quick mode cancels. */
-    public bool $reset_quick_finalize_progress_fields;
+    public bool $resetquickfinalizeprogressfields;
 
     /**
-     * @param bool $delete_structure_rows
-     * @param bool $delete_submission_row
-     * @param bool $reset_submission_to_draft
-     * @param bool $delete_draft_course
-     * @param bool $delete_generated_modules_only
-     * @param bool $restore_draft_course_metadata
-     * @param bool $disable_file_sync
-     * @param bool $remove_files_on_disable_sync
-     * @param bool $reset_quick_finalize_progress_fields
+    /**
+     * Construct a cancellation plan.
+     *
+     * @param bool $deletestructurerows Delete structure rows for this job.
+     * @param bool $deletesubmissionrow Remove the submission row entirely.
+     * @param bool $resetsubmissiontodraft Reset submission to draft status.
+     * @param bool $deletedraftcourse Delete the Moodle draft course.
+     * @param bool $deletegeneratedmodulesonly Delete generated modules only.
+     * @param bool $restoredraftcoursemetadata Restore draft course metadata.
+     * @param bool $disablefilesync Disable file sync for the course.
+     * @param bool $removefilesondisablesync Remove remote files when disabling sync.
+     * @param bool $resetquickfinalizeprogressfields Clear quick-mode finalize progress.
      */
     public function __construct(
-        bool $delete_structure_rows,
-        bool $delete_submission_row,
-        bool $reset_submission_to_draft,
-        bool $delete_draft_course,
-        bool $delete_generated_modules_only,
-        bool $restore_draft_course_metadata,
-        bool $disable_file_sync,
-        bool $remove_files_on_disable_sync,
-        bool $reset_quick_finalize_progress_fields
+        bool $deletestructurerows,
+        bool $deletesubmissionrow,
+        bool $resetsubmissiontodraft,
+        bool $deletedraftcourse,
+        bool $deletegeneratedmodulesonly,
+        bool $restoredraftcoursemetadata,
+        bool $disablefilesync,
+        bool $removefilesondisablesync,
+        bool $resetquickfinalizeprogressfields
     ) {
-        $this->delete_structure_rows = $delete_structure_rows;
-        $this->delete_submission_row = $delete_submission_row;
-        $this->reset_submission_to_draft = $reset_submission_to_draft;
-        $this->delete_draft_course = $delete_draft_course;
-        $this->delete_generated_modules_only = $delete_generated_modules_only;
-        $this->restore_draft_course_metadata = $restore_draft_course_metadata;
-        $this->disable_file_sync = $disable_file_sync;
-        $this->remove_files_on_disable_sync = $remove_files_on_disable_sync;
-        $this->reset_quick_finalize_progress_fields = $reset_quick_finalize_progress_fields;
+        $this->deletestructurerows = $deletestructurerows;
+        $this->deletesubmissionrow = $deletesubmissionrow;
+        $this->resetsubmissiontodraft = $resetsubmissiontodraft;
+        $this->deletedraftcourse = $deletedraftcourse;
+        $this->deletegeneratedmodulesonly = $deletegeneratedmodulesonly;
+        $this->restoredraftcoursemetadata = $restoredraftcoursemetadata;
+        $this->disablefilesync = $disablefilesync;
+        $this->removefilesondisablesync = $removefilesondisablesync;
+        $this->resetquickfinalizeprogressfields = $resetquickfinalizeprogressfields;
     }
 }

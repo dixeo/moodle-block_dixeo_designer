@@ -34,20 +34,37 @@ use block_dixeo_designer\external\course\get_structure;
  * @covers     \block_dixeo_designer\external\course\get_structure
  */
 final class external_get_structure_test extends advanced_testcase {
-
     /** @var \stdClass */
     private $user;
+
+    /** @var string */
+    private $sesskey;
 
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest(true);
         $this->user = $this->getDataGenerator()->create_user();
         $this->setUser($this->user);
+        $this->assign_capability();
+        $this->sesskey = sesskey();
+        $_POST['sesskey'] = $this->sesskey;
+    }
+
+    /**
+     * Assign local/dixeo:create to the test user.
+     *
+     * @return void
+     */
+    private function assign_capability(): void {
+        $sysctx = \context_system::instance();
+        $roleid = $this->getDataGenerator()->create_role();
+        assign_capability('local/dixeo:create', CAP_ALLOW, $roleid, $sysctx->id);
+        role_assign($roleid, $this->user->id, $sysctx->id);
     }
 
     public function test_get_structure_throws_when_no_structure(): void {
         $this->expectException(\moodle_exception::class);
-        get_structure::get_structure('job-nonexistent');
+        get_structure::execute('job-nonexistent', $this->sesskey);
     }
 
     public function test_get_structure_returns_persisted_record(): void {
@@ -63,12 +80,21 @@ final class external_get_structure_test extends advanced_testcase {
             'timecreated' => time(),
         ]);
 
-        $result = get_structure::get_structure($jobid);
+        $result = get_structure::execute($jobid, $this->sesskey);
 
         $this->assertArrayHasKey('structure', $result);
         $this->assertArrayHasKey('job_id', $result);
         $this->assertSame($jobid, $result['job_id']);
         $decoded = json_decode($result['structure'], true);
         $this->assertEquals('Persisted Course', $decoded['course_structure']['title']);
+    }
+
+    public function test_get_structure_requires_create_capability(): void {
+        $other = $this->getDataGenerator()->create_user();
+        $this->setUser($other);
+        $_POST['sesskey'] = sesskey();
+
+        $this->expectException(\required_capability_exception::class);
+        get_structure::execute('job-1', sesskey());
     }
 }

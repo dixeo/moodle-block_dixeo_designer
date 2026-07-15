@@ -16,8 +16,6 @@
 
 namespace block_dixeo_designer;
 
-defined('MOODLE_INTERNAL') || die();
-
 use advanced_testcase;
 use block_dixeo_designer\service\course_template_helper;
 use local_dixeo\external\service_factory;
@@ -48,7 +46,7 @@ final class course_template_helper_test extends advanced_testcase {
 
         $options = course_template_helper::get_course_template_options('');
 
-        $selected = array_values(array_filter($options, static function(array $option): bool {
+        $selected = array_values(array_filter($options, static function (array $option): bool {
             return !empty($option['selected']);
         }));
 
@@ -66,7 +64,7 @@ final class course_template_helper_test extends advanced_testcase {
 
         $options = course_template_helper::get_course_template_options('tpl-alt');
 
-        $selected = array_values(array_filter($options, static function(array $option): bool {
+        $selected = array_values(array_filter($options, static function (array $option): bool {
             return !empty($option['selected']);
         }));
 
@@ -111,6 +109,11 @@ final class course_template_helper_test extends advanced_testcase {
         $this->assertNull($optionsbyvalue['tpl-b']['description']);
     }
 
+    /**
+     * Create a mock course template service with default and alt templates.
+     *
+     * @return course_template_service
+     */
     private function mock_templates_service(): course_template_service {
         $mockservice = $this->createMock(course_template_service::class);
         $mockservice->method('is_configured')->willReturn(true);

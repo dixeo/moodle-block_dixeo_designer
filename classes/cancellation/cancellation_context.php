@@ -12,11 +12,9 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_dixeo_designer\cancellation;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Inputs for cancellation policy resolution (no side effects).
@@ -26,28 +24,29 @@ defined('MOODLE_INTERNAL') || die();
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cancellation_context {
-
     /** @var bool Whether a structure row exists for the job. */
-    public bool $has_saved_structure;
+    public bool $hassavedstructure;
 
     /** @var bool Web service flag: force delete structure (footer hard reset or dashboard hard reset). */
-    public bool $delete_structure_requested;
+    public bool $deletestructurerequested;
 
     /** @var string finalize_progress.generation_mode: quick, twostep, or empty. */
-    public string $generation_mode;
+    public string $generationmode;
 
     /**
-     * @param bool $has_saved_structure
-     * @param bool $delete_structure_requested
-     * @param string $generation_mode
+     * Construct cancellation context.
+     *
+     * @param bool $hassavedstructure Whether a structure row exists for the job.
+     * @param bool $deletestructurerequested Web service flag: force delete structure.
+     * @param string $generationmode Finalize progress generation mode.
      */
     public function __construct(
-        bool $has_saved_structure,
-        bool $delete_structure_requested,
-        string $generation_mode = ''
+        bool $hassavedstructure,
+        bool $deletestructurerequested,
+        string $generationmode = ''
     ) {
-        $this->has_saved_structure = $has_saved_structure;
-        $this->delete_structure_requested = $delete_structure_requested;
-        $this->generation_mode = $generation_mode;
+        $this->hassavedstructure = $hassavedstructure;
+        $this->deletestructurerequested = $deletestructurerequested;
+        $this->generationmode = $generationmode;
     }
 }

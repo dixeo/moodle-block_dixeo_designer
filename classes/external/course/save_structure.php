@@ -39,16 +39,16 @@ use local_dixeo\service\image_generation_policy;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class save_structure extends external_api {
-
     /**
      * Web service parameter definitions.
      *
      * @return external_function_parameters
      */
-    public static function save_structure_parameters(): external_function_parameters {
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job ID', VALUE_REQUIRED),
             'structure' => new external_value(PARAM_RAW, 'JSON structure', VALUE_REQUIRED),
+            'sesskey' => new external_value(PARAM_RAW, 'Session key', VALUE_REQUIRED),
         ]);
     }
 
@@ -56,22 +56,28 @@ final class save_structure extends external_api {
      * Save structure (single row per job; upsert).
      * Used when persisting the editor JSON (e.g. before finalize, or when landing from the generator).
      *
-     * @param string $job_id The job identifier
+     * @param string $jobid The job identifier
      * @param string $structure JSON structure data
+     * @param string $sesskey Session key
      * @return array Save result
      */
-    public static function save_structure(string $job_id, string $structure): array {
+    public static function execute(
+        string $jobid,
+        string $structure,
+        string $sesskey
+    ): array {
         global $DB, $USER;
 
-        $params = self::validate_parameters(self::save_structure_parameters(), [
-            'job_id' => $job_id,
+        $params = self::validate_parameters(self::execute_parameters(), [
+            'job_id' => $jobid,
             'structure' => $structure,
+            'sesskey' => $sesskey,
         ]);
 
         $context = \context_system::instance();
         self::validate_context($context);
-
-        require_login();
+        require_capability('local/dixeo:create', $context);
+        require_sesskey();
 
         // Validate JSON.
         $decoded = json_decode($params['structure'], true);
@@ -100,10 +106,12 @@ final class save_structure extends external_api {
             'timecreated' => time(),
         ]);
 
-        if (image_generation_policy::is_enabled(
-            image_generation_policy::ENTITY_COURSE,
-            image_generation_policy::ACTION_GENERATE
-        )) {
+        if (
+            image_generation_policy::is_enabled(
+                image_generation_policy::ENTITY_COURSE,
+                image_generation_policy::ACTION_GENERATE
+            )
+        ) {
             $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
             $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
         }
@@ -116,7 +124,7 @@ final class save_structure extends external_api {
      *
      * @return external_single_structure
      */
-    public static function save_structure_returns(): external_single_structure {
+    public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'success' => new external_value(PARAM_BOOL, 'Success status'),
         ]);

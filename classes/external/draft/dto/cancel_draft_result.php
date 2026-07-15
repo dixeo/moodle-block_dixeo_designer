@@ -16,25 +16,43 @@
 
 namespace block_dixeo_designer\external\draft\dto;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * DTO for block_dixeo_designer cancel_draft external response.
+ *
+ * @package    block_dixeo_designer
+ * @copyright  2026 Dixeo
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class cancel_draft_result {
+    /**
+     * Constructor.
+     *
+     * @param bool $success Whether cancellation succeeded.
+     */
     public function __construct(
+        /** @var bool Whether cancellation succeeded. */
         public bool $success
     ) {
     }
 
+    /**
+     * Build a DTO from a boolean result.
+     *
+     * @param bool $ok
+     * @return self
+     */
     public static function from_bool(bool $ok): self {
         return new self($ok);
     }
 
+    /**
+     * Convert to webservice response array.
+     *
+     * @return array{success: bool}
+     */
     public function to_array(): array {
         return [
             'success' => $this->success,
         ];
     }
 }
-

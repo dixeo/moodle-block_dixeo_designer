@@ -51,6 +51,32 @@ define([
     designerUndoMixin
 ) {
 
+    // Web service / Mustache keys that must remain snake_case (accessed via consts).
+    var KEY_JOB_ID = 'job_id';
+    var KEY_SCOPE_PATH = 'scope_path';
+    var KEY_IMAGE_CAN_GENERATE = 'image_can_generate';
+    var KEY_IMAGE_CAN_EDIT = 'image_can_edit';
+    var KEY_COURSE_STRUCTURE = 'course_structure';
+    var KEY_IMAGE_STATUS = 'image_status';
+    var KEY_DESIGNER_IMAGE_SHOW_LOADING = 'designer_image_show_loading';
+    var KEY_DESIGNER_IMAGE_ALLOW_EDIT = 'designer_image_allow_edit';
+    var KEY_DESIGNER_SHOW_COURSE_IMAGE_AREA = 'designer_show_course_image_area';
+    var KEY_DELETE = 'delete';
+    var KEY_ADD_SECTION = 'add_section';
+    var KEY_ADD_ACTIVITY = 'add_activity';
+    var KEY_CHANGE_ACTIVITY_TYPE = 'change_activity_type';
+    var KEY_EXPAND_ALL = 'expand_all';
+    var KEY_COLLAPSE_ALL = 'collapse_all';
+    var KEY_MODULE_SUMMARY_LABEL = 'module_summary_label';
+    var KEY_MODULE_INSTRUCTIONS_LABEL = 'module_instructions_label';
+    var KEY_PLACEHOLDER_COURSE_TITLE = 'placeholder_course_title';
+    var KEY_PLACEHOLDER_COURSE_SUMMARY = 'placeholder_course_summary';
+    var KEY_PLACEHOLDER_SECTION_TITLE = 'placeholder_section_title';
+    var KEY_PLACEHOLDER_SECTION_SUMMARY = 'placeholder_section_summary';
+    var KEY_PLACEHOLDER_MODULE_TITLE = 'placeholder_module_title';
+    var KEY_PLACEHOLDER_MODULE_SUMMARY = 'placeholder_module_summary';
+    var KEY_PLACEHOLDER_MODULE_INSTRUCTIONS = 'placeholder_module_instructions';
+
     /**
      * Infer Moodle component from catalogue type id when the API omits component.
      *
@@ -182,17 +208,19 @@ define([
             });
             document.addEventListener(DesignerProgress.STRUCTURE_FIELD_VALIDATION_EVENT, function(ev) {
                 var detail = ev && ev.detail ? ev.detail : {};
-                if (detail.job_id !== undefined && detail.job_id !== null &&
-                        String(detail.job_id) !== String(self.jobid)) {
+                if (detail[KEY_JOB_ID] !== undefined && detail[KEY_JOB_ID] !== null &&
+                        String(detail[KEY_JOB_ID]) !== String(self.jobid)) {
                     return;
                 }
                 self.showStructureValidationErrors(detail.fielderrors || []);
             });
             this.loadModuleTypes().then(function() {
                 self.loadStructure();
+                return null;
             }).catch(function(err) {
                 Notification.exception(err);
                 self.showLoading();
+                return null;
             });
         },
 
@@ -268,11 +296,12 @@ define([
          */
         validateStructureForDesigner: function(scopePath) {
             var args = {
-                job_id: this.jobid,
-                structure: JSON.stringify(this.structure)
+                structure: JSON.stringify(this.structure),
+                sesskey: M.cfg.sesskey
             };
+            args[KEY_JOB_ID] = this.jobid;
             if (scopePath) {
-                args.scope_path = String(scopePath);
+                args[KEY_SCOPE_PATH] = String(scopePath);
             }
             return Ajax.call([{
                 methodname: 'block_dixeo_designer_validate_structure_for_finalize',
@@ -353,9 +382,11 @@ define([
                         };
                     });
                 }
+                return null;
             }).catch(function() {
                 // Keep default MODULE_TYPE_OPTIONS; ensure icon URLs use monologo rules.
                 applyModuleTypeOptionIconurls();
+                return null;
             });
         },
 
@@ -364,11 +395,14 @@ define([
          */
         showLoading: function() {
             var container = $('.course-structure-container');
-            Str.get_string('designer_loading', 'block_dixeo_designer').done(function(str) {
+            Str.get_string('designer_loading', 'block_dixeo_designer').then(function(str) {
                 container.html('<div id="loading-indicator" class="text-center py-5">' +
                     '<i class="fa fa-spinner fa-spin fa-3x"></i>' +
                     '<p class="mt-3">' + str + '</p>' +
                     '</div>');
+                return null;
+            }).catch(function() {
+                return null;
             });
         },
 
@@ -377,35 +411,37 @@ define([
          */
         loadStructure: function() {
             var self = this;
+            var args = {
+                sesskey: M.cfg.sesskey
+            };
+            args[KEY_JOB_ID] = this.jobid;
 
-            Ajax.call([{
+            return Ajax.call([{
                 methodname: 'block_dixeo_designer_get_structure',
-                args: {
-                    job_id: this.jobid
-                },
-                done: function(response) {
-                    self.imageCanGenerate = !!response.image_can_generate;
-                    self.imageCanEdit = !!response.image_can_edit;
-                    var raw = JSON.parse(response.structure);
-                    self.structure = raw.course_structure || raw;
-                    self.history = [JSON.parse(JSON.stringify(self.structure))];
-                    self.historyIndex = 0;
-                    self.renderStructure();
-                    self.updateUndoRedoButtons();
-                    var st = response.image_status ? String(response.image_status) : '';
-                    var shouldPoll = self.imageCanGenerate && (
-                        !self.structure.image ||
-                        st === 'pending' ||
-                        st === 'processing'
-                    );
-                    if (shouldPoll) {
-                        self.startImageStatusPoll();
-                    }
-                },
-                fail: function(error) {
-                    Notification.exception(error);
+                args: args
+            }])[0].then(function(response) {
+                self.imageCanGenerate = !!response[KEY_IMAGE_CAN_GENERATE];
+                self.imageCanEdit = !!response[KEY_IMAGE_CAN_EDIT];
+                var raw = JSON.parse(response.structure);
+                self.structure = raw[KEY_COURSE_STRUCTURE] || raw;
+                self.history = [JSON.parse(JSON.stringify(self.structure))];
+                self.historyIndex = 0;
+                self.renderStructure();
+                self.updateUndoRedoButtons();
+                var st = response[KEY_IMAGE_STATUS] ? String(response[KEY_IMAGE_STATUS]) : '';
+                var shouldPoll = self.imageCanGenerate && (
+                    !self.structure.image ||
+                    st === 'pending' ||
+                    st === 'processing'
+                );
+                if (shouldPoll) {
+                    self.startImageStatusPoll();
                 }
-            }]);
+                return null;
+            }).catch(function(error) {
+                Notification.exception(error);
+                return null;
+            });
         },
 
         /**
@@ -416,19 +452,22 @@ define([
             var self = this;
             this.showSavingIndicator();
 
+            var args = {
+                structure: JSON.stringify(this.structure),
+                sesskey: M.cfg.sesskey
+            };
+            args[KEY_JOB_ID] = this.jobid;
+
             return Ajax.call([{
                 methodname: 'block_dixeo_designer_save_structure',
-                args: {
-                    job_id: this.jobid,
-                    structure: JSON.stringify(this.structure)
-                },
-                done: function() {
-                    self.showSavedIndicator();
-                },
-                fail: function(error) {
-                    Notification.exception(error);
-                }
-            }])[0];
+                args: args
+            }])[0].then(function() {
+                self.showSavedIndicator();
+                return null;
+            }).catch(function(error) {
+                Notification.exception(error);
+                throw error;
+            });
         },
 
         /**
@@ -440,8 +479,11 @@ define([
             container.empty();
 
             if (!this.structure) {
-                Str.get_string('designer_invalid_data', 'block_dixeo_designer').done(function(str) {
+                Str.get_string('designer_invalid_data', 'block_dixeo_designer').then(function(str) {
                     container.html('<div class="alert alert-danger">' + str + '</div>');
+                    return null;
+                }).catch(function() {
+                    return null;
                 });
                 return;
             }
@@ -454,11 +496,12 @@ define([
                 image: this.structure.image || null,
                 jobid: this.jobid,
                 hasSections: this.structure.sections && this.structure.sections.length > 0,
-                sections: [],
-                designer_image_show_loading: Boolean(this.imageCanGenerate) && !this.structure.image,
-                designer_image_allow_edit: Boolean(this.imageCanEdit) && !!this.structure.image,
-                designer_show_course_image_area: Boolean(this.structure.image) || Boolean(this.imageCanGenerate)
+                sections: []
             };
+            templateContext[KEY_DESIGNER_IMAGE_SHOW_LOADING] = Boolean(this.imageCanGenerate) && !this.structure.image;
+            templateContext[KEY_DESIGNER_IMAGE_ALLOW_EDIT] = Boolean(this.imageCanEdit) && !!this.structure.image;
+            templateContext[KEY_DESIGNER_SHOW_COURSE_IMAGE_AREA] = Boolean(this.structure.image) ||
+                Boolean(this.imageCanGenerate);
 
             // Process sections
             if (this.structure.sections && this.structure.sections.length > 0) {
@@ -522,25 +565,26 @@ define([
             ]);
 
             stringsPromise.then(function(strings) {
-                templateContext.strings = {
+                var stringMap = {
                     edit: strings[0],
-                    duplicate: strings[1],
-                    delete: strings[2],
-                    add_section: strings[3],
-                    add_activity: strings[4],
-                    change_activity_type: strings[5],
-                    expand_all: strings[6],
-                    collapse_all: strings[7],
-                    module_summary_label: strings[8],
-                    module_instructions_label: strings[9],
-                    placeholder_course_title: strings[10],
-                    placeholder_course_summary: strings[11],
-                    placeholder_section_title: strings[12],
-                    placeholder_section_summary: strings[13],
-                    placeholder_module_title: strings[14],
-                    placeholder_module_summary: strings[15],
-                    placeholder_module_instructions: strings[16]
+                    duplicate: strings[1]
                 };
+                stringMap[KEY_DELETE] = strings[2];
+                stringMap[KEY_ADD_SECTION] = strings[3];
+                stringMap[KEY_ADD_ACTIVITY] = strings[4];
+                stringMap[KEY_CHANGE_ACTIVITY_TYPE] = strings[5];
+                stringMap[KEY_EXPAND_ALL] = strings[6];
+                stringMap[KEY_COLLAPSE_ALL] = strings[7];
+                stringMap[KEY_MODULE_SUMMARY_LABEL] = strings[8];
+                stringMap[KEY_MODULE_INSTRUCTIONS_LABEL] = strings[9];
+                stringMap[KEY_PLACEHOLDER_COURSE_TITLE] = strings[10];
+                stringMap[KEY_PLACEHOLDER_COURSE_SUMMARY] = strings[11];
+                stringMap[KEY_PLACEHOLDER_SECTION_TITLE] = strings[12];
+                stringMap[KEY_PLACEHOLDER_SECTION_SUMMARY] = strings[13];
+                stringMap[KEY_PLACEHOLDER_MODULE_TITLE] = strings[14];
+                stringMap[KEY_PLACEHOLDER_MODULE_SUMMARY] = strings[15];
+                stringMap[KEY_PLACEHOLDER_MODULE_INSTRUCTIONS] = strings[16];
+                templateContext.strings = stringMap;
 
                 return Templates.render('block_dixeo_designer/course_structure', templateContext);
             }).then(function(html) {
@@ -552,11 +596,17 @@ define([
                 } else {
                     self.clearStructureValidationErrors();
                 }
+                return null;
             }).catch(function(error) {
                 Notification.exception(error);
-                Str.get_string('designer_invalid_data', 'block_dixeo_designer').done(function(str) {
+                return Str.get_string('designer_invalid_data', 'block_dixeo_designer');
+            }).then(function(str) {
+                if (typeof str === 'string') {
                     container.html('<div class="alert alert-danger">' + str + '</div>');
-                });
+                }
+                return null;
+            }).catch(function() {
+                return null;
             });
         },
 
@@ -641,25 +691,26 @@ define([
             }
 
             var poll = function() {
+                var args = {
+                    sesskey: M.cfg.sesskey
+                };
+                args[KEY_JOB_ID] = self.jobid;
                 Ajax.call([{
                     methodname: 'block_dixeo_designer_get_image_status',
-                    args: {
-                        job_id: self.jobid,
-                        sesskey: M.cfg.sesskey
-                    }
+                    args: args
                 }])[0].then(function(resp) {
                     if (resp.image && self.structure) {
                         self.structure.image = resp.image;
                     }
                     if (resp.status === 'processing' || resp.status === 'pending') {
                         self.setImageLoadingState(true);
-                        return;
+                        return null;
                     }
                     if (resp.completed) {
                         self.setImageLoadingState(false);
                         self.clearImageStatusPoll();
                         self.renderStructure();
-                        return;
+                        return null;
                     }
                     if (resp.failed) {
                         self.setImageLoadingState(false);
@@ -668,8 +719,10 @@ define([
                             Notification.alert('', resp.error);
                         }
                     }
+                    return null;
                 }).catch(function() {
                     // Keep polling in case transient backend errors happen.
+                    return null;
                 });
             };
 
@@ -788,13 +841,14 @@ define([
                         regeneratePrompt.disabled = true;
                     }
 
+                    var editArgs = {
+                        instructions: prompt,
+                        sesskey: M.cfg.sesskey
+                    };
+                    editArgs[KEY_JOB_ID] = self.jobid;
                     Ajax.call([{
                         methodname: 'block_dixeo_designer_start_image_edit',
-                        args: {
-                            job_id: self.jobid,
-                            instructions: prompt,
-                            sesskey: M.cfg.sesskey
-                        }
+                        args: editArgs
                     }])[0].then(function() {
                         if (regenerateModal) {
                             regenerateModal.classList.add('d-none');
@@ -810,16 +864,22 @@ define([
                         regenerateSubmit.disabled = false;
                         self.setImageLoadingState(true);
                         self.startImageStatusPoll();
+                        return null;
                     }).catch(function(error) {
                         self.setImageLoadingState(false);
-                        Str.get_string('designer_image_generate_unavailable', 'block_dixeo_designer')
-                            .done(function(fallback) {
-                                if (regenerateMsg) {
-                                    regenerateMsg.textContent =
-                                        (error && error.message) ? error.message : fallback;
-                                    regenerateMsg.classList.remove('d-none');
-                                }
-                            });
+                        self._imageEditError = error;
+                        return Str.get_string('designer_image_generate_unavailable', 'block_dixeo_designer');
+                    }).then(function(fallback) {
+                        if (typeof fallback !== 'string') {
+                            return null;
+                        }
+                        var error = self._imageEditError;
+                        self._imageEditError = null;
+                        if (regenerateMsg) {
+                            regenerateMsg.textContent =
+                                (error && error.message) ? error.message : fallback;
+                            regenerateMsg.classList.remove('d-none');
+                        }
                         if (regenerateLoading) {
                             regenerateLoading.classList.add('d-none');
                         }
@@ -827,6 +887,17 @@ define([
                         if (regeneratePrompt) {
                             regeneratePrompt.disabled = false;
                         }
+                        return null;
+                    }).catch(function() {
+                        self._imageEditError = null;
+                        if (regenerateLoading) {
+                            regenerateLoading.classList.add('d-none');
+                        }
+                        regenerateSubmit.disabled = false;
+                        if (regeneratePrompt) {
+                            regeneratePrompt.disabled = false;
+                        }
+                        return null;
                     });
                 });
             }
@@ -1252,17 +1323,16 @@ define([
 
             var self = this;
             // Load language string for copy suffix
-            Str.get_string('designer_copy_suffix', 'block_dixeo_designer').done(function(copySuffix) {
+            Str.get_string('designer_copy_suffix', 'block_dixeo_designer').then(function(copySuffix) {
+                var sectionIdx = $sectionItem.data('section-idx');
                 if ($moduleItem.length > 0) {
                     // Duplicate module
-                    var sectionIdx = $sectionItem.data('section-idx');
                     var moduleIdx = $moduleItem.data('module-idx');
                     var module = JSON.parse(JSON.stringify(self.structure.sections[sectionIdx].modules[moduleIdx]));
                     module.title = module.title + copySuffix;
                     self.structure.sections[sectionIdx].modules.splice(moduleIdx + 1, 0, module);
                 } else if ($sectionItem.length > 0) {
                     // Duplicate section
-                    var sectionIdx = $sectionItem.data('section-idx');
                     var section = JSON.parse(JSON.stringify(self.structure.sections[sectionIdx]));
                     section.title = section.title + copySuffix;
                     self.structure.sections.splice(sectionIdx + 1, 0, section);
@@ -1274,7 +1344,8 @@ define([
 
                 self.prepareStructureMutationForRender();
                 self.renderStructure();
-            });
+                return null;
+            }).catch(Notification.exception);
         },
 
         /**
@@ -1308,15 +1379,14 @@ define([
                         function() {
                             // Capture collapse state before re-rendering
                             var expandedSections = self.captureCollapseState();
+                            var sectionIdx = $sectionItem.data('section-idx');
 
                             if ($moduleItem.length > 0) {
                                 // Delete module
-                                var sectionIdx = $sectionItem.data('section-idx');
                                 var moduleIdx = $moduleItem.data('module-idx');
                                 self.structure.sections[sectionIdx].modules.splice(moduleIdx, 1);
                             } else if ($sectionItem.length > 0) {
                                 // Delete section
-                                var sectionIdx = $sectionItem.data('section-idx');
                                 self.structure.sections.splice(sectionIdx, 1);
                             }
                             self.pushHistory();
@@ -1328,7 +1398,8 @@ define([
                             self.renderStructure();
                         }
                     );
-                });
+                return null;
+            }).catch(Notification.exception);
         },
 
         /**
@@ -1365,17 +1436,21 @@ define([
             $(window).on('beforeunload', function() {
                 self.clearImageStatusPoll();
                 if (self.suppressBeforeUnload) {
-                    return;
+                    return undefined;
                 }
                 if (self.hasUnsavedChanges) {
                     // Note: beforeunload message is browser-controlled, but we set it anyway
                     return self.unsavedChangesMessage || 'You have unsaved changes. Are you sure you want to leave?';
                 }
+                return undefined;
             });
 
             // Load unsaved changes message
-            Str.get_string('designer_unsaved_changes', 'block_dixeo_designer').done(function(str) {
+            Str.get_string('designer_unsaved_changes', 'block_dixeo_designer').then(function(str) {
                 self.unsavedChangesMessage = str;
+                return null;
+            }).catch(function() {
+                return null;
             });
 
         },
@@ -1388,13 +1463,16 @@ define([
             // Remove any existing indicators first
             $('.saving-indicator').remove();
 
-            Str.get_string('designer_saving', 'block_dixeo_designer').done(function(str) {
+            Str.get_string('designer_saving', 'block_dixeo_designer').then(function(str) {
                 var $indicator = $('<div class="saving-indicator"><i class="fa fa-spinner fa-spin"></i> ' + str + '</div>');
                 $('body').append($indicator);
 
                 setTimeout(function() {
                     $indicator.remove();
                 }, 3000);
+                return null;
+            }).catch(function() {
+                return null;
             });
         },
 
@@ -1405,7 +1483,7 @@ define([
             // Remove any existing indicators first
             $('.saving-indicator').remove();
 
-            Str.get_string('designer_saved', 'block_dixeo_designer').done(function(str) {
+            Str.get_string('designer_saved', 'block_dixeo_designer').then(function(str) {
                 var $indicator = $('<div class="saving-indicator"><i class="fa fa-check"></i> ' + str + '</div>');
                 $('body').append($indicator);
 
@@ -1414,6 +1492,9 @@ define([
                         $(this).remove();
                     });
                 }, 2000);
+                return null;
+            }).catch(function() {
+                return null;
             });
         }
     };

@@ -33,7 +33,6 @@ use advanced_testcase;
  * @covers     \block_dixeo_designer\task\cleanup_draft_courses_task
  */
 final class cleanup_draft_courses_task_test extends advanced_testcase {
-
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest(true);

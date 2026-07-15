@@ -34,7 +34,6 @@ function xmldb_block_dixeo_designer_upgrade($oldversion) {
     $dbman = $DB->get_manager();
 
     if ($oldversion < 2026030301) {
-
         // Define table block_dixeo_designer_structure to be created.
         $table = new xmldb_table('block_dixeo_designer_structure');
 
@@ -149,7 +148,7 @@ function xmldb_block_dixeo_designer_upgrade($oldversion) {
                 $dbman->drop_field($table, $versionfield);
             }
 
-            // index_exists() matches columns only, not unique vs non-unique — drop legacy non-unique jobid by introspection.
+            // Index_exists() matches columns only, not unique vs non-unique — drop legacy non-unique jobid by introspection.
             $indexes = $DB->get_indexes('block_dixeo_designer_structure');
             foreach ($indexes as $indexname => $index) {
                 $cols = array_values($index['columns']);

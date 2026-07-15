@@ -22,10 +22,12 @@ use core_external\external_single_structure;
 use core_external\external_value;
 use block_dixeo_designer\external\draft\dto\submit_structure_job_result;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * External API: submit the remote structure job after file sync.
+ *
+ * @package    block_dixeo_designer
+ * @copyright  2026 Dixeo
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class submit_structure_job extends external_api {
     /**
@@ -33,7 +35,7 @@ final class submit_structure_job extends external_api {
      *
      * @return external_function_parameters
      */
-    public static function submit_structure_job_parameters(): external_function_parameters {
+    public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job id', VALUE_REQUIRED),
             'sesskey' => new external_value(PARAM_RAW, 'Session key', VALUE_REQUIRED),
@@ -43,18 +45,21 @@ final class submit_structure_job extends external_api {
     /**
      * Submit the remote structure generation job after file sync.
      *
-     * @param string $job_id Job identifier.
+     * @param string $jobid Job identifier.
      * @param string $sesskey Session key.
      * @return array {
      *     remotejobid: string,
      *     courseid: int
      * }
      */
-    public static function submit_structure_job(string $job_id, string $sesskey): array {
+    public static function execute(
+        string $jobid,
+        string $sesskey
+    ): array {
         global $USER;
 
-        self::validate_parameters(self::submit_structure_job_parameters(), [
-            'job_id' => $job_id,
+        self::validate_parameters(self::execute_parameters(), [
+            'job_id' => $jobid,
             'sesskey' => $sesskey,
         ]);
 
@@ -64,7 +69,7 @@ final class submit_structure_job extends external_api {
         require_sesskey();
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
-        $result = $service->submit_structure_generation($job_id, (int) $USER->id);
+        $result = $service->submit_structure_generation($jobid, (int) $USER->id);
 
         return submit_structure_job_result::from_service($result)->to_array();
     }
@@ -74,11 +79,10 @@ final class submit_structure_job extends external_api {
      *
      * @return external_single_structure
      */
-    public static function submit_structure_job_returns(): external_single_structure {
+    public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'remotejobid' => new external_value(PARAM_TEXT, 'Remote structure job ID for polling'),
             'courseid' => new external_value(PARAM_INT, 'Draft course ID'),
         ]);
     }
 }
-

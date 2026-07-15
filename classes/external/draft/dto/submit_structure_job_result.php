@@ -16,25 +16,43 @@
 
 namespace block_dixeo_designer\external\draft\dto;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * DTO for block_dixeo_designer submit_structure_job external response.
+ *
+ * @package    block_dixeo_designer
+ * @copyright  2026 Dixeo
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class submit_structure_job_result {
+    /**
+     * Constructor.
+     *
+     * @param string $remotejobid Remote structure generation job id.
+     * @param int $courseid Draft course id.
+     */
     public function __construct(
+        /** @var string Remote structure generation job id. */
         public string $remotejobid,
+        /** @var int Draft course id. */
         public int $courseid
     ) {
     }
 
+    /**
+     * Build a DTO from the designer service response object.
+     *
+     * @param object $result
+     * @return self
+     */
     public static function from_service(object $result): self {
-        return new self(
-            (string) ($result->remotejobid ?? ''),
-            (int) ($result->courseid ?? 0)
-        );
+        return new self((string) ($result->remotejobid ?? ''), (int) ($result->courseid ?? 0));
     }
 
+    /**
+     * Convert to webservice response array.
+     *
+     * @return array{remotejobid: string, courseid: int}
+     */
     public function to_array(): array {
         return [
             'remotejobid' => $this->remotejobid,
@@ -42,4 +60,3 @@ final class submit_structure_job_result {
         ];
     }
 }
-

@@ -12,7 +12,7 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
  * Validate course structure before finalize (no persistence or side effects).
@@ -31,22 +31,22 @@ use core_external\external_single_structure;
 use core_external\external_value;
 use local_dixeo\service\designer_structure_finalize_validation_service;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Read-only structure validation for the designer finalize flow.
  *
  * @package    block_dixeo_designer
  */
 final class validate_structure_for_finalize extends external_api {
-
     /**
+     * Parameter definitions for validate_structure_for_finalize.
+     *
      * @return external_function_parameters
      */
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'job_id' => new external_value(PARAM_TEXT, 'Job ID', VALUE_REQUIRED),
             'structure' => new external_value(PARAM_RAW, 'JSON structure', VALUE_REQUIRED),
+            'sesskey' => new external_value(PARAM_RAW, 'Session key', VALUE_REQUIRED),
             'scope_path' => new external_value(
                 PARAM_TEXT,
                 'When set, only return issues for this data-path (inline field save)',
@@ -59,23 +59,31 @@ final class validate_structure_for_finalize extends external_api {
     /**
      * Validate structure JSON for course creation (does not save or start jobs).
      *
-     * @param string $job_id
-     * @param string $structure
-     * @param string $scope_path Optional data-path; limits issues to that field for inline edit.
+     * @param string $jobid Job identifier.
+     * @param string $structure Structure JSON.
+     * @param string $sesskey Session key.
+     * @param string $scopepath Optional data-path; limits issues to that field for inline edit.
      * @return array{valid: bool, errors: string[], fielderrors: array<int, array{path: string, message: string}>}
      */
-    public static function execute(string $job_id, string $structure, string $scope_path = ''): array {
+    public static function execute(
+        string $jobid,
+        string $structure,
+        string $sesskey,
+        string $scopepath = ''
+    ): array {
         global $DB, $USER;
 
         $params = self::validate_parameters(self::execute_parameters(), [
-            'job_id' => $job_id,
+            'job_id' => $jobid,
             'structure' => $structure,
-            'scope_path' => $scope_path,
+            'sesskey' => $sesskey,
+            'scope_path' => $scopepath,
         ]);
 
         $context = \context_system::instance();
         self::validate_context($context);
-        require_login();
+        require_capability('local/dixeo:create', $context);
+        require_sesskey();
 
         $existing = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
         if ($existing && (int) $existing->userid !== (int) $USER->id && !is_siteadmin()) {
@@ -112,6 +120,8 @@ final class validate_structure_for_finalize extends external_api {
     }
 
     /**
+     * Return structure for validate_structure_for_finalize response.
+     *
      * @return external_single_structure
      */
     public static function execute_returns(): external_single_structure {

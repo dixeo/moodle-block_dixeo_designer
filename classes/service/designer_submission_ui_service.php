@@ -12,11 +12,9 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_dixeo_designer\service;
-
-defined('MOODLE_INTERNAL') || die();
 
 use block_dixeo_designer\service\submission\file_service as submission_file_service;
 use block_dixeo_designer\service\submission\service as submission_service;
@@ -29,7 +27,6 @@ use block_dixeo_designer\service\submission\service as submission_service;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class designer_submission_ui_service {
-
     /** @var submission_service */
     private submission_service $submissions;
 

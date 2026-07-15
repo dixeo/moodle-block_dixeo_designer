@@ -105,6 +105,76 @@ define([], function() {
     }
 
     /**
+     * Progress while status is none (local/upload starting).
+     *
+     * @param {number} cap
+     * @param {number|null} uploadTotal
+     * @param {number|null} uploadNow
+     * @returns {number}
+     */
+    function targetForNoneStatus(cap, uploadTotal, uploadNow) {
+        const bytesStarted = uploadTotal > 0 && uploadNow !== null && uploadNow > 0;
+        if (!bytesStarted) {
+            return Math.min(cap, MOODLE_CAP);
+        }
+        if (uploadNow < uploadTotal) {
+            return Math.min(cap, MOODLE_CAP + UPLOAD_SPAN * clamp01(uploadNow / uploadTotal));
+        }
+        return Math.min(cap, UPLOAD_BAND_END);
+    }
+
+    /**
+     * Progress while upload bytes are complete and indexing may be running.
+     *
+     * @param {number} cap
+     * @param {number|null} fileTotal
+     * @param {number|null} fileDone
+     * @param {number|null} pctForMap
+     * @returns {number}
+     */
+    function targetAfterUploadBytes(cap, fileTotal, fileDone, pctForMap) {
+        if (fileTotal > 0 && fileDone !== null) {
+            if (fileDone < fileTotal) {
+                return Math.min(cap, UPLOAD_BAND_END + INDEXING_SPAN * clamp01(fileDone / fileTotal));
+            }
+            if (pctForMap !== null) {
+                const slicePct = pctForMap >= 99 ? 100 : clampPct(pctForMap);
+                return Math.min(cap, UPLOAD_BAND_END + INDEXING_SPAN * (slicePct / 100));
+            }
+        }
+        return Math.min(cap, UPLOAD_BAND_END);
+    }
+
+    /**
+     * Progress while status is syncing.
+     *
+     * @param {number} cap
+     * @param {number|null} uploadTotal
+     * @param {number|null} uploadNow
+     * @param {number|null} fileTotal
+     * @param {number|null} fileDone
+     * @param {number|null} pctForMap
+     * @returns {number}
+     */
+    function targetForSyncing(cap, uploadTotal, uploadNow, fileTotal, fileDone, pctForMap) {
+        if (uploadTotal > 0 && uploadNow !== null && uploadNow < uploadTotal) {
+            return Math.min(cap, MOODLE_CAP + UPLOAD_SPAN * clamp01(uploadNow / uploadTotal));
+        }
+
+        const uploadBytesDone = uploadTotal <= 0
+            || (uploadNow !== null && uploadNow >= uploadTotal);
+
+        if (uploadBytesDone) {
+            return targetAfterUploadBytes(cap, fileTotal, fileDone, pctForMap);
+        }
+
+        if (fileTotal > 0 && fileDone !== null) {
+            return Math.min(cap, MOODLE_CAP + UPLOAD_SPAN * clamp01(fileDone / fileTotal));
+        }
+        return Math.min(cap, MOODLE_CAP);
+    }
+
+    /**
      * @param {object} data get_filesync_status payload
      * @param {{ hasSubmissionFiles: boolean, structureSubmitDone: boolean }} opts
      * @returns {number}
@@ -137,46 +207,67 @@ define([], function() {
         if (status === 'preparing' || isMoodlePrepareActive(data)) {
             return Math.min(cap, MOODLE_CAP);
         }
-
         if (status === 'none' && !noneReady) {
-            const bytesStarted = uploadTotal > 0 && uploadNow !== null && uploadNow > 0;
-            if (!bytesStarted) {
-                return Math.min(cap, MOODLE_CAP);
-            }
-            if (uploadNow < uploadTotal) {
-                return Math.min(cap, MOODLE_CAP + UPLOAD_SPAN * clamp01(uploadNow / uploadTotal));
-            }
-            return Math.min(cap, UPLOAD_BAND_END);
+            return targetForNoneStatus(cap, uploadTotal, uploadNow);
         }
-
         if (status === 'syncing') {
-            if (uploadTotal > 0 && uploadNow !== null && uploadNow < uploadTotal) {
-                return Math.min(cap, MOODLE_CAP + UPLOAD_SPAN * clamp01(uploadNow / uploadTotal));
-            }
-
-            const uploadBytesDone = uploadTotal <= 0
-                || (uploadNow !== null && uploadNow >= uploadTotal);
-
-            if (uploadBytesDone) {
-                if (fileTotal > 0 && fileDone !== null) {
-                    if (fileDone < fileTotal) {
-                        return Math.min(cap, UPLOAD_BAND_END + INDEXING_SPAN * clamp01(fileDone / fileTotal));
-                    }
-                    if (pctForMap !== null) {
-                        const slicePct = pctForMap >= 99 ? 100 : clampPct(pctForMap);
-                        return Math.min(cap, UPLOAD_BAND_END + INDEXING_SPAN * (slicePct / 100));
-                    }
-                }
-                return Math.min(cap, UPLOAD_BAND_END);
-            }
-
-            if (fileTotal > 0 && fileDone !== null) {
-                return Math.min(cap, MOODLE_CAP + UPLOAD_SPAN * clamp01(fileDone / fileTotal));
-            }
-            return Math.min(cap, MOODLE_CAP);
+            return targetForSyncing(cap, uploadTotal, uploadNow, fileTotal, fileDone, pctForMap);
         }
 
         return Math.min(cap, MOODLE_CAP);
+    }
+
+    /**
+     * Label while per-file counts are available.
+     *
+     * @param {object} data
+     * @param {number} fileTotal
+     * @param {number} fileDone
+     * @returns {{ key: string, params?: object }|null}
+     */
+    function labelFromFileCounts(data, fileTotal, fileDone) {
+        if (fileTotal === null || fileTotal <= 0 || fileDone === null) {
+            return null;
+        }
+        let currentIndex = fileDone;
+        if (data.status === 'syncing' && fileDone < fileTotal) {
+            currentIndex = fileDone + 1;
+        }
+        if (currentIndex < 1) {
+            currentIndex = 1;
+        }
+        return {
+            key: 'step_uploading_files_count',
+            params: {current: currentIndex, total: fileTotal},
+        };
+    }
+
+    /**
+     * Label while only byte progress is known.
+     *
+     * @param {object} data
+     * @param {number|null} uploadTotal
+     * @param {number|null} uploadNow
+     * @param {number|null} fileTotal
+     * @param {number|null} fileDone
+     * @returns {{ key: string, params?: object }}
+     */
+    function labelFromUploadBytes(data, uploadTotal, uploadNow, fileTotal, fileDone) {
+        if (uploadTotal > 0 && uploadNow !== null && uploadNow > 0
+            && (data.status === 'syncing' || data.status === 'none')) {
+            return {
+                key: 'step_uploading_files_count',
+                params: {current: 1, total: 1},
+            };
+        }
+
+        if (data.status === 'syncing' && uploadTotal > 0 && uploadNow !== null
+            && uploadNow >= uploadTotal
+            && (fileTotal === null || fileTotal <= 0 || fileDone === null || fileDone < fileTotal)) {
+            return {key: 'step_preparing_files'};
+        }
+
+        return {key: 'step_preparing_files'};
     }
 
     /**
@@ -194,37 +285,18 @@ define([], function() {
 
         const fileTotal = num(data, 'filestotal');
         const fileDone = num(data, 'filescompleted');
-        if (fileTotal !== null && fileTotal > 0 && fileDone !== null) {
-            let currentIndex = fileDone;
-            if (data.status === 'syncing' && fileDone < fileTotal) {
-                currentIndex = fileDone + 1;
-            }
-            if (currentIndex < 1) {
-                currentIndex = 1;
-            }
-            return {
-                key: 'step_uploading_files_count',
-                params: {current: currentIndex, total: fileTotal},
-            };
+        const fromFiles = labelFromFileCounts(data, fileTotal, fileDone);
+        if (fromFiles) {
+            return fromFiles;
         }
 
-        const uploadTotal = num(data, 'uploadbytestotal');
-        const uploadNow = num(data, 'uploadbytes');
-        if (uploadTotal > 0 && uploadNow !== null && uploadNow > 0
-            && (data.status === 'syncing' || data.status === 'none')) {
-            return {
-                key: 'step_uploading_files_count',
-                params: {current: 1, total: 1},
-            };
-        }
-
-        if (data.status === 'syncing' && uploadTotal > 0 && uploadNow !== null
-            && uploadNow >= uploadTotal
-            && (fileTotal === null || fileTotal <= 0 || fileDone === null || fileDone < fileTotal)) {
-            return {key: 'step_preparing_files'};
-        }
-
-        return {key: 'step_preparing_files'};
+        return labelFromUploadBytes(
+            data,
+            num(data, 'uploadbytestotal'),
+            num(data, 'uploadbytes'),
+            fileTotal,
+            fileDone
+        );
     }
 
     return {

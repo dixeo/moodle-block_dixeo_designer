@@ -28,6 +28,9 @@ require_once($CFG->dirroot . '/blocks/dixeo_designer/lib.php');
 
 require_login();
 
+$context = context_system::instance();
+require_capability('local/dixeo:create', $context);
+
 global $PAGE, $OUTPUT, $USER;
 
 $jobid = optional_param('id', '', PARAM_TEXT);
@@ -62,9 +65,9 @@ if ($hasexistingjob) {
     $urlparams['id'] = $jobid;
 }
 $PAGE->set_url(new moodle_url('/blocks/dixeo_designer/designer.php', $urlparams));
-$PAGE->set_context(context_system::instance());
+$PAGE->set_context($context);
 $PAGE->set_title(get_string('pluginname', 'block_dixeo_designer'));
-$PAGE->set_heading(''); // Empty heading (no page title)
+$PAGE->set_heading(''); // Empty heading (no page title).
 $PAGE->requires->css('/blocks/dixeo_designer/styles.css');
 
 echo $OUTPUT->header();
@@ -72,7 +75,8 @@ echo $OUTPUT->header();
 $filecontext = $designeruiservice->get_file_context($jobid, (int) $USER->id);
 
 echo html_writer::start_div('dixeo-designer-block-wrapper');
-echo html_writer::div($OUTPUT->render_from_template('block_dixeo_designer/course_designer',
+echo html_writer::div($OUTPUT->render_from_template(
+    'block_dixeo_designer/course_designer',
     \block_dixeo_designer\service\submission\render_helper::build_prompt_context(
         $OUTPUT,
         $jobid,

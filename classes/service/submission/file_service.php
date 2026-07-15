@@ -16,8 +16,6 @@
 
 namespace block_dixeo_designer\service\submission;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Stores and formats designer submission files.
  *
@@ -55,7 +53,14 @@ class file_service {
         $fs = get_file_storage();
 
         return array_values(array_filter(
-            $fs->get_area_files(\context_system::instance()->id, 'block_dixeo_designer', self::FILEAREA, $submissionid, 'filename', false),
+            $fs->get_area_files(
+                \context_system::instance()->id,
+                'block_dixeo_designer',
+                self::FILEAREA,
+                $submissionid,
+                'filename',
+                false
+            ),
             static fn(\stored_file $file): bool => $file->get_filesize() > 0
         ));
     }
@@ -80,7 +85,7 @@ class file_service {
      */
     public function store_uploaded_files(int $submissionid, int $userid, array $uploadedfiles): array {
         $existingfiles = $this->get_files($submissionid);
-        $totalsize = array_reduce($existingfiles, static function(int $carry, \stored_file $file): int {
+        $totalsize = array_reduce($existingfiles, static function (int $carry, \stored_file $file): int {
             return $carry + $file->get_filesize();
         }, 0);
 
@@ -202,7 +207,12 @@ class file_service {
                 'course' => $courseid,
                 'module' => $moduleid,
                 'instance' => $resource->id,
-                'section' => $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $sectionnumber], MUST_EXIST),
+                'section' => $DB->get_field(
+                    'course_sections',
+                    'id',
+                    ['course' => $courseid, 'section' => $sectionnumber],
+                    MUST_EXIST
+                ),
                 'idnumber' => self::CM_IDNUMBER_DESIGNER_UPLOAD,
                 'visible' => 1,
                 'visibleoncoursepage' => 1,

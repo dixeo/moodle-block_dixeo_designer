@@ -12,11 +12,9 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle. If not, see <http://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 namespace block_dixeo_designer\service;
-
-defined('MOODLE_INTERNAL') || die();
 
 use block_dixeo_designer\local\dixeo_capability;
 use block_dixeo_designer\workflow_constants;
@@ -31,7 +29,6 @@ use block_dixeo_designer\workflow_constants;
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class designer_course_creation_service {
-
     /** @var string idnumber prefix for draft courses (cleanup matches this). */
     public const IDNUMBER_DRAFT_PREFIX = 'dixeo_draft_';
 
@@ -86,6 +83,7 @@ class designer_course_creation_service {
      * Delete a draft course by id (only if idnumber matches dixeo_draft_*).
      *
      * @param int $courseid
+     * @param bool $force
      * @return bool
      */
     public function delete_draft_course(int $courseid, bool $force = false): bool {
@@ -249,8 +247,8 @@ class designer_course_creation_service {
         }
 
         $resourcestargetsection = $sectiontotal + 1 + ($certtrailing ? 1 : 0);
-        $fileService = new submission\file_service();
-        $resourcesrelocated = $fileService->relocate_designer_upload_resources_after_finalize(
+        $fileservice = new submission\file_service();
+        $resourcesrelocated = $fileservice->relocate_designer_upload_resources_after_finalize(
             $courseid,
             $sectiontotal,
             $resourcestargetsection
@@ -307,7 +305,8 @@ class designer_course_creation_service {
      * Merge data into finalize progress cache (preserves current_fill_jobid when updating module progress).
      *
      * @param string $jobid
-     * @param array $data Keys to merge (phase, module_index, module_total, section_index?, section_total?, current_fill_jobid?, cancelled?)
+     * @param array $data Keys to merge (phase, module_index, module_total, section_index?,
+     *                    section_total?, current_fill_jobid?, cancelled?)
      * @return void
      */
     private function merge_finalize_progress(string $jobid, array $data): void {
@@ -360,10 +359,12 @@ class designer_course_creation_service {
             return false;
         }
 
-        if (!\local_dixeo\service\image_generation_policy::is_enabled(
-            \local_dixeo\service\image_generation_policy::ENTITY_SECTION,
-            \local_dixeo\service\image_generation_policy::ACTION_GENERATE
-        )) {
+        if (
+            !\local_dixeo\service\image_generation_policy::is_enabled(
+                \local_dixeo\service\image_generation_policy::ENTITY_SECTION,
+                \local_dixeo\service\image_generation_policy::ACTION_GENERATE
+            )
+        ) {
             return false;
         }
 
@@ -573,10 +574,20 @@ class designer_course_creation_service {
         return $deleted;
     }
 
+    /**
+     * Return the localized default draft course name.
+     *
+     * @return string
+     */
     private function get_draft_course_name(): string {
         return get_string('designer_draft_course_name', 'block_dixeo_designer');
     }
 
+    /**
+     * Resolve the category id used for new draft courses.
+     *
+     * @return int
+     */
     private function resolve_category_id(): int {
         $categoryname = get_config('block_dixeo_designer', 'categoryname');
         if (empty($categoryname)) {
@@ -598,6 +609,12 @@ class designer_course_creation_service {
         return (int) $created->id;
     }
 
+    /**
+     * Generate a unique course shortname from a base name.
+     *
+     * @param string $basename
+     * @return string
+     */
     private function generate_unique_shortname(string $basename): string {
         global $DB;
 
@@ -616,6 +633,13 @@ class designer_course_creation_service {
         return $candidate;
     }
 
+    /**
+     * Enrol the designer user into the draft course.
+     *
+     * @param int $courseid
+     * @param int $userid
+     * @return void
+     */
     private function enrol_user(int $courseid, int $userid): void {
         global $CFG;
 
@@ -662,6 +686,13 @@ class designer_course_creation_service {
         $DB->insert_record('user_lastaccess', $lastaccess);
     }
 
+    /**
+     * Wait until initial file sync completes before module generation.
+     *
+     * @param \local_dixeo\service\file_sync_service $filesync
+     * @param int $courseid
+     * @return void
+     */
     private function wait_for_initial_file_sync(\local_dixeo\service\file_sync_service $filesync, int $courseid): void {
         $status = $filesync->get_status($courseid);
         if ($status->filestotal === 0) {
@@ -684,6 +715,8 @@ class designer_course_creation_service {
     }
 
     /**
+     * Materialize structure modules into the draft course.
+     *
      * @param int $courseid
      * @param array $sections
      * @param string|null $jobid For progress reporting (module X of Y across all sections).
@@ -744,8 +777,10 @@ class designer_course_creation_service {
             return false;
         }
         $status = $info->get_status();
-        if ($status === \core_plugin_manager::PLUGIN_STATUS_MISSING
-                || $status === \core_plugin_manager::PLUGIN_STATUS_DELETE) {
+        if (
+            $status === \core_plugin_manager::PLUGIN_STATUS_MISSING
+                || $status === \core_plugin_manager::PLUGIN_STATUS_DELETE
+        ) {
             return false;
         }
         if ($info->is_enabled() === false) {
@@ -757,7 +792,14 @@ class designer_course_creation_service {
     /**
      * Log fill outcome to modulegen queue when that plugin is available (no hard dependency).
      *
-     * @param array{success: bool, cmid: int, error: string, fill_jobid: string, cancelled: bool} $out
+     * @param int $courseid
+     * @param string $modulename
+     * @param string $instructions
+     * @param int $sectionnumber
+     * @param int|null $beforemod
+     * @param string $structuretitle
+     * @param string $summary
+     * @param array $out Fill outcome with keys success, cmid, error, fill_jobid, cancelled.
      */
     private function maybe_log_fill_to_modulegen_queue(
         int $courseid,
@@ -802,6 +844,15 @@ class designer_course_creation_service {
     /**
      * Run fill_module → wait → create module; used by finalize only.
      *
+     * @param string|null $jobid
+     * @param \local_dixeo\service\module_generation_service $moduleservice
+     * @param \local_dixeo\service\job_service $jobservice
+     * @param string $modulename
+     * @param string $instructions
+     * @param int $courseid
+     * @param int $sectionnumber
+     * @param string $title
+     * @param string $summary
      * @return array{success: bool, cmid: int, error: string, fill_jobid: string, cancelled: bool}
      */
     private function run_structure_fill_attempt(
@@ -855,7 +906,7 @@ class designer_course_creation_service {
                 ];
             }
 
-            $waitResult = $jobservice->wait_for_job($operation->jobid, 'fill_module');
+            $waitresult = $jobservice->wait_for_job($operation->jobid, 'fill_module');
             if ($this->is_finalize_cancelled($jobid)) {
                 return [
                     'success' => false,
@@ -865,7 +916,7 @@ class designer_course_creation_service {
                     'cancelled' => true,
                 ];
             }
-            if (!$waitResult->is_completed()) {
+            if (!$waitresult->is_completed()) {
                 $msg = 'Dixeo designer module fill did not complete in time. ' .
                     'module=' . $modulename .
                     ', section=' . $sectionnumber .
@@ -940,6 +991,14 @@ class designer_course_creation_service {
      * Failure is non-fatal. When block_dixeo_modulegen is present and enabled, logs completed/failed rows.
      *
      * @param string|null $jobid Designer job id (for progress/cancel tracking).
+     * @param \local_dixeo\service\module_generation_service $moduleservice
+     * @param \local_dixeo\service\job_service $jobservice
+     * @param string $modulename
+     * @param string $instructions
+     * @param int $courseid
+     * @param int $sectionnumber
+     * @param string $title
+     * @param string $summary
      */
     private function fill_single_module_from_structure(
         ?string $jobid,

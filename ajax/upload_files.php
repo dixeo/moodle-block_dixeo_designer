@@ -14,9 +14,18 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
+/**
+ * AJAX endpoint to upload designer source files.
+ *
+ * @package    block_dixeo_designer
+ * @copyright  2026 Dixeo
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 define('AJAX_SCRIPT', true);
 
 require_once(__DIR__ . '/../../../config.php');
+require_once($CFG->dirroot . '/blocks/dixeo_designer/lib.php');
 
 require_login();
 require_sesskey();
@@ -47,6 +56,6 @@ try {
     http_response_code(400);
     echo json_encode([
         'success' => false,
-        'message' => $e->getMessage(),
+        'message' => block_dixeo_designer_format_ajax_exception_message($e, 'uploaderror'),
     ]);
 }
