@@ -107,6 +107,18 @@ final class external_test extends advanced_testcase {
         role_assign($roleid, $this->user->id, $sysctx->id);
     }
 
+    /**
+     * Create a designer submission row for finalize progress ownership tests.
+     *
+     * @param string $jobid Job identifier.
+     * @param int|null $userid Owner user id (defaults to test user).
+     * @return void
+     */
+    private function create_submission(string $jobid, ?int $userid = null): void {
+        $submissions = new \block_dixeo_designer\service\submission\service();
+        $submissions->get_or_create_submission($jobid, $userid ?? (int) $this->user->id);
+    }
+
     public function test_generate_course_returns_start_result_from_service(): void {
         $this->mockdesignerservice->method('start_generation')
             ->with('job-123', $this->user->id, 'My course', null)
@@ -275,6 +287,7 @@ final class external_test extends advanced_testcase {
 
     public function test_get_finalize_progress_returns_data_from_cache(): void {
         $jobid = '5f38d9aa-f40c-4992-9727-982f050ff9fd';
+        $this->create_submission($jobid);
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cache->set($jobid, [
             'phase' => 'generating_content',
@@ -297,6 +310,7 @@ final class external_test extends advanced_testcase {
 
     public function test_get_finalize_progress_returns_done_with_course(): void {
         $jobid = 'job-done-' . uniqid();
+        $this->create_submission($jobid);
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cache->set($jobid, [
             'phase' => 'done',
@@ -323,6 +337,34 @@ final class external_test extends advanced_testcase {
 
         $this->expectException(\required_capability_exception::class);
         get_finalize_progress::execute('job-1', sesskey());
+    }
+
+    public function test_get_finalize_progress_denies_peer_before_cache_read(): void {
+        $owner = $this->user;
+        $jobid = 'job-peer-progress-' . uniqid();
+        $this->create_submission($jobid, (int) $owner->id);
+
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cache->set($jobid, [
+            'phase' => 'generating_content',
+            'section_index' => 1,
+            'section_total' => 3,
+            'module_index' => 2,
+            'module_total' => 5,
+            'courseid' => 0,
+            'coursename' => '',
+        ]);
+
+        $peer = $this->getDataGenerator()->create_user();
+        $sysctx = \context_system::instance();
+        $roleid = $this->getDataGenerator()->create_role();
+        assign_capability('local/dixeo:create', CAP_ALLOW, $roleid, $sysctx->id);
+        role_assign($roleid, $peer->id, $sysctx->id);
+        $this->setUser($peer);
+        $_POST['sesskey'] = sesskey();
+
+        $this->expectException(\moodle_exception::class);
+        get_finalize_progress::execute($jobid, sesskey());
     }
 
     public function test_save_structure_inserts_new_record(): void {
