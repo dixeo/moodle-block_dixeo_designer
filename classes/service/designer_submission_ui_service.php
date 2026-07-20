@@ -16,6 +16,8 @@
 
 namespace block_dixeo_designer\service;
 
+use block_dixeo_designer\event\submission_file_deleted;
+use block_dixeo_designer\event\submission_file_uploaded;
 use block_dixeo_designer\service\submission\file_service as submission_file_service;
 use block_dixeo_designer\service\submission\service as submission_service;
 
@@ -80,7 +82,11 @@ class designer_submission_ui_service {
             throw new \moodle_exception('nopermissions', 'error', '', 'upload files for this submission');
         }
         $normalized = $this->normalize_uploaded_files($rawfiles);
-        return $this->files->store_uploaded_files((int) $submission->id, $userid, $normalized);
+        $context = $this->files->store_uploaded_files((int) $submission->id, $userid, $normalized);
+        if ($normalized !== []) {
+            submission_file_uploaded::create_from_submission($submission, $userid, count($normalized))->trigger();
+        }
+        return $context;
     }
 
     /**
@@ -97,7 +103,9 @@ class designer_submission_ui_service {
         if ($submission === null || (int) $submission->userid !== $userid) {
             throw new \moodle_exception('invalidparameter');
         }
-        return $this->files->delete_file((int) $submission->id, $fileid);
+        $context = $this->files->delete_file((int) $submission->id, $fileid);
+        submission_file_deleted::create_from_submission($submission, $userid, $fileid)->trigger();
+        return $context;
     }
 
     /**

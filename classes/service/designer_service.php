@@ -16,6 +16,9 @@
 
 namespace block_dixeo_designer\service;
 
+use block_dixeo_designer\event\draft_cancelled;
+use block_dixeo_designer\event\course_finalized;
+use block_dixeo_designer\event\generation_started;
 use block_dixeo_designer\cancellation\cancellation_context;
 use block_dixeo_designer\cancellation\cancellation_policy_resolver;
 use block_dixeo_designer\local\dixeo_capability;
@@ -221,10 +224,7 @@ class designer_service {
                     ];
                 }
 
-                return (object) [
-                    'courseid' => (int) $existingcourseid,
-                    'noop' => false,
-                ];
+                return $this->complete_generation_start($submission, $userid, (int) $existingcourseid);
             }
         }
 
@@ -249,10 +249,7 @@ class designer_service {
             $this->coursecreation->enable_draft_file_sync((int) $course->id, $userid);
             prepare_progress_cache::purge($jobid);
 
-            return (object) [
-                'courseid' => (int) $course->id,
-                'noop' => false,
-            ];
+            return $this->complete_generation_start($submission, $userid, (int) $course->id);
         } catch (\Throwable $e) {
             prepare_progress_cache::purge($jobid);
             $this->coursecreation->delete_draft_course((int) $course->id);
@@ -637,6 +634,8 @@ class designer_service {
 
         $this->submissions->attach_course($submission, (int) $course->id);
 
+        course_finalized::create_from_submission($submission, $userid, (int) $course->id, $jobid)->trigger();
+
         // After a successful generation, delete the submission so revisiting
         // the designer with the same id results in a clean designer.
         $this->submissions->delete_submission($jobid, $userid);
@@ -768,7 +767,26 @@ class designer_service {
             $this->submissions->mark_status($submission, workflow_constants::SUBMISSION_STATUS_DRAFT);
         }
 
+        draft_cancelled::create_from_submission($submission, $userid, $deletestructure, $jobid)->trigger();
+
         return true;
+    }
+
+    /**
+     * Record generation start and return the prepare_generation result object.
+     *
+     * @param \stdClass $submission Submission row.
+     * @param int $userid Acting user id.
+     * @param int $draftcourseid Draft course id.
+     * @return object { courseid: int, noop: false }
+     */
+    private function complete_generation_start(\stdClass $submission, int $userid, int $draftcourseid): object {
+        generation_started::create_from_submission($submission, $userid, $draftcourseid)->trigger();
+
+        return (object) [
+            'courseid' => $draftcourseid,
+            'noop' => false,
+        ];
     }
 
     /**
