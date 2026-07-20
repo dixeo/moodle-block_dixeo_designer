@@ -66,6 +66,53 @@ final class designer_service_test extends advanced_testcase {
         $this->assertNull($submissions->get_submission($jobid));
     }
 
+    /**
+     * A peer must not cancel another user's remote jobs via prepare_generation (SEC-003).
+     */
+    public function test_prepare_generation_denies_peer_before_remote_job_cancel(): void {
+        $owner = $this->getDataGenerator()->create_user();
+        $peer = $this->getDataGenerator()->create_user();
+        $jobid = 'job-' . uniqid();
+        $remotejobid = 'remote-peer-guard';
+
+        $submissions = new \block_dixeo_designer\service\submission\service();
+        $course = $this->getDataGenerator()->create_course();
+        $sub = $submissions->save_submission(
+            $jobid,
+            (int) $owner->id,
+            'Owner description for structure generation',
+            null
+        );
+        $submissions->set_draft_and_remote_job($sub, (int) $course->id, $remotejobid);
+
+        $mockjobservice = $this->createMock(\local_dixeo\service\job_service::class);
+        $mockjobservice->expects($this->never())->method('cancel_job');
+
+        $mockcoursecreation = $this->createMock(designer_course_creation_service::class);
+        $mockcoursecreation->expects($this->never())->method('create_draft_course');
+
+        $service = new designer_service(
+            $submissions,
+            null,
+            null,
+            $mockcoursecreation,
+            null,
+            $mockjobservice
+        );
+
+        $this->setUser($peer);
+        try {
+            $service->prepare_generation($jobid, (int) $peer->id, 'Peer attempt to regenerate', null);
+            $this->fail('Expected moodle_exception when a peer reuses another user job id.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('nopermissions', $e->errorcode);
+        }
+
+        $unchanged = $submissions->get_submission($jobid);
+        $this->assertNotNull($unchanged);
+        $this->assertSame($remotejobid, $unchanged->remotejobid);
+    }
+
     public function test_finalize_course_deletes_submission_after_success_when_createcourse_true(): void {
         $jobid = 'job-' . uniqid();
         $userid = $this->user->id;

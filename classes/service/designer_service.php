@@ -152,9 +152,11 @@ class designer_service {
      * @return object { courseid: int, noop?: bool }
      */
     public function prepare_generation(string $jobid, int $userid, string $description, ?string $templateid): object {
+        $existing = $this->submissions->get_submission($jobid);
+        $this->require_submission_owner_or_siteadmin($existing, $userid);
+
         $this->cancel_existing_jobs_for_regeneration($jobid);
 
-        $existing = $this->submissions->get_submission($jobid);
         $trimmeddescription = trim($description);
         $existinghasfiles = $existing
             && (int) $existing->userid === (int) $userid
@@ -991,6 +993,19 @@ class designer_service {
             'image' => $image,
             'error' => null,
         ];
+    }
+
+    /**
+     * Ensure the acting user owns the submission or is a site administrator.
+     *
+     * @param \stdClass|null $submission Existing submission row, if any.
+     * @param int $userid Acting user id.
+     * @return void
+     */
+    private function require_submission_owner_or_siteadmin(?\stdClass $submission, int $userid): void {
+        if ($submission && (int) $submission->userid !== $userid && !is_siteadmin()) {
+            throw new \moodle_exception('nopermissions', 'error');
+        }
     }
 
     /**
