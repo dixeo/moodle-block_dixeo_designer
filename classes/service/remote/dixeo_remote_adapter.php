@@ -50,11 +50,14 @@ class dixeo_remote_adapter {
     /**
      * Get the remote job status.
      *
-     * @param string $remotejobid
+     * @param string $remotejobid Remote job UUID.
+     * @param int $courseid Draft course id the job is bound to.
+     * @param int $userid Submission owner initiating the designer workflow.
      * @return object
      */
-    public function get_job_status(string $remotejobid): object {
-        return \local_dixeo\external\service_factory::get_job_service()->get_job_status($remotejobid);
+    public function get_job_status(string $remotejobid, int $courseid, int $userid): object {
+        return \local_dixeo\external\service_factory::get_job_service()
+            ->get_job_status($remotejobid, $courseid, $userid);
     }
 
     /**

@@ -113,6 +113,44 @@ final class designer_service_test extends advanced_testcase {
         $this->assertSame($remotejobid, $unchanged->remotejobid);
     }
 
+    /**
+     * Regeneration must not call hub cancel without draft course + owner binding (R2).
+     */
+    public function test_prepare_generation_skips_hub_cancel_without_draft_course(): void {
+        $jobid = 'job-' . uniqid();
+        $userid = (int) $this->user->id;
+        $remotejobid = 'remote-no-course';
+
+        $submissions = new \block_dixeo_designer\service\submission\service();
+        $submission = $submissions->save_submission($jobid, $userid, 'Existing prompt', null);
+        $submissions->mark_status(
+            $submission,
+            workflow_constants::SUBMISSION_STATUS_GENERATING_STRUCTURE,
+            $remotejobid
+        );
+
+        $mockjobservice = $this->createMock(\local_dixeo\service\job_service::class);
+        $mockjobservice->expects($this->never())->method('cancel_job');
+
+        $mockcoursecreation = $this->createMock(designer_course_creation_service::class);
+        $mockcoursecreation->method('create_draft_course')->with($userid)->willReturn((object) ['id' => 99]);
+        $mockcoursecreation->expects($this->once())->method('enable_draft_file_sync')->with(99, $userid);
+
+        $service = new designer_service(
+            $submissions,
+            new \block_dixeo_designer\service\submission\file_service(),
+            new \block_dixeo_designer\service\structure\repository(),
+            $mockcoursecreation,
+            null,
+            $mockjobservice
+        );
+
+        $result = $service->prepare_generation($jobid, $userid, 'Regenerate with new prompt', null);
+
+        $this->assertFalse($result->noop ?? true);
+        $this->assertSame(99, (int) $result->courseid);
+    }
+
     public function test_finalize_course_deletes_submission_after_success_when_createcourse_true(): void {
         $jobid = 'job-' . uniqid();
         $userid = $this->user->id;
@@ -504,7 +542,7 @@ final class designer_service_test extends advanced_testcase {
         $mockcoursecreation->expects($this->once())->method('delete_draft_course')->with($courseid);
 
         $mockjobservice = $this->createMock(\local_dixeo\service\job_service::class);
-        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid)->willReturn([]);
+        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid, $courseid, $userid)->willReturn([]);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
         $mockfilesync->expects($this->once())
@@ -558,7 +596,7 @@ final class designer_service_test extends advanced_testcase {
             ->with($courseid);
 
         $mockjobservice = $this->createMock(\local_dixeo\service\job_service::class);
-        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid)->willReturn([]);
+        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid, $courseid, $userid)->willReturn([]);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, false);
@@ -622,9 +660,9 @@ final class designer_service_test extends advanced_testcase {
         $mockjobservice->expects($this->exactly(3))
             ->method('cancel_job')
             ->withConsecutive(
-                [$this->identicalTo($filljobid)],
-                [$this->identicalTo($remotejobid)],
-                [$this->identicalTo('remote-extra-uuid')]
+                [$this->identicalTo($filljobid), $courseid, $userid],
+                [$this->identicalTo($remotejobid), $courseid, $userid],
+                [$this->identicalTo('remote-extra-uuid'), $courseid, $userid]
             )
             ->willReturn([]);
 
@@ -681,7 +719,7 @@ final class designer_service_test extends advanced_testcase {
             ->with($courseid);
 
         $mockjobservice = $this->createMock(\local_dixeo\service\job_service::class);
-        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid)->willReturn([]);
+        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid, $courseid, $userid)->willReturn([]);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, false);
@@ -731,7 +769,7 @@ final class designer_service_test extends advanced_testcase {
         $mockcoursecreation->expects($this->once())->method('delete_draft_course')->with($courseid);
 
         $mockjobservice = $this->createMock(\local_dixeo\service\job_service::class);
-        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid)->willReturn([]);
+        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid, $courseid, $userid)->willReturn([]);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, true);
@@ -810,7 +848,7 @@ final class designer_service_test extends advanced_testcase {
         $coursecreation = new designer_course_creation_service();
 
         $mockjobservice = $this->createMock(\local_dixeo\service\job_service::class);
-        $mockjobservice->expects($this->once())->method('cancel_job')->with('remote-2')->willReturn([]);
+        $mockjobservice->expects($this->once())->method('cancel_job')->with('remote-2', (int) $course->id, $userid)->willReturn([]);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
         $mockfilesync->expects($this->once())->method('disable_sync')->with($course->id, $userid, false);
@@ -873,7 +911,7 @@ final class designer_service_test extends advanced_testcase {
         $mockcoursecreation->expects($this->once())->method('delete_draft_course')->with($courseid);
 
         $mockjobservice = $this->createMock(\local_dixeo\service\job_service::class);
-        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid)->willReturn([]);
+        $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid, $courseid, $userid)->willReturn([]);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, true);
