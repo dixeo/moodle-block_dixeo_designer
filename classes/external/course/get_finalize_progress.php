@@ -119,6 +119,16 @@ final class get_finalize_progress extends external_api {
             return;
         }
 
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cachedata = $cache->get($jobid);
+        if (
+            is_array($cachedata)
+            && (int) ($cachedata['owner_userid'] ?? 0) === $userid
+            && (int) ($cachedata['owner_userid'] ?? 0) > 0
+        ) {
+            return;
+        }
+
         throw new \moodle_exception('nopermissions', 'error');
     }
 

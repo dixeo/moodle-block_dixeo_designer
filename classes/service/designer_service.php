@@ -523,6 +523,7 @@ class designer_service {
             $existing = $cache->get($jobid);
             $merged = is_array($existing) ? array_merge($existing, [
                 'generation_mode' => $finalizemode,
+                'owner_userid' => $userid,
                 'cancelled' => false,
                 'phase' => '',
                 'section_index' => 0,
@@ -535,6 +536,7 @@ class designer_service {
                 'active_jobids' => [],
             ]) : [
                 'generation_mode' => $finalizemode,
+                'owner_userid' => $userid,
                 'cancelled' => false,
                 'phase' => '',
                 'section_index' => 0,

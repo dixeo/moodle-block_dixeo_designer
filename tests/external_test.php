@@ -371,6 +371,22 @@ final class external_test extends advanced_testcase {
         $this->assertSame('My Created Course', $result['coursename']);
     }
 
+    public function test_get_finalize_progress_returns_done_after_submission_deleted_when_owner_in_cache(): void {
+        $jobid = 'job-done-post-delete-' . uniqid();
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cache->set($jobid, [
+            'phase' => 'done',
+            'courseid' => 77,
+            'coursename' => 'Final course',
+            'owner_userid' => (int) $this->user->id,
+        ]);
+
+        $result = get_finalize_progress::execute($jobid, $this->sesskey);
+
+        $this->assertSame('done', $result['phase']);
+        $this->assertSame(77, $result['courseid']);
+    }
+
     public function test_get_finalize_progress_requires_sesskey(): void {
         $_POST['sesskey'] = 'wrong';
         $this->expectException(\moodle_exception::class);
