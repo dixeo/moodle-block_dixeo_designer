@@ -152,6 +152,21 @@ final class designer_events_test extends \advanced_testcase {
         $this->assertStringNotContainsString('source.txt', $events[0]->get_description());
     }
 
+    public function test_generation_started_uses_explicit_jobid_when_submission_lacks_jobid(): void {
+        $jobid = 'job-explicit-' . uniqid();
+        $userid = (int) $this->user->id;
+        $submission = (object) [
+            'id' => 3,
+            'userid' => $userid,
+        ];
+
+        $event = generation_started::create_from_submission($submission, $userid, 88, $jobid);
+
+        $this->assertSame($jobid, $event->other['jobid']);
+        $this->assertSame(88, (int) $event->other['draftcourseid']);
+        $this->assertSame(3, (int) $event->objectid);
+    }
+
     public function test_prepare_generation_emits_generation_started(): void {
         $jobid = 'job-start-' . uniqid();
         $userid = (int) $this->user->id;

@@ -65,11 +65,18 @@ class generation_started extends submission_base {
      * @param \stdClass $submission Submission row.
      * @param int $userid Acting user id.
      * @param int $draftcourseid Draft course id when known.
+     * @param string $jobid Designer submission job id.
      * @return self
      */
-    public static function create_from_submission(\stdClass $submission, int $userid, int $draftcourseid): self {
+    public static function create_from_submission(
+        \stdClass $submission,
+        int $userid,
+        int $draftcourseid,
+        string $jobid
+    ): self {
         return self::create(self::build_submission_data($submission, $userid, [
             'draftcourseid' => $draftcourseid,
+            'jobid' => $jobid,
         ]));
     }
 }

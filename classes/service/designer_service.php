@@ -224,7 +224,7 @@ class designer_service {
                     ];
                 }
 
-                return $this->complete_generation_start($submission, $userid, (int) $existingcourseid);
+                return $this->complete_generation_start($submission, $userid, (int) $existingcourseid, $jobid);
             }
         }
 
@@ -249,7 +249,7 @@ class designer_service {
             $this->coursecreation->enable_draft_file_sync((int) $course->id, $userid);
             prepare_progress_cache::purge($jobid);
 
-            return $this->complete_generation_start($submission, $userid, (int) $course->id);
+            return $this->complete_generation_start($submission, $userid, (int) $course->id, $jobid);
         } catch (\Throwable $e) {
             prepare_progress_cache::purge($jobid);
             $this->coursecreation->delete_draft_course((int) $course->id);
@@ -778,10 +778,11 @@ class designer_service {
      * @param \stdClass $submission Submission row.
      * @param int $userid Acting user id.
      * @param int $draftcourseid Draft course id.
+     * @param string $jobid Designer submission job id.
      * @return object { courseid: int, noop: false }
      */
-    private function complete_generation_start(\stdClass $submission, int $userid, int $draftcourseid): object {
-        generation_started::create_from_submission($submission, $userid, $draftcourseid)->trigger();
+    private function complete_generation_start(\stdClass $submission, int $userid, int $draftcourseid, string $jobid): object {
+        generation_started::create_from_submission($submission, $userid, $draftcourseid, $jobid)->trigger();
 
         return (object) [
             'courseid' => $draftcourseid,
