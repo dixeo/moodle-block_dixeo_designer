@@ -116,7 +116,10 @@ final class get_finalize_progress extends external_api {
             if ((int) $structure->userid !== $userid && !is_siteadmin()) {
                 throw new \moodle_exception('nopermissions', 'error');
             }
+            return;
         }
+
+        throw new \moodle_exception('nopermissions', 'error');
     }
 
     /**

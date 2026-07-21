@@ -274,7 +274,10 @@ final class external_test extends advanced_testcase {
     }
 
     public function test_get_finalize_progress_returns_empty_when_cache_missing(): void {
-        $result = get_finalize_progress::execute('job-no-cache-' . uniqid(), $this->sesskey);
+        $jobid = 'job-no-cache-' . uniqid();
+        $this->create_submission($jobid);
+
+        $result = get_finalize_progress::execute($jobid, $this->sesskey);
 
         $this->assertSame('', $result['phase']);
         $this->assertSame(0, $result['section_index']);
@@ -283,6 +286,49 @@ final class external_test extends advanced_testcase {
         $this->assertSame(0, $result['module_total']);
         $this->assertSame(0, $result['courseid']);
         $this->assertSame('', $result['coursename']);
+    }
+
+    public function test_get_finalize_progress_denies_unknown_job_id_before_cache_read(): void {
+        $jobid = 'job-unknown-' . uniqid();
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cache->set($jobid, [
+            'phase' => 'generating_content',
+            'section_index' => 1,
+            'section_total' => 3,
+            'module_index' => 2,
+            'module_total' => 5,
+            'courseid' => 99,
+            'coursename' => 'Secret course name',
+        ]);
+
+        $this->expectException(\moodle_exception::class);
+        get_finalize_progress::execute($jobid, $this->sesskey);
+    }
+
+    public function test_get_finalize_progress_allows_structure_owner_without_submission(): void {
+        global $DB;
+
+        $jobid = 'job-structure-only-' . uniqid();
+        $DB->insert_record('block_dixeo_designer_structure', (object) [
+            'jobid' => $jobid,
+            'userid' => $this->user->id,
+            'description' => '',
+            'structure' => json_encode(['course_structure' => ['title' => 'X', 'sections' => []]]),
+            'timecreated' => time(),
+        ]);
+
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cache->set($jobid, [
+            'phase' => 'finalizing',
+            'section_index' => 1,
+            'section_total' => 2,
+            'courseid' => 0,
+            'coursename' => '',
+        ]);
+
+        $result = get_finalize_progress::execute($jobid, $this->sesskey);
+
+        $this->assertSame('finalizing', $result['phase']);
     }
 
     public function test_get_finalize_progress_returns_data_from_cache(): void {
