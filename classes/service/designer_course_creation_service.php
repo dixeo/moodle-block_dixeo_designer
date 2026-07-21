@@ -293,12 +293,7 @@ class designer_course_creation_service {
      * @return void
      */
     private function set_finalize_progress(string $jobid, array $data): void {
-        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
-        $existing = $cache->get($jobid);
-        if (is_array($existing) && !empty($existing['cancelled'])) {
-            return;
-        }
-        $cache->set($jobid, $data);
+        $this->merge_finalize_progress($jobid, $data);
     }
 
     /**

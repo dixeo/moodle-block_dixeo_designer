@@ -61,7 +61,9 @@ final class get_finalize_progress extends external_api {
         string $jobid,
         string $sesskey
     ): array {
-        self::validate_parameters(self::execute_parameters(), [
+        global $USER;
+
+        $params = self::validate_parameters(self::execute_parameters(), [
             'job_id' => $jobid,
             'sesskey' => $sesskey,
         ]);
@@ -71,9 +73,10 @@ final class get_finalize_progress extends external_api {
         require_capability('local/dixeo:create', $context);
         require_sesskey();
 
-        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
-        $data = $cache->get($jobid);
+        self::require_finalize_progress_access($params['job_id'], (int) $USER->id);
 
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $data = $cache->get($params['job_id']);
         if ($data === false || !is_array($data)) {
             return finalize_progress_result::from_cache_array([
                 'phase' => '',
@@ -87,6 +90,46 @@ final class get_finalize_progress extends external_api {
         }
 
         return finalize_progress_result::from_cache_array($data)->to_array();
+    }
+
+    /**
+     * Ensure the caller owns the job before reading finalize progress from cache.
+     *
+     * @param string $jobid Job identifier.
+     * @param int $userid Current user id.
+     * @return void
+     */
+    private static function require_finalize_progress_access(string $jobid, int $userid): void {
+        global $DB;
+
+        $submissions = new \block_dixeo_designer\service\submission\service();
+        $submission = $submissions->get_submission($jobid);
+        if ($submission !== null) {
+            if ((int) $submission->userid !== $userid && !is_siteadmin()) {
+                throw new \moodle_exception('nopermissions', 'error');
+            }
+            return;
+        }
+
+        $structure = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $jobid], 'userid', IGNORE_MISSING);
+        if ($structure !== false) {
+            if ((int) $structure->userid !== $userid && !is_siteadmin()) {
+                throw new \moodle_exception('nopermissions', 'error');
+            }
+            return;
+        }
+
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cachedata = $cache->get($jobid);
+        if (
+            is_array($cachedata)
+            && (int) ($cachedata['owner_userid'] ?? 0) === $userid
+            && (int) ($cachedata['owner_userid'] ?? 0) > 0
+        ) {
+            return;
+        }
+
+        throw new \moodle_exception('nopermissions', 'error');
     }
 
     /**

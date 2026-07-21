@@ -16,6 +16,9 @@
 
 namespace block_dixeo_designer\service;
 
+use block_dixeo_designer\event\draft_cancelled;
+use block_dixeo_designer\event\course_finalized;
+use block_dixeo_designer\event\generation_started;
 use block_dixeo_designer\cancellation\cancellation_context;
 use block_dixeo_designer\cancellation\cancellation_policy_resolver;
 use block_dixeo_designer\local\dixeo_capability;
@@ -152,9 +155,11 @@ class designer_service {
      * @return object { courseid: int, noop?: bool }
      */
     public function prepare_generation(string $jobid, int $userid, string $description, ?string $templateid): object {
+        $existing = $this->submissions->get_submission($jobid);
+        $this->require_submission_owner_or_siteadmin($existing, $userid);
+
         $this->cancel_existing_jobs_for_regeneration($jobid);
 
-        $existing = $this->submissions->get_submission($jobid);
         $trimmeddescription = trim($description);
         $existinghasfiles = $existing
             && (int) $existing->userid === (int) $userid
@@ -219,10 +224,7 @@ class designer_service {
                     ];
                 }
 
-                return (object) [
-                    'courseid' => (int) $existingcourseid,
-                    'noop' => false,
-                ];
+                return $this->complete_generation_start($submission, $userid, (int) $existingcourseid, $jobid);
             }
         }
 
@@ -247,10 +249,7 @@ class designer_service {
             $this->coursecreation->enable_draft_file_sync((int) $course->id, $userid);
             prepare_progress_cache::purge($jobid);
 
-            return (object) [
-                'courseid' => (int) $course->id,
-                'noop' => false,
-            ];
+            return $this->complete_generation_start($submission, $userid, (int) $course->id, $jobid);
         } catch (\Throwable $e) {
             prepare_progress_cache::purge($jobid);
             $this->coursecreation->delete_draft_course((int) $course->id);
@@ -483,7 +482,11 @@ class designer_service {
             dixeo_capability::require_generate_for_course((int) $submission->courseid);
         }
 
-        $jobstatus = $this->remoteapi->get_job_status($submission->remotejobid);
+        $jobstatus = $this->remoteapi->get_job_status(
+            $submission->remotejobid,
+            (int) $submission->courseid,
+            $userid
+        );
         $result = $jobstatus->result;
         if (is_string($result)) {
             $decoded = json_decode($result, true);
@@ -520,6 +523,7 @@ class designer_service {
             $existing = $cache->get($jobid);
             $merged = is_array($existing) ? array_merge($existing, [
                 'generation_mode' => $finalizemode,
+                'owner_userid' => $userid,
                 'cancelled' => false,
                 'phase' => '',
                 'section_index' => 0,
@@ -532,6 +536,7 @@ class designer_service {
                 'active_jobids' => [],
             ]) : [
                 'generation_mode' => $finalizemode,
+                'owner_userid' => $userid,
                 'cancelled' => false,
                 'phase' => '',
                 'section_index' => 0,
@@ -559,7 +564,11 @@ class designer_service {
             if (!empty($submission->courseid)) {
                 dixeo_capability::require_generate_for_course((int) $submission->courseid);
             }
-            $jobstatus = $this->remoteapi->get_job_status($submission->remotejobid);
+            $jobstatus = $this->remoteapi->get_job_status(
+                $submission->remotejobid,
+                (int) $submission->courseid,
+                $userid
+            );
             if (!$jobstatus->is_completed() || empty($jobstatus->result)) {
                 return null;
             }
@@ -634,6 +643,8 @@ class designer_service {
         }
 
         $this->submissions->attach_course($submission, (int) $course->id);
+
+        course_finalized::create_from_submission($submission, $userid, (int) $course->id, $jobid)->trigger();
 
         // After a successful generation, delete the submission so revisiting
         // the designer with the same id results in a clean designer.
@@ -720,11 +731,7 @@ class designer_service {
 
         if (!empty($jobstocancel) && $this->jobservice !== null) {
             foreach ($jobstocancel as $jobidtocancel) {
-                try {
-                    $this->jobservice->cancel_job($jobidtocancel);
-                } catch (\Throwable $e) {
-                    debugging('cancel_draft: failed to cancel job ' . $jobidtocancel . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
-                }
+                $this->cancel_hub_job($jobidtocancel, $courseid, $userid);
             }
         }
 
@@ -766,7 +773,27 @@ class designer_service {
             $this->submissions->mark_status($submission, workflow_constants::SUBMISSION_STATUS_DRAFT);
         }
 
+        draft_cancelled::create_from_submission($submission, $userid, $deletestructure, $jobid)->trigger();
+
         return true;
+    }
+
+    /**
+     * Record generation start and return the prepare_generation result object.
+     *
+     * @param \stdClass $submission Submission row.
+     * @param int $userid Acting user id.
+     * @param int $draftcourseid Draft course id.
+     * @param string $jobid Designer submission job id.
+     * @return object { courseid: int, noop: false }
+     */
+    private function complete_generation_start(\stdClass $submission, int $userid, int $draftcourseid, string $jobid): object {
+        generation_started::create_from_submission($submission, $userid, $draftcourseid, $jobid)->trigger();
+
+        return (object) [
+            'courseid' => $draftcourseid,
+            'noop' => false,
+        ];
     }
 
     /**
@@ -824,7 +851,11 @@ class designer_service {
                 image_generation_policy::ACTION_GENERATE
             )
         ) {
-            $this->cancel_image_job_if_running($structure->imagejobid ?? null);
+            $this->cancel_image_job_if_running(
+                $structure->imagejobid ?? null,
+                (int) $submission->courseid,
+                $userid
+            );
         }
 
         $decoded = json_decode((string) $structure->structure, true);
@@ -883,7 +914,11 @@ class designer_service {
                 image_generation_policy::ACTION_EDIT
             )
         ) {
-            $this->cancel_image_job_if_running($structure->imagejobid ?? null);
+            $this->cancel_image_job_if_running(
+                $structure->imagejobid ?? null,
+                (int) $submission->courseid,
+                $userid
+            );
         }
 
         $imagesbase64 = [course_image_writer::image_url_to_base64($currentimage)];
@@ -954,7 +989,11 @@ class designer_service {
             ];
         }
 
-        $jobstatus = $this->get_job_service()->get_job_status($imagejobid);
+        $jobstatus = $this->get_job_service()->get_job_status(
+            $imagejobid,
+            (int) $submission->courseid,
+            $userid
+        );
         if ($jobstatus->is_completed()) {
             $imageurl = $this->persist_generated_image($jobid, (array) ($jobstatus->result ?? []), (int) $userid);
             $this->structures->set_image_state($jobid, null, 'completed', null);
@@ -994,6 +1033,19 @@ class designer_service {
     }
 
     /**
+     * Ensure the acting user owns the submission or is a site administrator.
+     *
+     * @param \stdClass|null $submission Existing submission row, if any.
+     * @param int $userid Acting user id.
+     * @return void
+     */
+    private function require_submission_owner_or_siteadmin(?\stdClass $submission, int $userid): void {
+        if ($submission && (int) $submission->userid !== $userid && !is_siteadmin()) {
+            throw new \moodle_exception('nopermissions', 'error');
+        }
+    }
+
+    /**
      * Best-effort cancellation of stale jobs when user starts regeneration.
      *
      * @param string $jobid
@@ -1002,16 +1054,18 @@ class designer_service {
     private function cancel_existing_jobs_for_regeneration(string $jobid): void {
         $submission = $this->submissions->get_submission($jobid);
         if ($submission && !empty($submission->remotejobid) && $this->jobservice !== null) {
-            try {
-                $this->jobservice->cancel_job((string) $submission->remotejobid);
-            } catch (\Throwable $e) {
-                debugging('cancel_existing_jobs_for_regeneration: remote cancel failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
-            }
+            $this->cancel_hub_job(
+                (string) $submission->remotejobid,
+                !empty($submission->courseid) ? (int) $submission->courseid : null,
+                (int) $submission->userid
+            );
         }
 
         $structure = $this->structures->get_by_jobid($jobid);
         if ($structure && !empty($structure->imagejobid)) {
-            $this->cancel_image_job_if_running((string) $structure->imagejobid);
+            $courseid = ($submission && !empty($submission->courseid)) ? (int) $submission->courseid : null;
+            $ownerid = $submission ? (int) $submission->userid : 0;
+            $this->cancel_image_job_if_running((string) $structure->imagejobid, $courseid, $ownerid);
             $this->structures->set_image_state($jobid, null, 'cancelled', null);
         }
 
@@ -1055,7 +1109,7 @@ class designer_service {
                 return;
             }
             if ($struct && !empty($struct->imagejobid)) {
-                $this->cancel_image_job_if_running((string) $struct->imagejobid);
+                $this->cancel_image_job_if_running((string) $struct->imagejobid, $draftcourseid, $userid);
             }
             try {
                 [$payloadtitle, $payloadsummary] = $this->resolve_image_payload_from_structure_result($structureresult);
@@ -1106,17 +1160,34 @@ class designer_service {
     /**
      * Best-effort cancel of a running structure image job.
      *
-     * @param string|null $imagejobid
+     * @param string|null $imagejobid Remote image job UUID.
+     * @param int|null $courseid Draft course id when known.
+     * @param int $userid Submission owner id.
      * @return void
      */
-    private function cancel_image_job_if_running(?string $imagejobid): void {
-        if (!$imagejobid || $this->jobservice === null) {
+    private function cancel_image_job_if_running(?string $imagejobid, ?int $courseid, int $userid): void {
+        $this->cancel_hub_job((string) ($imagejobid ?? ''), $courseid, $userid);
+    }
+
+    /**
+     * Cancel a remote Dixeo job with course and owner binding when available.
+     *
+     * @param string $remotejobid Remote job UUID.
+     * @param int|null $courseid Draft course id.
+     * @param int $userid Acting user id (submission owner).
+     * @return void
+     */
+    private function cancel_hub_job(string $remotejobid, ?int $courseid, int $userid): void {
+        if ($remotejobid === '' || $this->jobservice === null) {
+            return;
+        }
+        if ($courseid === null || $courseid <= 0 || $userid <= 0) {
             return;
         }
         try {
-            $this->jobservice->cancel_job($imagejobid);
+            $this->jobservice->cancel_job($remotejobid, $courseid, $userid);
         } catch (\Throwable $e) {
-            debugging('cancel_image_job_if_running failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            debugging('cancel_hub_job failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
     }
 

@@ -22,6 +22,8 @@ global $CFG;
 require_once($CFG->dirroot . '/blocks/dixeo_designer/classes/task/cleanup_draft_courses_task.php');
 
 use advanced_testcase;
+use block_dixeo_designer\privacy\provider;
+use block_dixeo_designer\service\submission\file_service;
 
 /**
  * Tests for the cleanup draft courses scheduled task.
@@ -176,5 +178,96 @@ final class cleanup_draft_courses_task_test extends advanced_testcase {
 
         $this->assertTrue($DB->record_exists('block_dixeo_designer_submission', ['jobid' => $jobid]));
         $this->assertTrue($DB->record_exists('block_dixeo_designer_structure', ['jobid' => $jobid]));
+    }
+
+    public function test_execute_deletes_submission_and_generated_image_files(): void {
+        global $DB;
+
+        $old = time() - 7200;
+        $jobid = 'job-cleanup-files-' . uniqid();
+        $otherjobid = 'job-cleanup-other-' . uniqid();
+        $userid = $this->getDataGenerator()->create_user()->id;
+        $context = \context_system::instance();
+        $fs = get_file_storage();
+
+        $submissionid = $DB->insert_record('block_dixeo_designer_submission', (object) [
+            'jobid' => $jobid,
+            'userid' => $userid,
+            'prompt' => 'Abandoned with files',
+            'templateid' => null,
+            'status' => 'draft',
+            'remotejobid' => null,
+            'courseid' => null,
+            'timecreated' => $old,
+            'timemodified' => $old,
+        ]);
+
+        $DB->insert_record('block_dixeo_designer_structure', (object) [
+            'jobid' => $jobid,
+            'userid' => $userid,
+            'description' => 'Old structure',
+            'structure' => '{"course_structure":{"title":"Old"}}',
+            'timecreated' => $old,
+        ]);
+
+        $fs->create_file_from_string([
+            'contextid' => $context->id,
+            'component' => 'block_dixeo_designer',
+            'filearea' => file_service::FILEAREA,
+            'itemid' => $submissionid,
+            'filepath' => '/',
+            'filename' => 'source.pdf',
+        ], 'pdf-bytes');
+
+        $safejob = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $jobid);
+        $fs->create_file_from_string([
+            'contextid' => $context->id,
+            'component' => 'block_dixeo_designer',
+            'filearea' => provider::FILEAREA_GENERATED_IMAGES,
+            'itemid' => $userid,
+            'filepath' => '/',
+            'filename' => 'course-image-' . $safejob . '-1234567890-001.jpg',
+        ], 'image-for-job');
+
+        $otherjob = preg_replace('/[^a-zA-Z0-9._-]+/', '_', $otherjobid);
+        $otherimage = $fs->create_file_from_string([
+            'contextid' => $context->id,
+            'component' => 'block_dixeo_designer',
+            'filearea' => provider::FILEAREA_GENERATED_IMAGES,
+            'itemid' => $userid,
+            'filepath' => '/',
+            'filename' => 'course-image-' . $otherjob . '-1234567890-002.jpg',
+        ], 'image-for-other-job');
+
+        $this->expectOutputRegex('/Deleted 0 draft course\(s\), 1 submission\(s\), 1 structure record\(s\)\./');
+
+        $task = new cleanup_draft_courses_task();
+        $task->execute();
+
+        $this->assertFalse($DB->record_exists('block_dixeo_designer_submission', ['jobid' => $jobid]));
+        $this->assertEmpty($fs->get_area_files(
+            $context->id,
+            'block_dixeo_designer',
+            file_service::FILEAREA,
+            $submissionid,
+            'id',
+            false
+        ));
+        $this->assertFalse($fs->file_exists(
+            $context->id,
+            'block_dixeo_designer',
+            provider::FILEAREA_GENERATED_IMAGES,
+            $userid,
+            '/',
+            'course-image-' . $safejob . '-1234567890-001.jpg'
+        ));
+        $this->assertTrue($fs->file_exists(
+            $context->id,
+            'block_dixeo_designer',
+            provider::FILEAREA_GENERATED_IMAGES,
+            $userid,
+            '/',
+            $otherimage->get_filename()
+        ));
     }
 }

@@ -29,7 +29,7 @@
  * @return string Unique job ID (short string, not UUID).
  */
 function block_dixeo_designer_generate_job_id(): string {
-    return 'd' . uniqid('', true);
+    return 'd' . bin2hex(random_bytes(16));
 }
 
 /**

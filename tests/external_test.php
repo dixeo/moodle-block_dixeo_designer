@@ -107,6 +107,18 @@ final class external_test extends advanced_testcase {
         role_assign($roleid, $this->user->id, $sysctx->id);
     }
 
+    /**
+     * Create a designer submission row for finalize progress ownership tests.
+     *
+     * @param string $jobid Job identifier.
+     * @param int|null $userid Owner user id (defaults to test user).
+     * @return void
+     */
+    private function create_submission(string $jobid, ?int $userid = null): void {
+        $submissions = new \block_dixeo_designer\service\submission\service();
+        $submissions->get_or_create_submission($jobid, $userid ?? (int) $this->user->id);
+    }
+
     public function test_generate_course_returns_start_result_from_service(): void {
         $this->mockdesignerservice->method('start_generation')
             ->with('job-123', $this->user->id, 'My course', null)
@@ -262,7 +274,10 @@ final class external_test extends advanced_testcase {
     }
 
     public function test_get_finalize_progress_returns_empty_when_cache_missing(): void {
-        $result = get_finalize_progress::execute('job-no-cache-' . uniqid(), $this->sesskey);
+        $jobid = 'job-no-cache-' . uniqid();
+        $this->create_submission($jobid);
+
+        $result = get_finalize_progress::execute($jobid, $this->sesskey);
 
         $this->assertSame('', $result['phase']);
         $this->assertSame(0, $result['section_index']);
@@ -273,8 +288,52 @@ final class external_test extends advanced_testcase {
         $this->assertSame('', $result['coursename']);
     }
 
+    public function test_get_finalize_progress_denies_unknown_job_id_before_cache_read(): void {
+        $jobid = 'job-unknown-' . uniqid();
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cache->set($jobid, [
+            'phase' => 'generating_content',
+            'section_index' => 1,
+            'section_total' => 3,
+            'module_index' => 2,
+            'module_total' => 5,
+            'courseid' => 99,
+            'coursename' => 'Secret course name',
+        ]);
+
+        $this->expectException(\moodle_exception::class);
+        get_finalize_progress::execute($jobid, $this->sesskey);
+    }
+
+    public function test_get_finalize_progress_allows_structure_owner_without_submission(): void {
+        global $DB;
+
+        $jobid = 'job-structure-only-' . uniqid();
+        $DB->insert_record('block_dixeo_designer_structure', (object) [
+            'jobid' => $jobid,
+            'userid' => $this->user->id,
+            'description' => '',
+            'structure' => json_encode(['course_structure' => ['title' => 'X', 'sections' => []]]),
+            'timecreated' => time(),
+        ]);
+
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cache->set($jobid, [
+            'phase' => 'finalizing',
+            'section_index' => 1,
+            'section_total' => 2,
+            'courseid' => 0,
+            'coursename' => '',
+        ]);
+
+        $result = get_finalize_progress::execute($jobid, $this->sesskey);
+
+        $this->assertSame('finalizing', $result['phase']);
+    }
+
     public function test_get_finalize_progress_returns_data_from_cache(): void {
         $jobid = '5f38d9aa-f40c-4992-9727-982f050ff9fd';
+        $this->create_submission($jobid);
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cache->set($jobid, [
             'phase' => 'generating_content',
@@ -297,6 +356,7 @@ final class external_test extends advanced_testcase {
 
     public function test_get_finalize_progress_returns_done_with_course(): void {
         $jobid = 'job-done-' . uniqid();
+        $this->create_submission($jobid);
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cache->set($jobid, [
             'phase' => 'done',
@@ -311,6 +371,22 @@ final class external_test extends advanced_testcase {
         $this->assertSame('My Created Course', $result['coursename']);
     }
 
+    public function test_get_finalize_progress_returns_done_after_submission_deleted_when_owner_in_cache(): void {
+        $jobid = 'job-done-post-delete-' . uniqid();
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cache->set($jobid, [
+            'phase' => 'done',
+            'courseid' => 77,
+            'coursename' => 'Final course',
+            'owner_userid' => (int) $this->user->id,
+        ]);
+
+        $result = get_finalize_progress::execute($jobid, $this->sesskey);
+
+        $this->assertSame('done', $result['phase']);
+        $this->assertSame(77, $result['courseid']);
+    }
+
     public function test_get_finalize_progress_requires_sesskey(): void {
         $_POST['sesskey'] = 'wrong';
         $this->expectException(\moodle_exception::class);
@@ -323,6 +399,34 @@ final class external_test extends advanced_testcase {
 
         $this->expectException(\required_capability_exception::class);
         get_finalize_progress::execute('job-1', sesskey());
+    }
+
+    public function test_get_finalize_progress_denies_peer_before_cache_read(): void {
+        $owner = $this->user;
+        $jobid = 'job-peer-progress-' . uniqid();
+        $this->create_submission($jobid, (int) $owner->id);
+
+        $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
+        $cache->set($jobid, [
+            'phase' => 'generating_content',
+            'section_index' => 1,
+            'section_total' => 3,
+            'module_index' => 2,
+            'module_total' => 5,
+            'courseid' => 0,
+            'coursename' => '',
+        ]);
+
+        $peer = $this->getDataGenerator()->create_user();
+        $sysctx = \context_system::instance();
+        $roleid = $this->getDataGenerator()->create_role();
+        assign_capability('local/dixeo:create', CAP_ALLOW, $roleid, $sysctx->id);
+        role_assign($roleid, $peer->id, $sysctx->id);
+        $this->setUser($peer);
+        $_POST['sesskey'] = sesskey();
+
+        $this->expectException(\moodle_exception::class);
+        get_finalize_progress::execute($jobid, sesskey());
     }
 
     public function test_save_structure_inserts_new_record(): void {
