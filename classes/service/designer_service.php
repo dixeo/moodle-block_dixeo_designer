@@ -1210,7 +1210,12 @@ class designer_service {
      */
     private function get_image_service(): image_generation_service {
         if ($this->imageservice === null) {
-            $this->imageservice = new image_generation_service($this->get_job_service());
+            $this->imageservice = new image_generation_service(
+                $this->get_job_service(),
+                null,
+                null,
+                'block_dixeo_designer'
+            );
         }
         return $this->imageservice;
     }

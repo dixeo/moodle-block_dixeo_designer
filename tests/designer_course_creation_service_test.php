@@ -51,6 +51,7 @@ final class designer_course_creation_service_test extends advanced_testcase {
         $this->setAdminUser();
 
         $this->mockmodulegen = $this->createMock(module_generation_service::class);
+        $this->mockmodulegen->method('set_component')->willReturnSelf();
         $this->mockjobservice = $this->createMock(job_service::class);
 
         service_factory::set_test_module_generation_service($this->mockmodulegen);
