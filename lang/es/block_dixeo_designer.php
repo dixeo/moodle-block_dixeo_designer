@@ -27,6 +27,8 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['attachfile'] = 'Adjunte documentos fuente que se utilizarán para generar el curso. Los archivos fuente están limitados a 50 MB en total y 20 MB por archivo.';
 $string['blocktitle'] = 'Diseñador de Cursos Dixeo';
+$string['cachedef_finalize_progress'] = 'Progreso de finalización del curso para trabajos del diseñador';
+$string['cachedef_prepare_progress'] = 'Progreso de preparación del curso para trabajos del diseñador';
 $string['categoryname'] = 'Categoría para cursos creados';
 $string['categoryname_desc'] = 'Introduce el nombre de la categoría de curso de nivel superior donde se colocarán los cursos creados con el Diseñador de Cursos Dixeo. Se creará la categoría si no existe.';
 $string['certificate_generation'] = 'Habilitar generación de certificados';

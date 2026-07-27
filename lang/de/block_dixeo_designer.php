@@ -27,6 +27,8 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['attachfile'] = 'Quelldokumente anhängen, die zur Kursgenerierung verwendet werden. Quelldateien sind insgesamt auf 50 MB und pro Datei auf 20 MB begrenzt.';
 $string['blocktitle'] = 'Dixeo-Kursdesigner';
+$string['cachedef_finalize_progress'] = 'Fortschritt der Kursfinalisierung für Designer-Aufträge';
+$string['cachedef_prepare_progress'] = 'Fortschritt der Kursvorbereitung für Designer-Aufträge';
 $string['categoryname'] = 'Kategorie für erstellte Kurse';
 $string['categoryname_desc'] = 'Geben Sie den Namen der übergeordneten Kurskategorie ein, in der vom Dixeo-Kursdesigner erstellte Kurse abgelegt werden. Die Kategorie wird angelegt, falls sie noch nicht existiert.';
 $string['certificate_generation'] = 'Zertifikatsgenerierung aktivieren';
