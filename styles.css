@@ -224,7 +224,7 @@
 
 .block_dixeo_designer .prompt-container .template-selector .dropdown-menu {
     max-width: 28rem;
-    width: 100%;
+    width: auto;
 }
 
 .block_dixeo_designer .prompt-container .label_course_files {
