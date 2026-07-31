@@ -419,7 +419,10 @@ class designer_course_creation_service {
         }
 
         $imageservice = new \local_dixeo\service\image_generation_service(
-            \local_dixeo\external\service_factory::get_job_service()
+            \local_dixeo\external\service_factory::get_job_service(),
+            null,
+            null,
+            'block_dixeo_designer'
         );
 
         foreach ($sectionnumbers as $sectionnumber) {
@@ -718,7 +721,8 @@ class designer_course_creation_service {
      * @param int $moduletotal Total modules to materialize.
      */
     private function materialize_structure_modules(int $courseid, array $sections, ?string $jobid, int $moduletotal): void {
-        $moduleservice = \local_dixeo\external\service_factory::get_module_generation_service();
+        $moduleservice = \local_dixeo\external\service_factory::get_module_generation_service()
+            ->set_component('block_dixeo_designer');
         $jobservice = \local_dixeo\external\service_factory::get_job_service();
 
         $moduleordinal = 0;
