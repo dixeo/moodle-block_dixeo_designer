@@ -24,6 +24,7 @@ use block_dixeo_designer\cancellation\cancellation_policy_resolver;
 use block_dixeo_designer\local\dixeo_capability;
 use block_dixeo_designer\service\cache\prepare_progress_cache;
 use block_dixeo_designer\service\remote\dixeo_remote_adapter;
+use local_dixeo\repository\image\job_repository;
 use local_dixeo\service\image\job_orchestrator;
 use local_dixeo\service\image\pluginfile_helper;
 use local_dixeo\service\image\policy;
@@ -1115,10 +1116,16 @@ class designer_service {
             ) {
                 return;
             }
+            $coursetarget = structure_target::course_overview($draftcourseid);
             if ($struct && !empty($struct->imagejobid)) {
                 $this->cancel_image_job_if_running((string) $struct->imagejobid, $draftcourseid, $userid);
             }
             try {
+                // The cancelled job keeps its local row, which would lock the target for the new cover job.
+                $previousjob = job_repository::get_active_job($coursetarget);
+                if ($previousjob) {
+                    job_repository::delete_job((int) $previousjob->id);
+                }
                 [$payloadtitle, $payloadsummary] = $this->resolve_image_payload_from_structure_result($structureresult);
                 $operation = $this->get_image_service()->submit_course_image_job(
                     $draftcourseid,
@@ -1131,7 +1138,6 @@ class designer_service {
                 if ($struct) {
                     $this->structures->set_image_state($jobid, $imagejobid, 'pending', null);
                 }
-                $coursetarget = structure_target::course_overview($draftcourseid);
                 job_orchestrator::submit_and_queue($coursetarget, $imagejobid, $userid);
             } catch (\Throwable $e) {
                 debugging('designer_service: quick finalize image submit failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
