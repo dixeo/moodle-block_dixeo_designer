@@ -23,6 +23,11 @@ global $CFG;
 use advanced_testcase;
 use block_dixeo_designer\service\designer_service;
 use block_dixeo_designer\service\designer_course_creation_service;
+use local_dixeo\dto\operation_result;
+use local_dixeo\repository\image\job_repository;
+use local_dixeo\service\image\policy;
+use local_dixeo\service\image\structure\structure_target;
+use local_dixeo\service\image_generation_service;
 
 /**
  * Tests for designer_service finalization behavior.
@@ -149,6 +154,59 @@ final class designer_service_test extends advanced_testcase {
 
         $this->assertFalse($result->noop ?? true);
         $this->assertSame(99, (int) $result->courseid);
+    }
+
+    /**
+     * Quick finalize cancels the running cover job; its local row must not lock the replacement job.
+     */
+    public function test_quick_finalize_replaces_tracked_course_overview_image_job(): void {
+        $jobid = 'job-' . uniqid();
+        $userid = (int) $this->user->id;
+        $draftcourse = $this->getDataGenerator()->create_course();
+        $coursetarget = structure_target::course_overview((int) $draftcourse->id);
+
+        set_config('image_generation_enabled', 1, 'local_dixeo');
+        set_config('image_generation_course_mode', policy::MODE_GENERATE, 'local_dixeo');
+
+        job_repository::upsert($coursetarget, 'image-old', $userid);
+
+        $mockstructures = $this->createMock(\block_dixeo_designer\service\structure\repository::class);
+        $mockstructures->method('get_by_jobid')
+            ->with($jobid)
+            ->willReturn((object) [
+                'jobid' => $jobid,
+                'imagejobid' => 'image-old',
+                'imagestatus' => 'pending',
+                'structure' => '{}',
+            ]);
+        $mockstructures->expects($this->once())
+            ->method('set_image_state')
+            ->with($jobid, 'image-new', 'pending', null);
+
+        $mockimages = $this->createMock(image_generation_service::class);
+        $mockimages->expects($this->once())
+            ->method('submit_course_image_job')
+            ->willReturn(new operation_result(false, 'image-new', null, null, 'pending'));
+
+        $service = new designer_service(
+            $this->createMock(\block_dixeo_designer\service\submission\service::class),
+            $this->createMock(\block_dixeo_designer\service\submission\file_service::class),
+            $mockstructures,
+            $this->createMock(designer_course_creation_service::class)
+        );
+
+        $imageservice = new \ReflectionProperty(designer_service::class, 'imageservice');
+        $imageservice->setAccessible(true);
+        $imageservice->setValue($service, $mockimages);
+
+        $queue = new \ReflectionMethod($service, 'queue_finalize_course_image_tracking');
+        $queue->setAccessible(true);
+        $queue->invoke($service, $jobid, $userid, (int) $draftcourse->id, 'quick', []);
+
+        $tracked = job_repository::get_active_job($coursetarget);
+        $this->assertNotNull($tracked);
+        $this->assertSame('image-new', $tracked->jobid);
+        $this->assertSame(job_repository::STATUS_PENDING, $tracked->status);
     }
 
     public function test_finalize_course_deletes_submission_after_success_when_createcourse_true(): void {
