@@ -714,15 +714,15 @@ final class designer_service_test extends advanced_testcase {
             ->method('restore_draft_course_metadata_after_cancel')
             ->with($courseid);
 
+        $expectedcancelids = [$filljobid, $remotejobid, 'remote-extra-uuid'];
+        $cancelledids = [];
         $mockjobservice = $this->createMock(\local_dixeo\service\job_service::class);
         $mockjobservice->expects($this->exactly(3))
             ->method('cancel_job')
-            ->withConsecutive(
-                [$this->identicalTo($filljobid), $courseid, $userid],
-                [$this->identicalTo($remotejobid), $courseid, $userid],
-                [$this->identicalTo('remote-extra-uuid'), $courseid, $userid]
-            )
-            ->willReturn([]);
+            ->willReturnCallback(function (string $jobidtocancel, ?int $courseidarg, ?int $useridarg) use (&$cancelledids): array {
+                $cancelledids[] = [$jobidtocancel, $courseidarg, $useridarg];
+                return [];
+            });
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
         $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, false);
@@ -738,6 +738,12 @@ final class designer_service_test extends advanced_testcase {
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
+        $ownerid = (int) $userid;
+        $this->assertSame([
+            [$expectedcancelids[0], $courseid, $ownerid],
+            [$expectedcancelids[1], $courseid, $ownerid],
+            [$expectedcancelids[2], $courseid, $ownerid],
+        ], $cancelledids);
 
         $progress = $cache->get($jobid);
         $this->assertIsArray($progress);

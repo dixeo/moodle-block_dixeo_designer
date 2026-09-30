@@ -315,7 +315,7 @@ define([
             Ajax.call([{
                 methodname: 'block_dixeo_designer_cancel_draft',
                 args: {
-                    sesskey: M.cfg.sesskey,
+                    sesskey: Config.sesskey,
                     ['job_id']: this.getJobId(),
                     ['delete_structure']: isHardReset
                 },
@@ -452,7 +452,7 @@ define([
                 args: {
                     description: courseDescriptionValue,
                     templateid: (templateSelect && templateSelect.value !== '') ? templateSelect.value : null,
-                    sesskey: M.cfg.sesskey,
+                    sesskey: Config.sesskey,
                     ['job_id']: this.getJobId()
                 },
             }])[0];
@@ -555,7 +555,7 @@ define([
             function doUploadOneFile(file, fileNum, bytesSoFar, totalBytesVal, totalFilesVal, totalMBVal) {
                 return new Promise(function(resolve, reject) {
                     const formData = new FormData();
-                    formData.append('sesskey', M.cfg.sesskey);
+                    formData.append('sesskey', Config.sesskey);
                     formData.append('jobid', self.getJobId());
                     formData.append('files[]', file);
 
@@ -788,7 +788,7 @@ define([
                                 method: 'POST',
                                 headers: {'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'},
                                 body: new URLSearchParams({
-                                    sesskey: M.cfg.sesskey,
+                                    sesskey: Config.sesskey,
                                     jobid: this.getJobId(),
                                     fileid: deleteIcon.dataset.fileId
                                 })
