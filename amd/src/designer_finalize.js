@@ -213,7 +213,7 @@ define([
                 methodname: 'block_dixeo_designer_validate_structure_for_finalize',
                 args: {
                     structure: JSON.stringify(self.structure),
-                    sesskey: M.cfg.sesskey,
+                    sesskey: Config.sesskey,
                     ['job_id']: self.jobid
                 }
             }])[0].then(function(resp) {
@@ -289,7 +289,7 @@ define([
                 methodname: 'block_dixeo_designer_save_structure',
                 args: {
                     structure: JSON.stringify(self.structure),
-                    sesskey: M.cfg.sesskey,
+                    sesskey: Config.sesskey,
                     ['job_id']: self.jobid
                 }
             }])[0].then(function() {
@@ -297,7 +297,7 @@ define([
                     methodname: 'block_dixeo_designer_finalize_course',
                     args: {
                         createcourse: true,
-                        sesskey: M.cfg.sesskey,
+                        sesskey: Config.sesskey,
                         ['job_id']: self.jobid,
                         ['finalize_mode']: 'twostep'
                     }
@@ -326,7 +326,7 @@ define([
             Ajax.call([{
                 methodname: 'block_dixeo_designer_get_image_status',
                 args: {
-                    sesskey: M.cfg.sesskey,
+                    sesskey: Config.sesskey,
                     ['job_id']: self.jobid
                 }
             }])[0].then(function(resp) {
@@ -379,7 +379,7 @@ define([
             Ajax.call([{
                 methodname: 'block_dixeo_designer_get_finalize_progress',
                 args: {
-                    sesskey: M.cfg.sesskey,
+                    sesskey: Config.sesskey,
                     ['job_id']: self.jobid
                 }
             }])[0].then(function(data) {

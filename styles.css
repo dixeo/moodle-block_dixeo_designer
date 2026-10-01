@@ -2,6 +2,7 @@
    Base variables
    ============================================ */
 #page-blocks-dixeo_designer-designer {
+    --dixeo-designer-blue: var(--bs-primary, var(--primary, #02aaff));
     --dixeo-designer-page-max-width: 1120px;
     --dixeo-designer-surface-muted-solid: #f8f9fa;
     --dixeo-designer-border-line-color: #dee2e6;
@@ -17,18 +18,23 @@
     display: none !important;
 }
 
+.block_dixeo_designer,
+.designer-finalize-progress {
+    --dixeo-designer-blue: var(--bs-primary, var(--primary, #02aaff));
+}
+
 .block_dixeo_designer {
     --dixeo-designer-control-height: 35px;
     --dixeo-designer-generate-icon-size: 1.25rem;
     --dixeo-designer-generate-icon-gap: 5px;
     --dixeo-designer-generate-icon-white-filter: brightness(0) invert(1);
     --dixeo-designer-surface-color: #fff;
-    --dixeo-designer-surface-muted: var(--light, #f8f9fa);
+    --dixeo-designer-surface-muted: var(--bs-light, var(--light, #f8f9fa));
     --dixeo-designer-border-muted: #ced4da;
     --dixeo-designer-text-muted: #6c757d;
     --dixeo-designer-border-radius: 0.5rem;
     --dixeo-designer-focus-ring: 0 0 0 0.125rem rgba(108, 117, 125, 0.15);
-    --dixeo-designer-file-chip-bg: color-mix(in srgb, var(--primary) 15%, transparent);
+    --dixeo-designer-file-chip-bg: color-mix(in srgb, var(--dixeo-designer-blue) 15%, transparent);
     --dixeo-designer-spacing-none: 0;
     --dixeo-designer-generation-progress-margin-top: -15px;
     --dixeo-designer-cancel-btn-margin-top: 40px;
@@ -180,7 +186,7 @@
 
 .block_dixeo_designer .prompt-container h2,
 .block_dixeo_designer .generation-container h2 {
-    color: var(--primary);
+    color: var(--dixeo-designer-blue);
 }
 
 .block_dixeo_designer .prompt-container .side-by-side {
@@ -271,7 +277,7 @@
     transition: width 0.45s ease-in-out;
     max-width: 100%;
     min-width: 1.5%;
-    background-color: var(--primary);
+    background-color: var(--dixeo-designer-blue);
     border-radius: 0;
 }
 
@@ -395,14 +401,14 @@
     width: 100%;
     max-width: 280px;
     height: 8px;
-    background: var(--gray-200, #e9ecef);
+    background: var(--bs-gray-200, var(--gray-200, #e9ecef));
     border-radius: 4px;
     overflow: hidden;
 }
 
 .block_dixeo_designer .file-upload-progress-bar {
     height: 100%;
-    background: var(--primary);
+    background: var(--dixeo-designer-blue);
     border-radius: 4px;
     transition: width 0.15s ease;
 }
@@ -481,9 +487,14 @@
     justify-content: center;
 }
 
-.block_dixeo_designer .button_view_course {
+.block_dixeo_designer .button_view_course,
+.block_dixeo_designer .button_view_course:hover,
+.block_dixeo_designer .button_view_course:focus,
+.block_dixeo_designer .button_view_course:active {
     padding: 5px 1rem;
-    background: var(--primary);
+    background-color: var(--dixeo-designer-blue);
+    border-color: var(--dixeo-designer-blue);
+    color: #fff;
 }
 
 .block_dixeo_designer .alert_course_generated .button_view_course img {
@@ -492,8 +503,8 @@
 
 .block_dixeo_designer .alert_course_generated .button_generate_another {
     margin-left: 10px;
-    border: 1px solid var(--primary);
-    color: var(--primary);
+    border: 1px solid var(--dixeo-designer-blue);
+    color: var(--dixeo-designer-blue);
 }
 
 .block_dixeo_designer .generation-step {
@@ -504,7 +515,7 @@
 .block_dixeo_designer .generation-step.active,
 .designer-finalize-progress .generation-step.active {
     font-weight: bold;
-    color: var(--primary);
+    color: var(--dixeo-designer-blue);
 }
 
 @media (max-width: 790px) {
@@ -610,13 +621,13 @@
 
 #page-blocks-dixeo_designer-designer .course-structure-container .editable.is-invalid,
 #page-blocks-dixeo_designer-designer .course-structure-container .module-type-select-wrapper.is-invalid {
-    outline: 2px solid var(--danger, #ca3120);
+    outline: 2px solid var(--bs-danger, var(--danger, #ca3120));
     outline-offset: 1px;
     border-radius: 2px;
 }
 
 #page-blocks-dixeo_designer-designer .course-structure-container .dixeo-designer-field-error {
-    color: var(--danger, #ca3120);
+    color: var(--bs-danger, var(--danger, #ca3120));
     font-size: 0.875rem;
     margin-top: 0.25rem;
     width: 100%;
@@ -826,7 +837,7 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
 #page-blocks-dixeo_designer-designer .course-title,
 #page-blocks-dixeo_designer-designer .section-title,
 #page-blocks-dixeo_designer-designer .module-title {
-    color: var(--primary);
+    color: var(--dixeo-designer-blue);
 }
 
 #page-blocks-dixeo_designer-designer .editor-toolbar-footer {
@@ -1057,7 +1068,7 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
     min-height: 8px;
     margin: 2px 0;
     border: 0;
-    border-top: 3px dashed var(--primary);
+    border-top: 3px dashed var(--dixeo-designer-blue);
     border-radius: 2px;
     background-color: rgba(13, 110, 253, 0.12);
     pointer-events: none;
@@ -1086,7 +1097,7 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
     width: 32px;
     height: 32px;
     padding: 0;
-    color: var(--primary);
+    color: var(--dixeo-designer-blue);
     border: none;
     background: transparent;
 }
@@ -1103,7 +1114,7 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
 }
 
 #page-blocks-dixeo_designer-designer .editable.editing {
-    border-color: var(--primary);
+    border-color: var(--dixeo-designer-blue);
     border-style: solid;
 }
 
@@ -1201,13 +1212,13 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
     padding: 0;
     margin: 0;
     position: relative;
-    color: var(--primary);
+    color: var(--dixeo-designer-blue);
     border: none;
     background: transparent;
 }
 
 #page-blocks-dixeo_designer-designer .module-type-select-toggle:hover {
-    border: 1px dashed var(--primary);
+    border: 1px dashed var(--dixeo-designer-blue);
     border-radius: 5px;
 }
 
@@ -1296,7 +1307,7 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
 }
 
 #page-blocks-dixeo_designer-designer .module-type-option:hover {
-    background: var(--primary);
+    background: var(--dixeo-designer-blue);
     color: white;
 }
 
@@ -1324,7 +1335,7 @@ body .designer-image-finalize-notice-modal .designer-image-regenerate-body {
     mask-repeat: no-repeat;
     -webkit-mask-position: center;
     mask-position: center;
-    background-color: var(--primary);
+    background-color: var(--dixeo-designer-blue);
 }
 
 #page-blocks-dixeo_designer-designer .module-type-option:hover .dixeo-designer-module-type-icon--option {

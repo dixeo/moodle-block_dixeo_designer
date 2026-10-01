@@ -157,7 +157,7 @@ define([
     function startQuickFinalize(self, runId) {
         const finalizeArgs = {
             createcourse: true,
-            sesskey: M.cfg.sesskey
+            sesskey: Config.sesskey
         };
         finalizeArgs[KEY_JOB_ID] = self.getJobId();
         finalizeArgs[KEY_FINALIZE_MODE] = 'quick';
@@ -187,7 +187,7 @@ define([
     function finalizeAfterStructure(self, structureJson, runId) {
         const validateArgs = {
             structure: structureJson,
-            sesskey: M.cfg.sesskey
+            sesskey: Config.sesskey
         };
         validateArgs[KEY_JOB_ID] = self.getJobId();
 
@@ -223,7 +223,7 @@ define([
     function saveStructureAndNavigate(self, structureJson) {
         const saveArgs = {
             structure: structureJson,
-            sesskey: M.cfg.sesskey
+            sesskey: Config.sesskey
         };
         saveArgs[KEY_JOB_ID] = self.getJobId();
 
@@ -379,7 +379,7 @@ define([
                         return;
                     }
                     const syncArgs = {
-                        sesskey: M.cfg.sesskey
+                        sesskey: Config.sesskey
                     };
                     syncArgs[KEY_JOB_ID] = self.getJobId();
                     Ajax.call([{
@@ -454,7 +454,7 @@ define([
                 updateStepLabel(self, 2, 'step_generating_structure');
 
                 const structureArgs = {
-                    sesskey: M.cfg.sesskey
+                    sesskey: Config.sesskey
                 };
                 structureArgs[KEY_JOB_ID] = self.getJobId();
                 Ajax.call([{
@@ -492,7 +492,7 @@ define([
                     }
                     let afterStructure = null;
                     const statusArgs = {
-                        sesskey: M.cfg.sesskey
+                        sesskey: Config.sesskey
                     };
                     statusArgs[KEY_JOB_ID] = self.getJobId();
                     Ajax.call([{
@@ -578,7 +578,7 @@ define([
                     }
                     pollInFlight = true;
                     const progressArgs = {
-                        sesskey: M.cfg.sesskey
+                        sesskey: Config.sesskey
                     };
                     progressArgs[KEY_JOB_ID] = self.getJobId();
                     Ajax.call([{

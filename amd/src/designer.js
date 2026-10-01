@@ -240,14 +240,12 @@ define([
                 ]);
             }
 
-            // Warm-up core modal modules used by Notification.confirm.
-            try {
-                require(['core/modal_factory', 'core/modal_events'], function() {
-                    // No-op: this only preloads AMD chunks.
-                });
-            } catch (e) {
-                // Ignore preload failures; regular confirm flow still works.
-            }
+            // Warm-up modal modules used by Notification.confirm (core/modal_save_cancel on Moodle 5).
+            require(['core/modal_save_cancel', 'core/modal_events'], function() {
+                // No-op: preload only.
+            }, function() {
+                // Ignore preload failures; confirm still lazy-loads on first delete click.
+            });
 
             return this.deleteConfirmStringsPromise.catch(function() {
                 // If preload fails, allow runtime fallback in deleteItem.
@@ -297,7 +295,7 @@ define([
         validateStructureForDesigner: function(scopePath) {
             var args = {
                 structure: JSON.stringify(this.structure),
-                sesskey: M.cfg.sesskey
+                sesskey: Config.sesskey
             };
             args[KEY_JOB_ID] = this.jobid;
             if (scopePath) {
@@ -412,7 +410,7 @@ define([
         loadStructure: function() {
             var self = this;
             var args = {
-                sesskey: M.cfg.sesskey
+                sesskey: Config.sesskey
             };
             args[KEY_JOB_ID] = this.jobid;
 
@@ -454,7 +452,7 @@ define([
 
             var args = {
                 structure: JSON.stringify(this.structure),
-                sesskey: M.cfg.sesskey
+                sesskey: Config.sesskey
             };
             args[KEY_JOB_ID] = this.jobid;
 
@@ -692,7 +690,7 @@ define([
 
             var poll = function() {
                 var args = {
-                    sesskey: M.cfg.sesskey
+                    sesskey: Config.sesskey
                 };
                 args[KEY_JOB_ID] = self.jobid;
                 Ajax.call([{
@@ -843,7 +841,7 @@ define([
 
                     var editArgs = {
                         instructions: prompt,
-                        sesskey: M.cfg.sesskey
+                        sesskey: Config.sesskey
                     };
                     editArgs[KEY_JOB_ID] = self.jobid;
                     Ajax.call([{
