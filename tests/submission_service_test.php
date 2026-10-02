@@ -136,4 +136,30 @@ final class submission_service_test extends advanced_testcase {
             $DB->record_exists('block_dixeo_designer_submission', ['jobid' => $jobid, 'userid' => $this->user->id])
         );
     }
+
+    /**
+     * A job id that contains quotes and SQL is matched only as a bound value.
+     */
+    public function test_jobid_with_sql_metacharacters_stays_a_bound_lookup(): void {
+        $owned = 'job-owned';
+        $this->service->save_submission($owned, $this->user->id, 'Owned prompt', null);
+
+        $crafted = "' OR '1'='1' --";
+        $this->assertNull($this->service->get_submission($crafted));
+
+        $this->service->save_submission($crafted, $this->user->id, 'Crafted prompt', null);
+        $found = $this->service->get_submission($crafted);
+        $ownedrow = $this->service->get_submission($owned);
+
+        $this->assertNotNull($found);
+        $this->assertNotNull($ownedrow);
+        $this->assertSame($crafted, $found->jobid);
+        $this->assertSame('Crafted prompt', $found->prompt);
+        $this->assertSame('Owned prompt', $ownedrow->prompt);
+        $this->assertNotSame($found->id, $ownedrow->id);
+
+        $this->service->delete_submission($crafted, $this->user->id);
+        $this->assertNull($this->service->get_submission($crafted));
+        $this->assertSame('Owned prompt', $this->service->get_submission($owned)->prompt);
+    }
 }
