@@ -168,13 +168,26 @@ class service {
     }
 
     /**
-     * Delete a submission after successful generation.
+     * Delete a submission and its source files after successful generation.
+     *
+     * Files are removed before the row so a finalized submission cannot leave
+     * source files with no privacy record.
      *
      * @param string $jobid
      * @param int $userid
      * @return bool True when at least one row was deleted.
      */
     public function delete_submission(string $jobid, int $userid): bool {
+        $submission = $this->repository->get_by_jobid($jobid);
+        if ($submission !== null && (int) $submission->userid === $userid) {
+            get_file_storage()->delete_area_files(
+                \context_system::instance()->id,
+                'block_dixeo_designer',
+                file_service::FILEAREA,
+                (int) $submission->id
+            );
+        }
+
         return $this->repository->delete_by_jobid($jobid, $userid);
     }
 }
