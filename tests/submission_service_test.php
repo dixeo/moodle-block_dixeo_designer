@@ -17,6 +17,7 @@
 namespace block_dixeo_designer;
 
 use advanced_testcase;
+use block_dixeo_designer\service\submission\file_service;
 use block_dixeo_designer\service\submission\service;
 
 /**
@@ -161,5 +162,45 @@ final class submission_service_test extends advanced_testcase {
         $this->service->delete_submission($crafted, $this->user->id);
         $this->assertNull($this->service->get_submission($crafted));
         $this->assertSame('Owned prompt', $this->service->get_submission($owned)->prompt);
+    }
+
+    /**
+     * Deleting a submission also removes its source files.
+     */
+    public function test_delete_submission_removes_submission_files(): void {
+        $jobid = 'job-' . uniqid();
+        $submission = $this->service->save_submission($jobid, $this->user->id, 'Notes', null);
+
+        $fs = get_file_storage();
+        $filerecord = [
+            'contextid' => \context_system::instance()->id,
+            'component' => 'block_dixeo_designer',
+            'filearea' => file_service::FILEAREA,
+            'itemid' => (int) $submission->id,
+            'filepath' => '/',
+            'filename' => 'notes.txt',
+        ];
+        $fs->create_file_from_string($filerecord, 'hello');
+
+        $other = $this->getDataGenerator()->create_user();
+        $this->service->delete_submission($jobid, $other->id);
+        $this->assertNotEmpty($fs->get_area_files(
+            \context_system::instance()->id,
+            'block_dixeo_designer',
+            file_service::FILEAREA,
+            (int) $submission->id,
+            'filename',
+            false
+        ));
+
+        $this->service->delete_submission($jobid, $this->user->id);
+        $this->assertEmpty($fs->get_area_files(
+            \context_system::instance()->id,
+            'block_dixeo_designer',
+            file_service::FILEAREA,
+            (int) $submission->id,
+            'filename',
+            false
+        ));
     }
 }
