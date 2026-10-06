@@ -333,29 +333,18 @@ class designer_course_creation_service {
     }
 
     /**
-     * True when Dixeo format section images are allowed to be queued after finalize (all of):
-     * format_dixeo installed, site default new-course format dixeo, course format dixeo,
-     * and local_dixeo policy allows section image generation.
+     * True when section images may be queued after finalize.
+     *
+     * Requires local_dixeo section image generation, and the site default new-course
+     * format must match the course format. Supported formats:
+     * - dixeo, when format_dixeo is installed
+     * - tiles, when format_tiles is installed and photo tiles are enabled
      *
      * @param int $courseid
      * @return bool
      */
     private function section_images_after_finalize_allowed(int $courseid): bool {
         global $DB;
-
-        if (!\local_dixeo\service\plugin_installation_service::is_component_installed('format_dixeo')) {
-            return false;
-        }
-
-        $defaultformat = get_config('moodlecourse', 'format') ?: 'topics';
-        if ($defaultformat !== 'dixeo') {
-            return false;
-        }
-
-        $courseformat = $DB->get_field('course', 'format', ['id' => $courseid], IGNORE_MISSING);
-        if ((string) $courseformat !== 'dixeo') {
-            return false;
-        }
 
         if (
             !policy::is_enabled(
@@ -366,7 +355,25 @@ class designer_course_creation_service {
             return false;
         }
 
-        return true;
+        $defaultformat = (string) (get_config('moodlecourse', 'format') ?: 'topics');
+        $courseformat = (string) $DB->get_field('course', 'format', ['id' => $courseid], IGNORE_MISSING);
+        if ($courseformat === '' || $courseformat !== $defaultformat) {
+            return false;
+        }
+
+        if ($courseformat === 'dixeo') {
+            return \local_dixeo\service\plugin_installation_service::is_component_installed('format_dixeo');
+        }
+
+        if ($courseformat === 'tiles') {
+            if (!\local_dixeo\service\plugin_installation_service::is_component_installed('format_tiles')) {
+                return false;
+            }
+            // Section photos are rendered only when the format_tiles site setting is on.
+            return (bool) get_config('format_tiles', 'allowphototiles');
+        }
+
+        return false;
     }
 
     /**
