@@ -25,8 +25,10 @@ use block_dixeo_designer\service\designer_course_creation_service;
 use block_dixeo_designer\service\submission\file_service;
 use local_dixeo\dto\operation_result;
 use local_dixeo\external\service_factory;
+use local_dixeo\service\image\policy;
 use local_dixeo\service\job_service;
 use local_dixeo\service\module_generation_service;
+use local_dixeo\service\plugin_installation_service;
 
 /**
  * Tests for designer_course_creation_service.
@@ -352,5 +354,60 @@ final class designer_course_creation_service_test extends advanced_testcase {
         $after = $DB->get_record('enrol', ['id' => $instance->id], '*', MUST_EXIST);
         $this->assertSame(ENROL_INSTANCE_ENABLED, (int) $after->status);
         $this->assertNotSame('', trim((string) $after->password));
+    }
+
+    /**
+     * Section image jobs are queued for dixeo and tiles when that format is the site default.
+     */
+    public function test_section_images_after_finalize_allowed_for_dixeo_and_tiles(): void {
+        $course = $this->getDataGenerator()->create_course();
+        $courseid = (int) $course->id;
+        $service = new designer_course_creation_service();
+        $method = new \ReflectionMethod($service, 'section_images_after_finalize_allowed');
+        $method->setAccessible(true);
+
+        $this->enable_section_image_generation();
+
+        set_config('format', 'topics', 'moodlecourse');
+        $this->assertFalse($method->invoke($service, $courseid));
+
+        $this->set_course_format($courseid, 'dixeo');
+        set_config('format', 'dixeo', 'moodlecourse');
+        $this->assertSame(
+            plugin_installation_service::is_component_installed('format_dixeo'),
+            $method->invoke($service, $courseid)
+        );
+
+        $this->set_course_format($courseid, 'tiles');
+        set_config('format', 'tiles', 'moodlecourse');
+        set_config('allowphototiles', 1, 'format_tiles');
+        $tilesinstalled = plugin_installation_service::is_component_installed('format_tiles');
+        $this->assertSame($tilesinstalled, $method->invoke($service, $courseid));
+
+        set_config('allowphototiles', 0, 'format_tiles');
+        $this->assertFalse($method->invoke($service, $courseid));
+
+        set_config('allowphototiles', 1, 'format_tiles');
+        set_config('format', 'dixeo', 'moodlecourse');
+        $this->assertFalse($method->invoke($service, $courseid));
+    }
+
+    /**
+     * Enable local_dixeo section image generation for this test.
+     */
+    private function enable_section_image_generation(): void {
+        set_config('image_generation_enabled', 1, 'local_dixeo');
+        set_config('image_generation_section_mode', policy::MODE_GENERATE, 'local_dixeo');
+    }
+
+    /**
+     * Set course.format without requiring the format plugin to be installed.
+     *
+     * @param int $courseid
+     * @param string $format
+     */
+    private function set_course_format(int $courseid, string $format): void {
+        global $DB;
+        $DB->set_field('course', 'format', $format, ['id' => $courseid]);
     }
 }
