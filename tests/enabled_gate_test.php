@@ -58,7 +58,10 @@ final class enabled_gate_test extends \advanced_testcase {
         $config->set('local_dixeo', 'enabled', \context_system::instance(), '0');
         $block->content = null;
         $this->assertNull($block->get_content());
+        $this->assertStringNotContainsString('dixeo-block-disabled', $block->html_attributes()['class']);
         $this->assertSame(get_string('disabled_block_site', 'local_dixeo'), $this->editing_text($block));
+        $this->assertStringContainsString('dixeo-block-disabled', $this->editing_classes($block));
+        $this->assertSame(get_string('blocktitle', 'block_dixeo_designer'), $block->title);
     }
 
     /**
@@ -82,7 +85,10 @@ final class enabled_gate_test extends \advanced_testcase {
         );
         $block->content = null;
         $this->assertNull($block->get_content());
+        $this->assertStringNotContainsString('dixeo-block-disabled', $block->html_attributes()['class']);
         $this->assertSame(get_string('disabled_block_course', 'local_dixeo'), $this->editing_text($block));
+        $this->assertStringContainsString('dixeo-block-disabled', $this->editing_classes($block));
+        $this->assertSame(get_string('blocktitle', 'block_dixeo_designer'), $block->title);
     }
 
     /**
@@ -99,6 +105,20 @@ final class enabled_gate_test extends \advanced_testcase {
         $USER->editing = 0;
         $block->content = null;
         return $text;
+    }
+
+    /**
+     * Block classes while the current user is editing the page.
+     *
+     * @param \block_base $block
+     * @return string
+     */
+    private function editing_classes(\block_base $block): string {
+        global $USER;
+        $USER->editing = 1;
+        $classes = $block->html_attributes()['class'];
+        $USER->editing = 0;
+        return $classes;
     }
 
     /**

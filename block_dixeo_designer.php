@@ -64,6 +64,22 @@ class block_dixeo_designer extends block_base {
     }
 
     /**
+     * Block attributes.
+     *
+     * The card title is hidden by the block stylesheet. While editing with Dixeo
+     * off, the title is the block name next to the explanation, so it stays visible.
+     *
+     * @return array
+     */
+    public function html_attributes() {
+        $attributes = parent::html_attributes();
+        if ($this->page->user_is_editing() && !$this->dixeo_is_enabled()) {
+            $attributes['class'] .= ' dixeo-block-disabled';
+        }
+        return $attributes;
+    }
+
+    /**
      * Whether multiple instances of this block are allowed on the same page.
      *
      * @return bool
