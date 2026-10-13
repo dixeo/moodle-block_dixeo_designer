@@ -349,7 +349,8 @@ class designer_course_creation_service {
         if (
             !policy::is_enabled(
                 policy::ENTITY_SECTION,
-                policy::ACTION_GENERATE
+                policy::ACTION_GENERATE,
+                \context_course::instance($courseid)
             )
         ) {
             return false;

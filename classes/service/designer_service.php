@@ -852,7 +852,8 @@ class designer_service {
         if (
             policy::is_enabled(
                 policy::ENTITY_COURSE,
-                policy::ACTION_GENERATE
+                policy::ACTION_GENERATE,
+                \context_course::instance((int) $submission->courseid)
             )
         ) {
             $this->cancel_image_job_if_running(
@@ -917,7 +918,8 @@ class designer_service {
         if (
             policy::is_enabled(
                 policy::ENTITY_COURSE,
-                policy::ACTION_EDIT
+                policy::ACTION_EDIT,
+                \context_course::instance((int) $submission->courseid)
             )
         ) {
             $this->cancel_image_job_if_running(
@@ -976,7 +978,8 @@ class designer_service {
                 !$image && !empty($submission->courseid)
                     && policy::is_enabled(
                         policy::ENTITY_COURSE,
-                        policy::ACTION_GENERATE
+                        policy::ACTION_GENERATE,
+                        \context_course::instance((int) $submission->courseid)
                     )
             ) {
                 $this->start_structure_image_generation($jobid, $userid);
@@ -1111,7 +1114,8 @@ class designer_service {
             if (
                 !policy::is_enabled(
                     policy::ENTITY_COURSE,
-                    policy::ACTION_GENERATE
+                    policy::ACTION_GENERATE,
+                    \context_course::instance($draftcourseid)
                 )
             ) {
                 return;
