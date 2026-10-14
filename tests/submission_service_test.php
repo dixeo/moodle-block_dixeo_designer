@@ -109,6 +109,30 @@ final class submission_service_test extends advanced_testcase {
         $this->assertEquals(workflow_constants::SUBMISSION_STATUS_DRAFT, $sub->status);
     }
 
+    public function test_binding_a_course_records_the_template_that_was_used(): void {
+        $jobid = 'job-' . uniqid();
+        $sub = $this->service->save_submission($jobid, $this->user->id, 'P', 'tpl-used');
+        $generated = $this->getDataGenerator()->create_course();
+        $manual = $this->getDataGenerator()->create_course();
+        set_config('coursetemplate', 'tpl-default', 'block_dixeo_designer');
+
+        $this->service->set_draft_and_remote_job($sub, $generated->id, 'remote-123');
+
+        $config = \local_dixeo\external\service_factory::get_settings_config();
+        $used = $config->get(
+            'block_dixeo_designer',
+            'coursetemplate',
+            \context_course::instance($generated->id)
+        );
+        $untouched = $config->get(
+            'block_dixeo_designer',
+            'coursetemplate',
+            \context_course::instance($manual->id)
+        );
+        $this->assertSame('tpl-used', $used->get_value());
+        $this->assertSame('', $untouched->get_value());
+    }
+
     public function test_save_submission_throws_when_wrong_user(): void {
         $jobid = 'job-' . uniqid();
         $this->service->save_submission($jobid, $this->user->id, 'P', null);

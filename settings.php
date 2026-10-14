@@ -27,6 +27,8 @@ defined('MOODLE_INTERNAL') || die();
 global $DB;
 
 if ($ADMIN->fulltree) {
+    \local_dixeo\admin_setting_modal_open::add($settings, 'block_dixeo_designer');
+
     $settings->add(new admin_setting_configtext(
         'block_dixeo_designer/categoryname',
         get_string('categoryname', 'block_dixeo_designer'),

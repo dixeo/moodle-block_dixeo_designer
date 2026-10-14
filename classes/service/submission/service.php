@@ -124,6 +124,7 @@ class service {
         $submission->remotejobid = null;
         $submission->status = workflow_constants::SUBMISSION_STATUS_SYNCING_FILES;
         $this->repository->update($submission);
+        $this->record_used_template($submission);
     }
 
     /**
@@ -137,6 +138,7 @@ class service {
         $submission->courseid = $courseid;
         $submission->status = workflow_constants::SUBMISSION_STATUS_COURSE_CREATED;
         $this->repository->update($submission);
+        $this->record_used_template($submission);
     }
 
     /**
@@ -152,6 +154,7 @@ class service {
         $submission->remotejobid = $remotejobid;
         $submission->status = workflow_constants::SUBMISSION_STATUS_GENERATING_STRUCTURE;
         $this->repository->update($submission);
+        $this->record_used_template($submission);
     }
 
     /**
@@ -189,5 +192,22 @@ class service {
         }
 
         return $this->repository->delete_by_jobid($jobid, $userid);
+    }
+
+    /**
+     * Remember the template on the course this submission is bound to.
+     *
+     * @param \stdClass $submission Submission that already has its course id.
+     */
+    private function record_used_template(\stdClass $submission): void {
+        $courseid = (int) ($submission->courseid ?? 0);
+        if ($courseid <= 0) {
+            return;
+        }
+        $templateid = $submission->templateid ?? null;
+        (new \block_dixeo_designer\service\designer_course_creation_service())->record_used_template(
+            $courseid,
+            is_string($templateid) ? $templateid : null
+        );
     }
 }
