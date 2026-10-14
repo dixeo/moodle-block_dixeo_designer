@@ -49,7 +49,7 @@ class designer_course_creation_service {
         $categoryid = $this->resolve_category_id();
         $idnumber = self::IDNUMBER_DRAFT_PREFIX . gmdate('Ymd_His');
         $shortname = 'draft-' . gmdate('Ymd-His');
-        $defaultformat = get_config('moodlecourse', 'format') ?: 'topics';
+        $defaultformat = $this->default_course_format();
 
         $candidate = $shortname;
         $suffix = 1;
@@ -138,7 +138,7 @@ class designer_course_creation_service {
         foreach (array_values($sections) as $sd) {
             $moduletotal += count($sd['modules'] ?? []);
         }
-        $defaultformat = get_config('moodlecourse', 'format') ?: 'topics';
+        $defaultformat = $this->default_course_format();
 
         if ($jobid !== null && $jobid !== '') {
             // UI expects generating content to start at 1/total (not 0/total).
@@ -203,9 +203,9 @@ class designer_course_creation_service {
 
         $certtrailing = false;
         $placed = false;
-        if ((bool) get_config('block_dixeo_designer', 'certificate_generation')) {
-            $templateid = (int) get_config('block_dixeo_designer', 'certificate_template');
-            $certlocation = (string) (get_config('block_dixeo_designer', 'certificate_location') ?: 'last');
+        if ($this->certificate_generation_enabled()) {
+            $templateid = (int) $this->designer_setting('certificate_template');
+            $certlocation = $this->designer_setting('certificate_location');
             if (!in_array($certlocation, ['summary', 'last'], true)) {
                 $certlocation = 'last';
             }
@@ -398,7 +398,7 @@ class designer_course_creation_service {
             return false;
         }
 
-        $defaultformat = (string) (get_config('moodlecourse', 'format') ?: 'topics');
+        $defaultformat = $this->default_course_format();
         $courseformat = (string) $DB->get_field('course', 'format', ['id' => $courseid], IGNORE_MISSING);
         if ($courseformat === '' || $courseformat !== $defaultformat) {
             return false;
@@ -413,7 +413,7 @@ class designer_course_creation_service {
                 return false;
             }
             // Section photos are rendered only when the format_tiles site setting is on.
-            return (bool) get_config('format_tiles', 'allowphototiles');
+            return $this->moodle_setting('format_tiles', 'allowphototiles') === '1';
         }
 
         return false;
@@ -547,11 +547,11 @@ class designer_course_creation_service {
      * @return void
      */
     private function apply_self_enrol_if_enabled(int $courseid): void {
-        if (!(bool) get_config('block_dixeo_designer', 'self_enrol_configure')) {
+        if ($this->designer_setting('self_enrol_configure') !== '1') {
             return;
         }
 
-        $generatekey = (bool) get_config('block_dixeo_designer', 'self_enrol_generate_key');
+        $generatekey = $this->designer_setting('self_enrol_generate_key') === '1';
         $service = new \local_dixeo\service\designer_self_enrol_service();
         $service->configure_for_course($courseid, $generatekey);
     }
@@ -634,8 +634,8 @@ class designer_course_creation_service {
      * @return int
      */
     private function resolve_category_id(): int {
-        $categoryname = get_config('block_dixeo_designer', 'categoryname');
-        if (empty($categoryname)) {
+        $categoryname = $this->designer_setting('categoryname');
+        if ($categoryname === '') {
             $categoryname = get_string('default_categoryname', 'block_dixeo_designer');
         }
 
@@ -1123,7 +1123,7 @@ class designer_course_creation_service {
             $candidate = $basename . '-' . $suffix++;
         }
 
-        $defaultformat = get_config('moodlecourse', 'format') ?: 'topics';
+        $defaultformat = $this->default_course_format();
 
         $course->fullname = $this->get_draft_course_name();
         $course->shortname = $candidate;
@@ -1168,5 +1168,59 @@ class designer_course_creation_service {
         }
 
         rebuild_course_cache($courseid, true);
+    }
+
+    /**
+     * Whether certificate generation is available and turned on at the Dixeo layer.
+     *
+     * The catalogue omits certificate settings when the certificate plugins are not installed.
+     *
+     * @return bool
+     */
+    private function certificate_generation_enabled(): bool {
+        $pluginmanager = \core_plugin_manager::instance();
+        if ($pluginmanager->get_plugin_info('mod_coursecertificate') === null
+                || $pluginmanager->get_plugin_info('tool_certificate') === null) {
+            return false;
+        }
+        global $DB;
+        if (!$DB->get_manager()->table_exists('tool_certificate_templates')) {
+            return false;
+        }
+        return $this->designer_setting('certificate_generation') === '1';
+    }
+
+    /**
+     * Dixeo-layer value of a Course Designer catalogue setting.
+     *
+     * @param string $name Catalogue key.
+     * @return string
+     */
+    private function designer_setting(string $name): string {
+        return \local_dixeo\external\service_factory::get_settings_config()
+            ->get('block_dixeo_designer', $name, \context_system::instance())
+            ->get_value();
+    }
+
+    /**
+     * Site default course format used for designer courses.
+     *
+     * @return string
+     */
+    private function default_course_format(): string {
+        $format = $this->moodle_setting('moodlecourse', 'format');
+        return $format !== '' ? $format : 'topics';
+    }
+
+    /**
+     * Live Moodle admin value, or the Dixeo override when the catalogue links this setting.
+     *
+     * @param string $plugin Frankenstyle plugin.
+     * @param string $name Setting name.
+     * @return string
+     */
+    private function moodle_setting(string $plugin, string $name): string {
+        return \local_dixeo\external\service_factory::get_settings_config()
+            ->get_moodle($plugin, $name, \context_system::instance());
     }
 }

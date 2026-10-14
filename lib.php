@@ -225,6 +225,7 @@ function block_dixeo_designer_certificate_settings(): array {
     } else {
         $default = isset($labels['1']) ? '1' : $options[0];
     }
+    // Stored plugin value. This callback runs while the catalogue loads, so it cannot use the settings reader.
     $stored = get_config('block_dixeo_designer', 'certificate_template');
     if (is_string($stored) && $stored !== '' && preg_match('/^[a-zA-Z0-9_-]+$/', $stored)
             && !in_array($stored, $options, true)) {
@@ -289,6 +290,7 @@ function block_dixeo_designer_course_template_choices(): array {
             }
         }
     }
+    // Stored plugin value. This callback runs while the catalogue loads, so it cannot use the settings reader.
     $stored = get_config('block_dixeo_designer', 'coursetemplate');
     if (is_string($stored) && $stored !== '' && !array_key_exists($stored, $choices)
             && preg_match('/^[a-zA-Z0-9_-]+$/', $stored)) {
