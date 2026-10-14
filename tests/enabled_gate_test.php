@@ -122,6 +122,8 @@ final class enabled_gate_test extends \advanced_testcase {
     }
 
     /**
+     * Load the designer block on the site home page.
+     *
      * @return \block_dixeo_designer
      */
     private function load_site_block(): \block_dixeo_designer {
@@ -142,6 +144,8 @@ final class enabled_gate_test extends \advanced_testcase {
     }
 
     /**
+     * Load the designer block on a course page.
+     *
      * @param \stdClass $course
      * @return \block_dixeo_designer
      */
@@ -163,6 +167,8 @@ final class enabled_gate_test extends \advanced_testcase {
     }
 
     /**
+     * Build a page for the given course, layout, and URL.
+     *
      * @param \stdClass $course
      * @param \context $context
      * @param string $layout
@@ -200,6 +206,8 @@ final class enabled_gate_test extends \advanced_testcase {
     }
 
     /**
+     * Return the designer block loaded on the page.
+     *
      * @param \moodle_page $page
      * @return \block_dixeo_designer
      */

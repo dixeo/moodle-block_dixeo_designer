@@ -1183,8 +1183,10 @@ class designer_course_creation_service {
      */
     private function certificate_generation_enabled(): bool {
         $pluginmanager = \core_plugin_manager::instance();
-        if ($pluginmanager->get_plugin_info('mod_coursecertificate') === null
-                || $pluginmanager->get_plugin_info('tool_certificate') === null) {
+        if (
+            $pluginmanager->get_plugin_info('mod_coursecertificate') === null
+                || $pluginmanager->get_plugin_info('tool_certificate') === null
+        ) {
             return false;
         }
         global $DB;
