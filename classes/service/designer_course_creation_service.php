@@ -284,8 +284,50 @@ class designer_course_creation_service {
         }
 
         $this->mark_course_as_recently_viewed((int) $course->id, $userid);
+        $this->record_submission_template($courseid, $jobid);
 
         return $course;
+    }
+
+    /**
+     * Store the pedagogical template used for a generated course.
+     *
+     * A manual course has no row, so its setting stays empty. An empty template clears a previous
+     * snapshot. The write is trusted so a read-only course control cannot block generation.
+     *
+     * @param int $courseid Course that generation created.
+     * @param string|null $templateid Template id, or null when generation used none.
+     */
+    public function record_used_template(int $courseid, ?string $templateid): void {
+        if ($courseid <= 0) {
+            return;
+        }
+        $context = \context_course::instance($courseid);
+        \local_dixeo\external\service_factory::get_settings_config()->set(
+            'block_dixeo_designer',
+            'coursetemplate',
+            $context,
+            trim((string) $templateid),
+            false
+        );
+    }
+
+    /**
+     * Copy the submission template onto the course when finalize completes.
+     *
+     * @param int $courseid Finalized course.
+     * @param string|null $jobid Designer job id, when this finalize belongs to a submission.
+     */
+    private function record_submission_template(int $courseid, ?string $jobid): void {
+        if ($jobid === null || $jobid === '') {
+            return;
+        }
+        $submission = (new submission\service())->get_submission($jobid);
+        if (!$submission) {
+            return;
+        }
+        $templateid = $submission->templateid ?? null;
+        $this->record_used_template($courseid, is_string($templateid) ? $templateid : null);
     }
 
     /**
