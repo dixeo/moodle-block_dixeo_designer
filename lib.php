@@ -197,8 +197,10 @@ function block_dixeo_designer_setting_row(array $row): array {
  */
 function block_dixeo_designer_certificate_settings(): array {
     $pluginmanager = \core_plugin_manager::instance();
-    if ($pluginmanager->get_plugin_info('mod_coursecertificate') === null
-            || $pluginmanager->get_plugin_info('tool_certificate') === null) {
+    if (
+        $pluginmanager->get_plugin_info('mod_coursecertificate') === null
+            || $pluginmanager->get_plugin_info('tool_certificate') === null
+    ) {
         return [];
     }
 
@@ -227,8 +229,10 @@ function block_dixeo_designer_certificate_settings(): array {
     }
     // Stored plugin value. This callback runs while the catalogue loads, so it cannot use the settings reader.
     $stored = get_config('block_dixeo_designer', 'certificate_template');
-    if (is_string($stored) && $stored !== '' && preg_match('/^[a-zA-Z0-9_-]+$/', $stored)
-            && !in_array($stored, $options, true)) {
+    if (
+        is_string($stored) && $stored !== '' && preg_match('/^[a-zA-Z0-9_-]+$/', $stored)
+            && !in_array($stored, $options, true)
+    ) {
         $options[] = $stored;
         $labels[$stored] = $stored;
     }
@@ -292,8 +296,10 @@ function block_dixeo_designer_course_template_choices(): array {
     }
     // Stored plugin value. This callback runs while the catalogue loads, so it cannot use the settings reader.
     $stored = get_config('block_dixeo_designer', 'coursetemplate');
-    if (is_string($stored) && $stored !== '' && !array_key_exists($stored, $choices)
-            && preg_match('/^[a-zA-Z0-9_-]+$/', $stored)) {
+    if (
+        is_string($stored) && $stored !== '' && !array_key_exists($stored, $choices)
+            && preg_match('/^[a-zA-Z0-9_-]+$/', $stored)
+    ) {
         $choices[$stored] = $stored;
     }
 
