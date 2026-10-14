@@ -294,6 +294,7 @@ class designer_course_creation_service {
      *
      * A manual course has no row, so its setting stays empty. An empty template clears a previous
      * snapshot. The write is trusted so a read-only course control cannot block generation.
+     * A missing course is skipped: the snapshot needs a course context.
      *
      * @param int $courseid Course that generation created.
      * @param string|null $templateid Template id, or null when generation used none.
@@ -302,7 +303,10 @@ class designer_course_creation_service {
         if ($courseid <= 0) {
             return;
         }
-        $context = \context_course::instance($courseid);
+        $context = \context_course::instance($courseid, IGNORE_MISSING);
+        if (!$context) {
+            return;
+        }
         \local_dixeo\external\service_factory::get_settings_config()->set(
             'block_dixeo_designer',
             'coursetemplate',
