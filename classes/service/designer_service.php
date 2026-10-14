@@ -646,6 +646,19 @@ class designer_service {
             $course->idnumber = '';
         }
 
+        // Generation keeps sync on so source files are indexed. The finished course then follows
+        // the new-course default: On stays on, Off pauses without deleting indexed files.
+        if ($this->filesyncservice !== null) {
+            try {
+                $this->filesyncservice->apply_new_course_default((int) $course->id, $userid);
+            } catch (\Throwable $e) {
+                debugging(
+                    'finalize_course: failed to apply the file sync default: ' . $e->getMessage(),
+                    DEBUG_DEVELOPER
+                );
+            }
+        }
+
         $this->submissions->attach_course($submission, (int) $course->id);
 
         course_finalized::create_from_submission($submission, $userid, (int) $course->id, $jobid)->trigger();
