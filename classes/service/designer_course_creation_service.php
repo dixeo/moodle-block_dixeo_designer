@@ -523,18 +523,16 @@ class designer_course_creation_service {
      * @return void
      */
     private function apply_lti_publication_if_enabled(int $courseid): void {
-        if (!(bool) get_config('block_dixeo_designer', 'lti_publication_enabled')) {
+        if (!class_exists(\enrol_lti\helper::class)) {
+            return;
+        }
+        if ($this->designer_setting('lti_publication_enabled') !== '1') {
             return;
         }
 
-        $maxraw = get_config('block_dixeo_designer', 'lti_maxenrolled');
-        $maxenrolled = ($maxraw !== false && $maxraw !== '') ? (int) $maxraw : 0;
-        $membersyncraw = get_config('block_dixeo_designer', 'lti_membersync');
-        $membersync = ($membersyncraw !== false && $membersyncraw !== '') ? (int) $membersyncraw : 0;
-        $membersyncmoderaw = get_config('block_dixeo_designer', 'lti_membersyncmode');
-        $membersyncmode = ($membersyncmoderaw !== false && $membersyncmoderaw !== '')
-            ? (int) $membersyncmoderaw
-            : \enrol_lti\helper::MEMBER_SYNC_ENROL_AND_UNENROL;
+        $maxenrolled = (int) $this->designer_setting('lti_maxenrolled');
+        $membersync = (int) $this->designer_setting('lti_membersync');
+        $membersyncmode = (int) $this->designer_setting('lti_membersyncmode');
 
         $ltiservice = new \local_dixeo\service\designer_lti_enrol_service();
         $ltiservice->add_lti_enrol_instance($courseid, [

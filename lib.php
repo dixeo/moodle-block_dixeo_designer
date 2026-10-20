@@ -122,9 +122,10 @@ function block_dixeo_designer_format_ajax_exception_message(
 /**
  * Dixeo settings for course generation defaults.
  *
- * Category, certificate, and self enrolment exist only at the Dixeo layer. The pedagogical
- * template default is the Dixeo value used for new generated structures. The course value is
- * the template that generation stored, and stays empty for a course that was not generated.
+ * Category and the pedagogical template sit on the Course Designer group. Certificate
+ * generation, LTI publication, and self enrolment are subcategories and exist only at the
+ * Dixeo layer. The course template value is the template that generation stored, and stays
+ * empty for a course that was not generated.
  *
  * @return array[]
  */
@@ -140,25 +141,6 @@ function block_dixeo_designer_dixeo_settings(): array {
         ]),
     ];
 
-    $settings = array_merge($settings, block_dixeo_designer_certificate_settings());
-
-    $settings[] = block_dixeo_designer_setting_row([
-        'key' => 'self_enrol_configure',
-        'shortname' => 'self_enrol_configure',
-        'type' => 'bool',
-        'default' => '0',
-        'levels' => ['dixeo'],
-        'help' => 'self_enrol_configure_desc',
-    ]);
-    $settings[] = block_dixeo_designer_setting_row([
-        'key' => 'self_enrol_generate_key',
-        'shortname' => 'self_enrol_generate_key',
-        'type' => 'bool',
-        'default' => '1',
-        'levels' => ['dixeo'],
-        'help' => 'self_enrol_generate_key_desc',
-    ]);
-
     $template = block_dixeo_designer_course_template_choices();
     $settings[] = block_dixeo_designer_setting_row([
         'key' => 'coursetemplate',
@@ -171,6 +153,28 @@ function block_dixeo_designer_dixeo_settings(): array {
         'help' => 'coursetemplate_desc',
         'readonly' => ['course'],
         'record' => true,
+    ]);
+
+    $settings = array_merge($settings, block_dixeo_designer_certificate_settings());
+    $settings = array_merge($settings, block_dixeo_designer_lti_settings());
+
+    $settings[] = block_dixeo_designer_setting_row([
+        'key' => 'self_enrol_configure',
+        'shortname' => 'self_enrol_configure',
+        'type' => 'bool',
+        'default' => '0',
+        'levels' => ['dixeo'],
+        'sub' => 'selfenrol',
+        'help' => 'self_enrol_configure_desc',
+    ]);
+    $settings[] = block_dixeo_designer_setting_row([
+        'key' => 'self_enrol_generate_key',
+        'shortname' => 'self_enrol_generate_key',
+        'type' => 'bool',
+        'default' => '1',
+        'levels' => ['dixeo'],
+        'sub' => 'selfenrol',
+        'help' => 'self_enrol_generate_key_desc',
     ]);
 
     return $settings;
@@ -244,6 +248,7 @@ function block_dixeo_designer_certificate_settings(): array {
             'type' => 'bool',
             'default' => '0',
             'levels' => ['dixeo'],
+            'sub' => 'certificate',
             'help' => 'certificate_generation_description',
         ]),
         block_dixeo_designer_setting_row([
@@ -254,6 +259,7 @@ function block_dixeo_designer_certificate_settings(): array {
             'options' => $options,
             'labels' => $labels,
             'levels' => ['dixeo'],
+            'sub' => 'certificate',
             'help' => 'certificate_template_description',
         ]),
         block_dixeo_designer_setting_row([
@@ -267,7 +273,73 @@ function block_dixeo_designer_certificate_settings(): array {
                 'last' => get_string('lastsection', 'block_dixeo_designer'),
             ],
             'levels' => ['dixeo'],
+            'sub' => 'certificate',
             'help' => 'certificate_location_description',
+        ]),
+    ];
+}
+
+/**
+ * LTI publication defaults, included only when enrol_lti is installed.
+ *
+ * @return array[]
+ */
+function block_dixeo_designer_lti_settings(): array {
+    if (!class_exists(\enrol_lti\helper::class)) {
+        return [];
+    }
+
+    $enrolandunenrol = (string) \enrol_lti\helper::MEMBER_SYNC_ENROL_AND_UNENROL;
+    $enrolnew = (string) \enrol_lti\helper::MEMBER_SYNC_ENROL_NEW;
+    $unenrolmissing = (string) \enrol_lti\helper::MEMBER_SYNC_UNENROL_MISSING;
+
+    return [
+        block_dixeo_designer_setting_row([
+            'key' => 'lti_publication_enabled',
+            'shortname' => 'lti_publication_enabled',
+            'type' => 'bool',
+            'default' => '0',
+            'levels' => ['dixeo'],
+            'sub' => 'lti',
+            'help' => 'lti_publication_enabled_desc',
+        ]),
+        block_dixeo_designer_setting_row([
+            'key' => 'lti_maxenrolled',
+            'shortname' => 'lti_maxenrolled',
+            'type' => 'number',
+            'default' => '0',
+            'levels' => ['dixeo'],
+            'sub' => 'lti',
+            'help' => 'lti_maxenrolled_desc',
+        ]),
+        block_dixeo_designer_setting_row([
+            'key' => 'lti_membersync',
+            'shortname' => 'lti_membersync',
+            'type' => 'select',
+            'default' => '0',
+            'options' => ['0', '1'],
+            'labels' => [
+                '0' => get_string('no'),
+                '1' => get_string('yes'),
+            ],
+            'levels' => ['dixeo'],
+            'sub' => 'lti',
+            'help' => 'lti_membersync_desc',
+        ]),
+        block_dixeo_designer_setting_row([
+            'key' => 'lti_membersyncmode',
+            'shortname' => 'lti_membersyncmode',
+            'type' => 'select',
+            'default' => $enrolandunenrol,
+            'options' => [$enrolandunenrol, $enrolnew, $unenrolmissing],
+            'labels' => [
+                $enrolandunenrol => get_string('membersyncmodeenrolandunenrol', 'enrol_lti'),
+                $enrolnew => get_string('membersyncmodeenrolnew', 'enrol_lti'),
+                $unenrolmissing => get_string('membersyncmodeunenrolmissing', 'enrol_lti'),
+            ],
+            'levels' => ['dixeo'],
+            'sub' => 'lti',
+            'help' => 'lti_membersyncmode_desc',
         ]),
     ];
 }
