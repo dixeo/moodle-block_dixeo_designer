@@ -71,12 +71,20 @@ class course_template_helper {
     }
 
     /**
-     * Returns the configured course template id from block settings.
+     * Dixeo-layer pedagogical template id.
+     *
+     * An install that does not have the settings reader yet keeps the stored plugin value.
      *
      * @return string
      */
     public static function get_selected_course_template(): string {
-        return (string)get_config('block_dixeo_designer', 'coursetemplate');
+        if (!self::is_template_service_available()) {
+            $stored = get_config('block_dixeo_designer', 'coursetemplate');
+            return $stored === false ? '' : (string) $stored;
+        }
+        return \local_dixeo\external\service_factory::get_settings_config()
+            ->get('block_dixeo_designer', 'coursetemplate', \context_system::instance())
+            ->get_value();
     }
 
     /**

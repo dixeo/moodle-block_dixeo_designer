@@ -18,6 +18,11 @@
     display: none !important;
 }
 
+.block_dixeo_designer.card.dixeo-block-disabled .card-title {
+    /* stylelint-disable-next-line declaration-no-important -- Show the block name while editing with Dixeo off. */
+    display: inline !important;
+}
+
 .block_dixeo_designer,
 .designer-finalize-progress {
     --dixeo-designer-blue: var(--bs-primary, var(--primary, #02aaff));

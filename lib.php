@@ -118,3 +118,291 @@ function block_dixeo_designer_format_ajax_exception_message(
 
     return get_string($fallbackstring, 'block_dixeo_designer');
 }
+
+/**
+ * Dixeo settings for course generation defaults.
+ *
+ * Category and the pedagogical template sit on the Course Designer group. Certificate
+ * generation, LTI publication, and self enrolment are subcategories and exist only at the
+ * Dixeo layer. The course template value is the template that generation stored, and stays
+ * empty for a course that was not generated.
+ *
+ * @return array[]
+ */
+function block_dixeo_designer_dixeo_settings(): array {
+    $settings = [
+        block_dixeo_designer_setting_row([
+            'key' => 'categoryname',
+            'shortname' => 'categoryname',
+            'type' => 'text',
+            'default' => get_string('default_categoryname', 'block_dixeo_designer'),
+            'levels' => ['dixeo'],
+            'help' => 'categoryname_desc',
+        ]),
+    ];
+
+    $template = block_dixeo_designer_course_template_choices();
+    $settings[] = block_dixeo_designer_setting_row([
+        'key' => 'coursetemplate',
+        'shortname' => 'coursetemplate',
+        'type' => 'select',
+        'default' => '',
+        'options' => $template['options'],
+        'labels' => $template['labels'],
+        'levels' => ['dixeo', 'course'],
+        'help' => 'coursetemplate_desc',
+        'readonly' => ['course'],
+        'record' => true,
+    ]);
+
+    $settings = array_merge($settings, block_dixeo_designer_certificate_settings());
+    $settings = array_merge($settings, block_dixeo_designer_lti_settings());
+
+    $settings[] = block_dixeo_designer_setting_row([
+        'key' => 'self_enrol_configure',
+        'shortname' => 'self_enrol_configure',
+        'type' => 'bool',
+        'default' => '0',
+        'levels' => ['dixeo'],
+        'sub' => 'selfenrol',
+        'help' => 'self_enrol_configure_desc',
+    ]);
+    $settings[] = block_dixeo_designer_setting_row([
+        'key' => 'self_enrol_generate_key',
+        'shortname' => 'self_enrol_generate_key',
+        'type' => 'bool',
+        'default' => '1',
+        'levels' => ['dixeo'],
+        'sub' => 'selfenrol',
+        'help' => 'self_enrol_generate_key_desc',
+    ]);
+
+    return $settings;
+}
+
+/**
+ * Fill the shared designer catalogue fields.
+ *
+ * @param array $row Setting fields that vary.
+ * @return array
+ */
+function block_dixeo_designer_setting_row(array $row): array {
+    $row['component'] = 'block_dixeo_designer';
+    $row['feature'] = 'designer';
+    $row['plugingroup'] = 'dixeo_designer';
+    $row['sensitive'] = false;
+    return $row;
+}
+
+/**
+ * Certificate defaults, included only when the certificate plugins are installed.
+ *
+ * @return array[]
+ */
+function block_dixeo_designer_certificate_settings(): array {
+    if (
+        !\local_dixeo\service\plugin_installation_service::is_plugin_installed('mod_coursecertificate')
+            || !\local_dixeo\service\plugin_installation_service::is_plugin_installed('tool_certificate')
+    ) {
+        return [];
+    }
+
+    global $DB;
+    if (!$DB->get_manager()->table_exists('tool_certificate_templates')) {
+        return [];
+    }
+
+    $records = $DB->get_records_menu('tool_certificate_templates', null, 'name ASC', 'id, name');
+    $options = [];
+    $labels = [];
+    foreach ($records as $id => $name) {
+        $value = (string) $id;
+        if (!preg_match('/^[a-zA-Z0-9_-]+$/', $value) || in_array($value, $options, true)) {
+            continue;
+        }
+        $options[] = $value;
+        $labels[$value] = (string) $name;
+    }
+    if ($options === []) {
+        $options = ['0'];
+        $labels = ['0' => get_string('choosedots')];
+        $default = '0';
+    } else {
+        $default = isset($labels['1']) ? '1' : $options[0];
+    }
+    // Stored plugin value. This callback runs while the catalogue loads, so it cannot use the settings reader.
+    $stored = get_config('block_dixeo_designer', 'certificate_template');
+    if (
+        is_string($stored) && $stored !== '' && preg_match('/^[a-zA-Z0-9_-]+$/', $stored)
+            && !in_array($stored, $options, true)
+    ) {
+        $options[] = $stored;
+        $labels[$stored] = $stored;
+    }
+
+    return [
+        block_dixeo_designer_setting_row([
+            'key' => 'certificate_generation',
+            'shortname' => 'certificate_generation',
+            'type' => 'bool',
+            'default' => '0',
+            'levels' => ['dixeo'],
+            'sub' => 'certificate',
+            'help' => 'certificate_generation_description',
+        ]),
+        block_dixeo_designer_setting_row([
+            'key' => 'certificate_template',
+            'shortname' => 'certificate_template',
+            'type' => 'select',
+            'default' => $default,
+            'options' => $options,
+            'labels' => $labels,
+            'levels' => ['dixeo'],
+            'sub' => 'certificate',
+            'help' => 'certificate_template_description',
+        ]),
+        block_dixeo_designer_setting_row([
+            'key' => 'certificate_location',
+            'shortname' => 'certificate_location',
+            'type' => 'select',
+            'default' => 'last',
+            'options' => ['summary', 'last'],
+            'labels' => [
+                'summary' => get_string('summarysection', 'block_dixeo_designer'),
+                'last' => get_string('lastsection', 'block_dixeo_designer'),
+            ],
+            'levels' => ['dixeo'],
+            'sub' => 'certificate',
+            'help' => 'certificate_location_description',
+        ]),
+    ];
+}
+
+/**
+ * LTI publication defaults, included only when enrol_lti is installed.
+ *
+ * @return array[]
+ */
+function block_dixeo_designer_lti_settings(): array {
+    if (
+        !\local_dixeo\service\plugin_installation_service::is_plugin_installed('enrol_lti')
+            || !class_exists(\enrol_lti\helper::class)
+    ) {
+        return [];
+    }
+
+    $enrolandunenrol = (string) \enrol_lti\helper::MEMBER_SYNC_ENROL_AND_UNENROL;
+    $enrolnew = (string) \enrol_lti\helper::MEMBER_SYNC_ENROL_NEW;
+    $unenrolmissing = (string) \enrol_lti\helper::MEMBER_SYNC_UNENROL_MISSING;
+
+    return [
+        block_dixeo_designer_setting_row([
+            'key' => 'lti_publication_enabled',
+            'shortname' => 'lti_publication_enabled',
+            'type' => 'bool',
+            'default' => '0',
+            'levels' => ['dixeo'],
+            'sub' => 'lti',
+            'help' => 'lti_publication_enabled_desc',
+        ]),
+        block_dixeo_designer_setting_row([
+            'key' => 'lti_maxenrolled',
+            'shortname' => 'lti_maxenrolled',
+            'type' => 'number',
+            'default' => '0',
+            'levels' => ['dixeo'],
+            'sub' => 'lti',
+            'help' => 'lti_maxenrolled_desc',
+        ]),
+        block_dixeo_designer_setting_row([
+            'key' => 'lti_membersync',
+            'shortname' => 'lti_membersync',
+            'type' => 'select',
+            'default' => '0',
+            'options' => ['0', '1'],
+            'labels' => [
+                '0' => get_string('no'),
+                '1' => get_string('yes'),
+            ],
+            'levels' => ['dixeo'],
+            'sub' => 'lti',
+            'help' => 'lti_membersync_desc',
+        ]),
+        block_dixeo_designer_setting_row([
+            'key' => 'lti_membersyncmode',
+            'shortname' => 'lti_membersyncmode',
+            'type' => 'select',
+            'default' => $enrolandunenrol,
+            'options' => [$enrolandunenrol, $enrolnew, $unenrolmissing],
+            'labels' => [
+                $enrolandunenrol => get_string('membersyncmodeenrolandunenrol', 'enrol_lti'),
+                $enrolnew => get_string('membersyncmodeenrolnew', 'enrol_lti'),
+                $unenrolmissing => get_string('membersyncmodeunenrolmissing', 'enrol_lti'),
+            ],
+            'levels' => ['dixeo'],
+            'sub' => 'lti',
+            'help' => 'lti_membersyncmode_desc',
+        ]),
+    ];
+}
+
+/**
+ * Pedagogical template choices, including None and a stored id that is no longer remote.
+ *
+ * @return array{options: string[], labels: array<string, string>}
+ */
+function block_dixeo_designer_course_template_choices(): array {
+    // Read the cache only. Opening the settings modal warms it. A catalogue load must not call the API.
+    $choices = ['' => get_string('coursetemplate_none', 'block_dixeo_designer')];
+    $cache = \cache::make('local_dixeo', 'coursetemplates');
+    $cached = $cache->get('templates');
+    if (is_array($cached)) {
+        foreach ($cached as $template) {
+            if (!is_array($template)) {
+                continue;
+            }
+            $id = (string) ($template['id'] ?? '');
+            $name = trim((string) ($template['name'] ?? ''));
+            if ($id !== '' && $name !== '') {
+                $choices[$id] = $name;
+            }
+        }
+    }
+    // Stored plugin value. This callback runs while the catalogue loads, so it cannot use the settings reader.
+    $stored = get_config('block_dixeo_designer', 'coursetemplate');
+    if (
+        is_string($stored) && $stored !== '' && !array_key_exists($stored, $choices)
+            && preg_match('/^[a-zA-Z0-9_-]+$/', $stored)
+    ) {
+        $choices[$stored] = $stored;
+    }
+
+    $options = [];
+    $labels = [];
+    foreach ($choices as $id => $label) {
+        $id = (string) $id;
+        if (!preg_match('/^[a-zA-Z0-9_-]*$/', $id) || in_array($id, $options, true)) {
+            continue;
+        }
+        $options[] = $id;
+        $labels[$id] = (string) $label;
+    }
+    if (!in_array('', $options, true)) {
+        array_unshift($options, '');
+        $labels[''] = get_string('coursetemplate_none', 'block_dixeo_designer');
+    }
+
+    return ['options' => $options, 'labels' => $labels];
+}
+
+/**
+ * Load pedagogical templates into the shared cache before the settings catalogue is built.
+ *
+ * The catalogue itself only reads that cache, so other setting reads do not call the API.
+ */
+function block_dixeo_designer_warm_course_templates(): void {
+    if (!class_exists(\block_dixeo_designer\service\course_template_helper::class)) {
+        return;
+    }
+    \block_dixeo_designer\service\course_template_helper::get_remote_course_template_choices();
+}

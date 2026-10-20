@@ -646,6 +646,19 @@ class designer_service {
             $course->idnumber = '';
         }
 
+        // Generation keeps sync on so source files are indexed. The finished course then follows
+        // the new-course default: On stays on, Off pauses without deleting indexed files.
+        if ($this->filesyncservice !== null) {
+            try {
+                $this->filesyncservice->apply_new_course_default((int) $course->id, $userid);
+            } catch (\Throwable $e) {
+                debugging(
+                    'finalize_course: failed to apply the file sync default: ' . $e->getMessage(),
+                    DEBUG_DEVELOPER
+                );
+            }
+        }
+
         $this->submissions->attach_course($submission, (int) $course->id);
 
         course_finalized::create_from_submission($submission, $userid, (int) $course->id, $jobid)->trigger();
@@ -852,7 +865,8 @@ class designer_service {
         if (
             policy::is_enabled(
                 policy::ENTITY_COURSE,
-                policy::ACTION_GENERATE
+                policy::ACTION_GENERATE,
+                \context_course::instance((int) $submission->courseid)
             )
         ) {
             $this->cancel_image_job_if_running(
@@ -917,7 +931,8 @@ class designer_service {
         if (
             policy::is_enabled(
                 policy::ENTITY_COURSE,
-                policy::ACTION_EDIT
+                policy::ACTION_EDIT,
+                \context_course::instance((int) $submission->courseid)
             )
         ) {
             $this->cancel_image_job_if_running(
@@ -976,7 +991,8 @@ class designer_service {
                 !$image && !empty($submission->courseid)
                     && policy::is_enabled(
                         policy::ENTITY_COURSE,
-                        policy::ACTION_GENERATE
+                        policy::ACTION_GENERATE,
+                        \context_course::instance((int) $submission->courseid)
                     )
             ) {
                 $this->start_structure_image_generation($jobid, $userid);
@@ -1111,7 +1127,8 @@ class designer_service {
             if (
                 !policy::is_enabled(
                     policy::ENTITY_COURSE,
-                    policy::ACTION_GENERATE
+                    policy::ACTION_GENERATE,
+                    \context_course::instance($draftcourseid)
                 )
             ) {
                 return;

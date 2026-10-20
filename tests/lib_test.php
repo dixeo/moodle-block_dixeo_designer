@@ -57,4 +57,23 @@ final class lib_test extends advanced_testcase {
 
         $this->assertSame(count($ids), count(array_unique($ids)));
     }
+
+    /**
+     * Certificate and LTI rows are omitted when those plugins are not installed.
+     */
+    public function test_certificate_and_lti_rows_are_omitted_when_the_plugin_is_not_installed(): void {
+        $this->resetAfterTest();
+        unset_config('version', 'tool_certificate');
+        unset_config('version', 'mod_coursecertificate');
+        unset_config('version', 'enrol_lti');
+
+        $this->assertSame([], block_dixeo_designer_certificate_settings());
+        $this->assertSame([], block_dixeo_designer_lti_settings());
+
+        $keys = array_column(block_dixeo_designer_dixeo_settings(), 'key');
+        $this->assertContains('categoryname', $keys);
+        $this->assertContains('self_enrol_configure', $keys);
+        $this->assertNotContains('certificate_generation', $keys);
+        $this->assertNotContains('lti_publication_enabled', $keys);
+    }
 }

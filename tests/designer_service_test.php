@@ -261,7 +261,20 @@ final class designer_service_test extends advanced_testcase {
             ->with((int) $draftcourse->id, $expectedresult, $userid, $jobid)
             ->willReturn((object) ['id' => 77]);
 
-        $service = new designer_service($mocksubmissions, $mockfiles, $mockstructures, $mockcoursecreation);
+        $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
+        $mockfilesync->expects($this->once())
+            ->method('apply_new_course_default')
+            ->with(77, $userid);
+
+        $service = new designer_service(
+            $mocksubmissions,
+            $mockfiles,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            null,
+            $mockfilesync
+        );
 
         $course = $service->finalize_course($jobid, $userid, true);
 
@@ -350,7 +363,18 @@ final class designer_service_test extends advanced_testcase {
             ->method('finalize_draft_course')
             ->willReturn((object) []);
 
-        $service = new designer_service($mocksubmissions, $mockfiles, $mockstructures, $mockcoursecreation);
+        $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
+        $mockfilesync->expects($this->never())->method('apply_new_course_default');
+
+        $service = new designer_service(
+            $mocksubmissions,
+            $mockfiles,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            null,
+            $mockfilesync
+        );
 
         $course = $service->finalize_course($jobid, $userid, true);
 
@@ -427,12 +451,19 @@ final class designer_service_test extends advanced_testcase {
             ->method('sync_files_to_remote')
             ->with($jobid, [], 555);
 
+        $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
+        $mockfilesync->expects($this->once())
+            ->method('apply_new_course_default')
+            ->with(77, $userid);
+
         $service = new designer_service(
             $mocksubmissions,
             $mockfiles,
             $mockstructures,
             $mockcoursecreation,
-            $mockremoteapi
+            $mockremoteapi,
+            null,
+            $mockfilesync
         );
 
         $course = $service->finalize_course($jobid, $userid, true);
