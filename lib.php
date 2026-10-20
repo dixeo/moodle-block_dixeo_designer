@@ -200,10 +200,9 @@ function block_dixeo_designer_setting_row(array $row): array {
  * @return array[]
  */
 function block_dixeo_designer_certificate_settings(): array {
-    $pluginmanager = \core_plugin_manager::instance();
     if (
-        $pluginmanager->get_plugin_info('mod_coursecertificate') === null
-            || $pluginmanager->get_plugin_info('tool_certificate') === null
+        !\local_dixeo\service\plugin_installation_service::is_plugin_installed('mod_coursecertificate')
+            || !\local_dixeo\service\plugin_installation_service::is_plugin_installed('tool_certificate')
     ) {
         return [];
     }
@@ -285,7 +284,10 @@ function block_dixeo_designer_certificate_settings(): array {
  * @return array[]
  */
 function block_dixeo_designer_lti_settings(): array {
-    if (!class_exists(\enrol_lti\helper::class)) {
+    if (
+        !\local_dixeo\service\plugin_installation_service::is_plugin_installed('enrol_lti')
+            || !class_exists(\enrol_lti\helper::class)
+    ) {
         return [];
     }
 
