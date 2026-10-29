@@ -1088,4 +1088,72 @@ final class designer_service_test extends advanced_testcase {
         $this->assertSame('', $finalize['phase'] ?? null);
         $this->assertSame(0, (int) ($finalize['module_total'] ?? 0));
     }
+
+    /**
+     * A refused image job is stored as its code and shown in the current language.
+     */
+    public function test_failed_image_status_returns_the_translated_reason(): void {
+        if (!class_exists(\local_dixeo\service\image\failure_message::class)) {
+            $this->markTestSkipped('local_dixeo does not provide image failure messages.');
+        }
+
+        $jobid = 'job-' . uniqid();
+        $userid = (int) $this->user->id;
+
+        $submissions = new \block_dixeo_designer\service\submission\service();
+        $structures = new \block_dixeo_designer\service\structure\repository();
+        $submissions->save_submission($jobid, $userid, 'Prompt', null);
+        $structures->save_structure($jobid, $userid, '', [
+            'course_structure' => [
+                'title' => 'Course',
+                'sections' => [],
+            ],
+        ]);
+        $structures->set_image_state($jobid, 'remote-image-job', 'processing', null);
+
+        $providerdetail = 'The request was rejected by the AI content safety filter.';
+        $failed = new \local_dixeo\dto\job_status(
+            jobid: 'remote-image-job',
+            type: 'image_generate',
+            status: \local_dixeo\dto\job_status::STATUS_FAILED,
+            progress: 100,
+            createdat: time(),
+            errorcode: \local_dixeo\service\image\failure_message::CODE_CONTENT_REJECTED,
+            errormessage: $providerdetail,
+        );
+
+        $jobs = $this->getMockBuilder(\local_dixeo\service\job_service::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['get_job_status'])
+            ->getMock();
+        $jobs->expects($this->once())
+            ->method('get_job_status')
+            ->willReturn($failed);
+
+        $service = new designer_service(
+            $submissions,
+            new \block_dixeo_designer\service\submission\file_service(),
+            $structures,
+            $this->createMock(designer_course_creation_service::class),
+            null,
+            $jobs
+        );
+
+        $expected = get_string('dixeo_image_job_content_rejected', 'local_dixeo');
+        $status = $service->get_structure_image_status($jobid, $userid);
+        $this->assertTrue($status['failed']);
+        $this->assertSame($expected, $status['error']);
+        $this->assertNotSame($providerdetail, $status['error']);
+
+        $row = $structures->get_by_jobid($jobid);
+        $this->assertSame('failed', $row->imagestatus);
+        $this->assertSame(
+            \local_dixeo\service\image\failure_message::CODE_CONTENT_REJECTED,
+            $row->imageerror
+        );
+        $this->assertNull($row->imagejobid);
+
+        $again = $service->get_structure_image_status($jobid, $userid);
+        $this->assertSame($expected, $again['error']);
+    }
 }

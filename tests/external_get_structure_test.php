@@ -89,6 +89,35 @@ final class external_get_structure_test extends advanced_testcase {
         $this->assertEquals('Persisted Course', $decoded['course_structure']['title']);
     }
 
+    /**
+     * A stored image failure code is translated for the teacher reading the structure.
+     */
+    public function test_get_structure_translates_a_stored_image_failure_code(): void {
+        global $DB;
+
+        if (!class_exists(\local_dixeo\service\image\failure_message::class)) {
+            $this->markTestSkipped('local_dixeo does not provide image failure messages.');
+        }
+
+        $jobid = 'job-' . uniqid();
+        $DB->insert_record('block_dixeo_designer_structure', (object) [
+            'jobid' => $jobid,
+            'userid' => $this->user->id,
+            'description' => 'Desc',
+            'structure' => json_encode(['course_structure' => ['title' => 'Course', 'sections' => []]]),
+            'imagestatus' => 'failed',
+            'imageerror' => 'content_rejected',
+            'timecreated' => time(),
+        ]);
+
+        $result = get_structure::execute($jobid, $this->sesskey);
+
+        $this->assertSame(
+            get_string('dixeo_image_job_content_rejected', 'local_dixeo'),
+            $result['image_error']
+        );
+    }
+
     public function test_get_structure_requires_create_capability(): void {
         $other = $this->getDataGenerator()->create_user();
         $this->setUser($other);
