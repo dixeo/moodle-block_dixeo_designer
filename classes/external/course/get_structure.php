@@ -29,6 +29,7 @@ use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
+use local_dixeo\service\image\failure_message;
 use local_dixeo\service\image\policy;
 
 /**
@@ -129,8 +130,30 @@ final class get_structure extends external_api {
             'structure' => $structure->structure,
             'job_id' => $structure->jobid,
             'image_status' => $structure->imagestatus ?? '',
-            'image_error' => $structure->imageerror ?? null,
+            'image_error' => self::image_error_for_client(
+                isset($structure->imageerror) ? (string) $structure->imageerror : null
+            ),
         ], self::course_image_policy_flags());
+    }
+
+    /**
+     * Translate a stored image failure code for the current user.
+     *
+     * A stored sentence is returned unchanged when the image failure mapper
+     * is not available.
+     *
+     * @param string|null $stored Code or sentence saved on the structure.
+     * @return string|null
+     */
+    private static function image_error_for_client(?string $stored): ?string {
+        if ($stored === null || $stored === '') {
+            return null;
+        }
+        if (!class_exists(failure_message::class)) {
+            return $stored;
+        }
+
+        return failure_message::for_display($stored);
     }
 
     /**
