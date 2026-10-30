@@ -18,6 +18,7 @@ namespace block_dixeo_designer\service;
 
 use block_dixeo_designer\local\dixeo_capability;
 use block_dixeo_designer\workflow_constants;
+use local_dixeo\service\image\generation_request;
 use local_dixeo\service\image\job_orchestrator;
 use local_dixeo\service\image\policy;
 use local_dixeo\service\image\structure\structure_target;
@@ -475,13 +476,6 @@ class designer_course_creation_service {
             return;
         }
 
-        $imageservice = new \local_dixeo\service\image_generation_service(
-            \local_dixeo\external\service_factory::get_job_service(),
-            null,
-            null,
-            'block_dixeo_designer'
-        );
-
         foreach ($sectionnumbers as $sectionnumber) {
             if ($sectionnumber < 1) {
                 continue;
@@ -498,21 +492,11 @@ class designer_course_creation_service {
                 continue;
             }
 
-            try {
-                $operation = $imageservice->submit_section_image_job((int) $section->id);
-                $remotejobid = trim((string) ($operation->jobid ?? ''));
-                if ($remotejobid === '') {
-                    continue;
-                }
-                $target = structure_target::format_section($courseid, (int) $section->id);
-                job_orchestrator::submit_and_queue($target, $remotejobid, $userid);
-            } catch (\Throwable $e) {
-                debugging(
-                    'designer_course_creation_service: section image job failed course=' . $courseid .
-                    ' sectionnum=' . $sectionnumber . ': ' . $e->getMessage(),
-                    DEBUG_DEVELOPER
-                );
-            }
+            job_orchestrator::queue_generation(
+                structure_target::format_section($courseid, (int) $section->id),
+                $userid,
+                generation_request::for_section('block_dixeo_designer', $courseid, (int) $section->id)
+            );
         }
     }
 

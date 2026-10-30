@@ -113,7 +113,7 @@ final class external_get_structure_test extends advanced_testcase {
         $result = get_structure::execute($jobid, $this->sesskey);
 
         $this->assertSame(
-            get_string('dixeo_image_job_content_rejected', 'local_dixeo'),
+            get_string('error:content_rejected', 'local_dixeo'),
             $result['image_error']
         );
     }

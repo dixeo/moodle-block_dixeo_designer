@@ -1139,7 +1139,7 @@ final class designer_service_test extends advanced_testcase {
             $jobs
         );
 
-        $expected = get_string('dixeo_image_job_content_rejected', 'local_dixeo');
+        $expected = get_string('error:content_rejected', 'local_dixeo');
         $status = $service->get_structure_image_status($jobid, $userid);
         $this->assertTrue($status['failed']);
         $this->assertSame($expected, $status['error']);
