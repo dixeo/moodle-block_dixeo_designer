@@ -91,6 +91,8 @@ $string['designer_image_regenerate_dialog_label'] = 'Beschreiben Sie die am Bild
 $string['designer_image_regenerate_dialog_placeholder'] =
     'z. B. Laptop vom Schreibtisch entfernen, leicht heranzoomen und gleiche Beleuchtung beibehalten.';
 $string['designer_image_regenerate_dialog_title'] = 'Bild bearbeiten';
+$string['designer_image_retry'] = 'Erneut versuchen';
+$string['designer_image_retry_rejected'] = 'Bearbeiten Sie den Kurstitel und/oder die Beschreibung und versuchen Sie es erneut.';
 $string['designer_instructions_too_short'] = 'Instructions must be at least {$a->min} characters.';
 $string['designer_invalid_data'] = 'Ungültige Strukturdaten';
 $string['designer_loading'] = 'Kursstruktur wird geladen...';

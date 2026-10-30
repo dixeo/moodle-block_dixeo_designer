@@ -91,6 +91,8 @@ $string['designer_image_regenerate_dialog_label'] = 'Décrivez les modifications
 $string['designer_image_regenerate_dialog_placeholder'] =
     'p. ex. Retirer l’ordinateur portable du bureau, zoomer légèrement et conserver le même éclairage.';
 $string['designer_image_regenerate_dialog_title'] = 'Modifier l\'image';
+$string['designer_image_retry'] = 'Réessayer';
+$string['designer_image_retry_rejected'] = 'Modifiez le titre et/ou la description du cours, puis réessayez.';
 $string['designer_instructions_too_short'] = 'Instructions must be at least {$a->min} characters.';
 $string['designer_invalid_data'] = 'Données de structure invalides';
 $string['designer_loading'] = 'Chargement de la structure du cours...';
