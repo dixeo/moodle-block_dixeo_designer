@@ -58,8 +58,12 @@ define([
     var KEY_IMAGE_CAN_EDIT = 'image_can_edit';
     var KEY_COURSE_STRUCTURE = 'course_structure';
     var KEY_IMAGE_STATUS = 'image_status';
+    var KEY_IMAGE_ERROR = 'image_error';
+    var KEY_DESIGNER_IMAGE_SRC = 'designer_image_src';
+    var KEY_DESIGNER_IMAGE_CLASS = 'designer_image_class';
     var KEY_DESIGNER_IMAGE_SHOW_LOADING = 'designer_image_show_loading';
     var KEY_DESIGNER_IMAGE_ALLOW_EDIT = 'designer_image_allow_edit';
+    var KEY_DESIGNER_IMAGE_ALLOW_RETRY = 'designer_image_allow_retry';
     var KEY_DESIGNER_SHOW_COURSE_IMAGE_AREA = 'designer_show_course_image_area';
     var KEY_DELETE = 'delete';
     var KEY_ADD_SECTION = 'add_section';
@@ -171,6 +175,18 @@ define([
         imageCanGenerate: false,
         /** @type {boolean} From get_structure: course image edit/regenerate allowed */
         imageCanEdit: false,
+        /** @type {string} idle|pending|processing|failed|completed */
+        imageStatus: '',
+        /** @type {string} Specific failure sentence for the shared image notice. */
+        imageFailureMessage: '',
+        /** @type {string} Translated content-rejected sentence, used to recognise that failure. */
+        contentRejectedMessage: '',
+        /** @type {string} Title and summary instruction appended to a refused-prompt error. */
+        imageRetryRejectedMessage: '',
+        /** @type {Promise|null} */
+        contentRejectedMessagePromise: null,
+        /** @type {boolean} True when the current failure is a refused prompt. */
+        imagePromptRejected: false,
 
         /** @type {number} Draft course id for WS language context (0 if not created yet). */
         courseId: 0,
@@ -424,22 +440,39 @@ define([
                 self.structure = raw[KEY_COURSE_STRUCTURE] || raw;
                 self.history = [JSON.parse(JSON.stringify(self.structure))];
                 self.historyIndex = 0;
-                self.renderStructure();
-                self.updateUndoRedoButtons();
                 var st = response[KEY_IMAGE_STATUS] ? String(response[KEY_IMAGE_STATUS]) : '';
-                var shouldPoll = self.imageCanGenerate && (
-                    !self.structure.image ||
-                    st === 'pending' ||
-                    st === 'processing'
-                );
-                if (shouldPoll) {
-                    self.startImageStatusPoll();
+                if (!st && !self.structure.image && self.imageCanGenerate) {
+                    st = 'pending';
                 }
-                return null;
+                self.imageStatus = st;
+                self.imageFailureMessage = st === 'failed' ? (response[KEY_IMAGE_ERROR] || '') : '';
+                return self.ensureContentRejectedMessage();
+            }).then(function() {
+                return self.finishLoadedStructure();
             }).catch(function(error) {
                 Notification.exception(error);
                 return null;
             });
+        },
+
+        /**
+         * Render a structure that has just been loaded, and poll a running image job.
+         *
+         * @return {null}
+         */
+        finishLoadedStructure: function() {
+            this.syncImagePromptRejected();
+            this.renderStructure();
+            this.updateUndoRedoButtons();
+            var shouldPoll = this.imageCanGenerate && this.imageStatus !== 'failed' && (
+                !this.structure.image ||
+                this.imageStatus === 'pending' ||
+                this.imageStatus === 'processing'
+            );
+            if (shouldPoll) {
+                this.startImageStatusPoll();
+            }
+            return null;
         },
 
         /**
@@ -488,6 +521,7 @@ define([
 
             // Prepare template context
             // Note: We don't escape HTML here because Mustache auto-escapes {{}} variables
+            var imageVisual = this.courseImageVisual();
             var templateContext = {
                 title: this.structure.title || '',
                 summary: this.structure.summary || '',
@@ -496,9 +530,13 @@ define([
                 hasSections: this.structure.sections && this.structure.sections.length > 0,
                 sections: []
             };
-            templateContext[KEY_DESIGNER_IMAGE_SHOW_LOADING] = Boolean(this.imageCanGenerate) && !this.structure.image;
+            templateContext[KEY_DESIGNER_IMAGE_SRC] = imageVisual.src;
+            templateContext[KEY_DESIGNER_IMAGE_CLASS] = imageVisual.className;
+            var initialImageFailed = this.imageStatus === 'failed' && !this.structure.image;
+            templateContext[KEY_DESIGNER_IMAGE_SHOW_LOADING] = false;
             templateContext[KEY_DESIGNER_IMAGE_ALLOW_EDIT] = Boolean(this.imageCanEdit) && !!this.structure.image;
-            templateContext[KEY_DESIGNER_SHOW_COURSE_IMAGE_AREA] = Boolean(this.structure.image) ||
+            templateContext[KEY_DESIGNER_IMAGE_ALLOW_RETRY] = initialImageFailed && Boolean(this.imageCanGenerate);
+            templateContext[KEY_DESIGNER_SHOW_COURSE_IMAGE_AREA] = Boolean(imageVisual.src) ||
                 Boolean(this.imageCanGenerate);
 
             // Process sections
@@ -665,6 +703,7 @@ define([
             // Set up drag and drop
             this.setupDragAndDrop();
             this.bindImageInteractions();
+            this.paintCourseImageStatus();
 
             // Restore collapse state if pending (e.g., after drag-and-drop)
             if (this.pendingCollapseState) {
@@ -702,22 +741,29 @@ define([
                     }
                     if (resp.status === 'processing' || resp.status === 'pending') {
                         self.setImageLoadingState(true);
-                        return null;
+                        return false;
                     }
                     if (resp.completed) {
+                        self.imageStatus = 'completed';
+                        self.imageFailureMessage = '';
                         self.setImageLoadingState(false);
                         self.clearImageStatusPoll();
                         self.renderStructure();
-                        return null;
+                        return false;
                     }
                     if (resp.failed) {
+                        self.imageStatus = 'failed';
+                        self.imageFailureMessage = resp.error || '';
                         self.setImageLoadingState(false);
                         self.clearImageStatusPoll();
-                        if (resp.error) {
-                            Notification.alert('', resp.error);
-                        }
+                        return self.ensureContentRejectedMessage();
                     }
-                    return null;
+                    return false;
+                }).then(function(loaded) {
+                    if (loaded === false) {
+                        return null;
+                    }
+                    return self.renderFailedCourseImage();
                 }).catch(function() {
                     // Keep polling in case transient backend errors happen.
                     return null;
@@ -728,22 +774,178 @@ define([
             this.imageStatusPollIntervalId = setInterval(poll, 2500);
         },
 
+        /**
+         * Load the translated prompt-refused sentence once.
+         *
+         * @return {Promise}
+         */
+        ensureContentRejectedMessage: function() {
+            var self = this;
+            if (this.contentRejectedMessagePromise) {
+                return this.contentRejectedMessagePromise;
+            }
+            this.contentRejectedMessagePromise = Str.get_strings([
+                {key: 'error:content_rejected', component: 'local_dixeo'},
+                {key: 'designer_image_retry_rejected', component: 'block_dixeo_designer'}
+            ]).then(function(strings) {
+                self.contentRejectedMessage = strings[0] || '';
+                self.imageRetryRejectedMessage = strings[1] || '';
+                return self.contentRejectedMessage;
+            }).catch(function() {
+                self.contentRejectedMessage = '';
+                self.imageRetryRejectedMessage = '';
+                return '';
+            });
+            return this.contentRejectedMessagePromise;
+        },
+
+        /**
+         * Paint a failed course image after its failure sentence is known.
+         *
+         * @return {null}
+         */
+        renderFailedCourseImage: function() {
+            this.syncImagePromptRejected();
+            this.renderStructure();
+            return null;
+        },
+
+        /**
+         * Remember whether the current failure is a refused prompt.
+         */
+        syncImagePromptRejected: function() {
+            var message = String(this.imageFailureMessage || '').trim();
+            var rejected = String(this.contentRejectedMessage || '').trim();
+            this.imagePromptRejected = message !== '' && rejected !== '' && message === rejected;
+        },
+
+        /**
+         * Save the current title and summary, then start image generation again.
+         */
+        retryCourseImage: function() {
+            var self = this;
+            var enableRetry = function() {
+                var retryButton = document.querySelector('[data-designer-image-retry]');
+                if (retryButton) {
+                    retryButton.disabled = false;
+                }
+                return null;
+            };
+            this.commitCurrentEdit().then(function(ok) {
+                if (ok === false) {
+                    return false;
+                }
+                return self.saveStructure();
+            }).then(function(saved) {
+                if (saved === false) {
+                    return enableRetry();
+                }
+                self.imageFailureMessage = '';
+                self.imagePromptRejected = false;
+                self.imageStatus = 'pending';
+                self.renderStructure();
+                self.startImageStatusPoll();
+                return null;
+            }).catch(function() {
+                return enableRetry();
+            });
+        },
+
+        /**
+         * Image shown in the course overview, including the shared pending and failed assets.
+         *
+         * The host is a .dixeo-imageeditor-wrap, the same element the image filter uses,
+         * so local_dixeo/content_image_pending can paint the status for both.
+         *
+         * @return {{src: string, className: string, pending: boolean, failed: boolean}}
+         */
+        courseImageVisual: function() {
+            var pending = this.imageStatus === 'pending' || this.imageStatus === 'processing';
+            var failed = this.imageStatus === 'failed';
+            var src = this.structure && this.structure.image ? this.structure.image : '';
+            var className = '';
+            if (!src && pending) {
+                src = Config.wwwroot + '/local/dixeo/img/placeholder.png';
+                className = 'dixeo-img-gen-pending';
+            } else if (pending && src) {
+                className = 'dixeo-img-gen-pending';
+            }
+            if (failed) {
+                if (!src) {
+                    src = Config.wwwroot + '/local/dixeo/img/error.png';
+                }
+                className = 'dixeo-img-gen-failed';
+            }
+            return {
+                src: src,
+                className: className,
+                pending: pending,
+                failed: failed
+            };
+        },
+
+        /**
+         * Paint the shared generating pill or the fading failure notice.
+         */
+        paintCourseImageStatus: function() {
+            var root = document.querySelector('[data-designer-course-image-root]');
+            var img = root ? root.querySelector('[data-designer-course-image]') : null;
+            if (!root || !img) {
+                return;
+            }
+            if (!img.classList.contains('dixeo-img-gen-pending') &&
+                    !img.classList.contains('dixeo-img-gen-failed')) {
+                return;
+            }
+            var message = img.classList.contains('dixeo-img-gen-failed') ? (this.imageFailureMessage || '') : '';
+            var hint = String(this.imageRetryRejectedMessage || '').trim();
+            if (message && hint && this.imagePromptRejected && !(this.structure && this.structure.image)) {
+                message = message + ' ' + hint;
+            }
+            require(['local_dixeo/content_image_pending'], function(pending) {
+                pending.refresh(root, message);
+            }, function() {
+                return;
+            });
+        },
+
         setImageLoadingState: function(active) {
             var root = document.querySelector('[data-designer-course-image-root]');
             if (!root) {
                 return;
             }
-            root.classList.toggle('is-loading', Boolean(active));
             var img = root.querySelector('[data-designer-course-image]');
             var placeholder = root.querySelector('[data-designer-course-image-placeholder]');
-            if (placeholder) {
-                // With a course image, show the placeholder only while a job is in flight (hide stale image via CSS).
-                // With no image yet, keep the placeholder visible whenever we are not in a transient "loading off" tick.
-                if (img) {
-                    placeholder.classList.toggle('d-none', !active);
-                } else {
-                    placeholder.classList.remove('d-none');
+            if (active) {
+                this.imageStatus = this.imageStatus === 'processing' ? 'processing' : 'pending';
+                if (!img) {
+                    this.renderStructure();
+                    return;
                 }
+                if (img.classList.contains('dixeo-img-gen-pending')) {
+                    return;
+                }
+                img.classList.remove('dixeo-img-gen-failed');
+                img.classList.add('dixeo-img-gen-pending');
+                if (placeholder) {
+                    placeholder.classList.add('d-none');
+                }
+                require(['local_dixeo/content_image_pending'], function(pending) {
+                    pending.clearImageHost(img);
+                    pending.refresh(root, '');
+                }, function() {
+                    return;
+                });
+                return;
+            }
+            root.classList.remove('is-loading');
+            if (img && this.imageStatus !== 'failed') {
+                img.classList.remove('dixeo-img-gen-pending', 'dixeo-img-gen-failed');
+                require(['local_dixeo/content_image_pending'], function(pending) {
+                    pending.clearImageHost(img);
+                }, function() {
+                    return;
+                });
             }
         },
 
@@ -788,6 +990,16 @@ define([
                     previewModal.setAttribute('aria-hidden', 'true');
                 });
             });
+
+            var retryButton = document.querySelector('[data-designer-image-retry]');
+            if (retryButton) {
+                retryButton.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    retryButton.disabled = true;
+                    self.retryCourseImage();
+                });
+            }
 
             if (openRegenerate && regenerateModal) {
                 openRegenerate.addEventListener('click', function(e) {
@@ -860,6 +1072,8 @@ define([
                             regenerateLoading.classList.add('d-none');
                         }
                         regenerateSubmit.disabled = false;
+                        self.imageFailureMessage = '';
+                        self.imageStatus = 'pending';
                         self.setImageLoadingState(true);
                         self.startImageStatusPoll();
                         return null;

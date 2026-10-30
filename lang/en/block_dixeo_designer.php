@@ -91,6 +91,8 @@ $string['designer_image_regenerate_dialog_label'] = 'Describe the changes to mak
 $string['designer_image_regenerate_dialog_placeholder'] =
     'e.g. Remove the laptop from the desk, zoom in slightly, and keep the same lighting.';
 $string['designer_image_regenerate_dialog_title'] = 'Edit image';
+$string['designer_image_retry'] = 'Retry';
+$string['designer_image_retry_rejected'] = 'Edit the course title and/or description, then try again.';
 $string['designer_instructions_too_short'] = 'Instructions must be at least {$a->min} characters.';
 $string['designer_invalid_data'] = 'Invalid structure data';
 $string['designer_loading'] = 'Loading course structure...';
