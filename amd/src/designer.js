@@ -101,6 +101,8 @@ define([
     /**
      * Monologo URL for a module type: installed mod uses plugin monologo; otherwise block fallback pix.
      *
+     * Only a plain mod_ component name is placed in the URL, because the URL ends up inside a CSS url().
+     *
      * @param {string} component Moodle component e.g. mod_page
      * @param {boolean} installed When false, use designer fallback asset (avoids requests to missing plugin pix).
      * @return {string}
@@ -110,7 +112,7 @@ define([
         if (!installed) {
             return fallback;
         }
-        if (component && component.indexOf('mod_') === 0) {
+        if (typeof component === 'string' && /^mod_[a-z][a-z0-9_]*$/.test(component)) {
             return Config.wwwroot + '/mod/' + component.substring(4) + '/pix/monologo.svg';
         }
         return fallback;
@@ -1116,24 +1118,25 @@ define([
         },
 
         /**
-         * Monologo URL for a module type (uses catalogue options and monologo URL rules).
+         * Monologo URL for a module type from the catalogue options.
+         *
+         * A type that is not in the catalogue gets the designer fallback icon.
          *
          * @param {string} type Machine type id
          * @return {string}
          */
         getModuleIconUrlForModuleType: function(type) {
-            if (!type) {
+            var tl = String(type || '').toLowerCase();
+            var i;
+            if (tl === '') {
                 return getModuleMonologoUrl('', false);
             }
-            var tl = type.toString().toLowerCase();
-            var i;
             for (i = 0; i < MODULE_TYPE_OPTIONS.length; i++) {
-                if (MODULE_TYPE_OPTIONS[i].value.toLowerCase() === tl) {
+                if (String(MODULE_TYPE_OPTIONS[i].value).toLowerCase() === tl) {
                     return MODULE_TYPE_OPTIONS[i].iconurl;
                 }
             }
-            var comp = inferModuleComponentFromType(type);
-            return getModuleMonologoUrl(comp, true);
+            return getModuleMonologoUrl('', false);
         },
 
         /**

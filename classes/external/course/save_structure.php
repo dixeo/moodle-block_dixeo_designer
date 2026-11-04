@@ -31,6 +31,7 @@ use core_external\external_single_structure;
 use core_external\external_value;
 use block_dixeo_designer\local\dixeo_capability;
 use block_dixeo_designer\local\generated_image;
+use block_dixeo_designer\local\module_type;
 use local_dixeo\service\image\policy;
 
 /**
@@ -91,8 +92,9 @@ final class save_structure extends external_api {
         $existing = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
         $ownerid = $existing ? (int) $existing->userid : (int) $USER->id;
 
-        // The course image may only reference the owner's own generated image.
-        $sanitised = generated_image::sanitise_structure($decoded, $ownerid);
+        // The course image may only reference the owner's own generated image, and module
+        // types must be plain identifiers because the designer builds icon URLs from them.
+        $sanitised = module_type::sanitise_structure(generated_image::sanitise_structure($decoded, $ownerid));
         $structurejson = $sanitised === $decoded ? $params['structure'] : json_encode($sanitised);
 
         if ($existing) {
