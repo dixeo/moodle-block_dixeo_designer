@@ -1186,7 +1186,8 @@ class designer_course_creation_service {
      * @return bool
      */
     private function certificate_generation_enabled(): bool {
-        return \local_dixeo\service\course_certificate_service::is_available() && $this->designer_setting('certificate_generation') === '1';
+        return \local_dixeo\service\course_certificate_service::is_available()
+            && $this->designer_setting('certificate_generation') === '1';
     }
 
     /**
