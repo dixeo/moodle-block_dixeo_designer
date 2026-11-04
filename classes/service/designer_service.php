@@ -102,54 +102,6 @@ class designer_service {
     }
 
     /**
-     * Start async generation: create draft course, sync files, submit structure job.
-     *
-     * @param string $jobid
-     * @param int $userid
-     * @param string $description
-     * @param string|null $templateid
-     * @return object { courseid: int, remotejobid: string }
-     */
-    public function start_generation(string $jobid, int $userid, string $description, ?string $templateid): object {
-        // New generation attempt must not inherit stale finalize cancellation state.
-        $finalizecache = \cache::make('block_dixeo_designer', 'finalize_progress');
-        $finalizecache->delete($jobid);
-
-        $submission = $this->submissions->save_submission($jobid, $userid, $description, $templateid);
-        $this->submissions->mark_status($submission, workflow_constants::SUBMISSION_STATUS_GENERATING_STRUCTURE);
-
-        $course = $this->coursecreation->create_draft_course($userid);
-        $this->submissions->set_draft_and_remote_job($submission, (int) $course->id, null);
-
-        try {
-            $this->files->copy_files_to_course_resources((int) $submission->id, (int) $course->id, $userid);
-            $this->coursecreation->enable_draft_file_sync_and_wait((int) $course->id, $userid);
-            $this->sync_submission_files_to_remote((int) $submission->id, $jobid, (int) $course->id);
-
-            $instructions = trim($description);
-            if ($instructions === '') {
-                $instructions = get_string('designer_default_file_prompt', 'block_dixeo_designer');
-            }
-
-            $op = $this->remoteapi->submit_course_structure_generation(
-                $instructions,
-                $templateid,
-                (int) $course->id
-            );
-            $this->submissions->set_draft_and_remote_job($submission, (int) $course->id, $op->jobid);
-
-            return (object) [
-                'courseid' => (int) $course->id,
-                'remotejobid' => $op->jobid,
-            ];
-        } catch (\Throwable $e) {
-            $this->coursecreation->delete_draft_course((int) $course->id);
-            $this->submissions->clear_course($submission);
-            throw $e;
-        }
-    }
-
-    /**
      * Prepare generation: create draft course, copy submission files into it, and trigger async file sync.
      * Remote structure generation is submitted only after file sync has started so the client can poll progress.
      *

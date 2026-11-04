@@ -4,7 +4,7 @@ Top-level under `classes/`:
 
 | Area | Path | Role |
 |------|------|------|
-| **Web services** | `external/draft/`, `external/course/` (+ `dto/` under each) | AJAX externals only. `generate_course` and `start_generation` both call `designer_service::start_generation()`; the block UI uses `start_generation`. |
+| **Web services** | `external/draft/`, `external/course/` (+ `dto/` under each) | AJAX externals only. `start_generation` calls `designer_service::prepare_generation()`, which creates or reuses the draft course and starts file sync; `submit_structure_job` then submits the remote structure job. |
 | **Application layer** | `service/` | Orchestration, remote adapter, submission persistence, structure versions, template UI helper, prepare-progress cache. |
 | **Shared constants** | `workflow_constants.php` | Workflow/submission status strings (root namespace `block_dixeo_designer`). |
 | **Moodle plumbing** | `privacy/`, `task/` | Privacy provider, scheduled task. |

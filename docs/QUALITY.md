@@ -29,7 +29,4 @@ Internal checklist for `block_dixeo_designer` (architecture already aligned: `ex
 6. **JS tests (optional)**  
    - Jest or Moodle AMD test pattern for `filesync_progress_map.js` pure functions.
 
-7. **Web service hygiene**  
-   - Decide long-term fate of `skip` on `generate_course` (implement vs deprecate) to avoid API drift.
-
 Review this file when planning refactors; bump `version.php` after behavioural changes.

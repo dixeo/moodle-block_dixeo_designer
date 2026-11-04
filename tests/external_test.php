@@ -19,7 +19,6 @@ namespace block_dixeo_designer;
 defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
-require_once($CFG->dirroot . '/blocks/dixeo_designer/classes/external/draft/generate_course.php');
 require_once($CFG->dirroot . '/blocks/dixeo_designer/classes/external/draft/get_structure_status.php');
 require_once($CFG->dirroot . '/blocks/dixeo_designer/classes/external/course/finalize_course.php');
 require_once($CFG->dirroot . '/blocks/dixeo_designer/classes/external/draft/cancel_draft.php');
@@ -33,8 +32,8 @@ use block_dixeo_designer\external\course\get_finalize_progress;
 use block_dixeo_designer\external\course\save_structure;
 use block_dixeo_designer\external\course\validate_structure_for_finalize;
 use block_dixeo_designer\external\draft\cancel_draft;
-use block_dixeo_designer\external\draft\generate_course;
 use block_dixeo_designer\external\draft\get_structure_status;
+use block_dixeo_designer\external\draft\start_generation;
 use block_dixeo_designer\service\designer_service;
 use block_dixeo_designer\service\designer_service_factory;
 
@@ -45,7 +44,6 @@ use block_dixeo_designer\service\designer_service_factory;
  * @category   test
  * @copyright  2026 Dixeo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
- * @covers     \block_dixeo_designer\external\draft\generate_course
  * @covers     \block_dixeo_designer\external\draft\get_structure_status
  * @covers     \block_dixeo_designer\external\course\finalize_course
  * @covers     \block_dixeo_designer\external\draft\cancel_draft
@@ -74,7 +72,6 @@ final class external_test extends advanced_testcase {
         $this->mockdesignerservice = $this->getMockBuilder(designer_service::class)
             ->disableOriginalConstructor()
             ->onlyMethods([
-                'start_generation',
                 'get_structure_status',
                 'finalize_course',
                 'cancel_draft',
@@ -117,37 +114,6 @@ final class external_test extends advanced_testcase {
     private function create_submission(string $jobid, ?int $userid = null): void {
         $submissions = new \block_dixeo_designer\service\submission\service();
         $submissions->get_or_create_submission($jobid, $userid ?? (int) $this->user->id);
-    }
-
-    public function test_generate_course_returns_start_result_from_service(): void {
-        $this->mockdesignerservice->method('start_generation')
-            ->with('d0d88ba2d9bf8889d63a4f29979253463', $this->user->id, 'My course', null)
-            ->willReturn((object) ['courseid' => 42, 'remotejobid' => 'remote-uuid']);
-
-        $result = generate_course::execute(
-            'd0d88ba2d9bf8889d63a4f29979253463',
-            'My course',
-            null,
-            $this->sesskey,
-            false
-        );
-
-        $this->assertSame(42, $result['courseid']);
-        $this->assertSame('remote-uuid', $result['remotejobid']);
-    }
-
-    public function test_generate_course_passes_templateid_to_service(): void {
-        $this->mockdesignerservice->method('start_generation')
-            ->with('d4cf782c76ced4781c79abaa17401ce87', $this->user->id, 'Desc', 'template-uuid')
-            ->willReturn((object) ['courseid' => 1, 'remotejobid' => 'r']);
-
-        generate_course::execute('d4cf782c76ced4781c79abaa17401ce87', 'Desc', 'template-uuid', $this->sesskey, false);
-    }
-
-    public function test_generate_course_requires_sesskey(): void {
-        $_POST['sesskey'] = 'wrong-sesskey';
-        $this->expectException(\moodle_exception::class);
-        generate_course::execute('dac15a52e59f363d653442a598ffab484', 'D', null, 'wrong-sesskey', false);
     }
 
     public function test_get_structure_status_returns_status_from_service(): void {
@@ -270,7 +236,7 @@ final class external_test extends advanced_testcase {
         // User $other has no local/dixeo:create capability.
 
         $this->expectException(\required_capability_exception::class);
-        generate_course::execute('dac15a52e59f363d653442a598ffab484', 'D', null, sesskey(), false);
+        start_generation::execute('dac15a52e59f363d653442a598ffab484', 'D', null, sesskey());
     }
 
     public function test_get_finalize_progress_returns_empty_when_cache_missing(): void {

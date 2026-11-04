@@ -26,16 +26,6 @@
 defined('MOODLE_INTERNAL') || die();
 
 $functions = [
-    'block_dixeo_designer_generate_course' => [
-        'classname'   => 'block_dixeo_designer\\external\\draft\\generate_course',
-        'methodname'  => 'execute',
-        'classpath'   => '',
-        'description' => 'Begins course design.',
-        'type'        => 'read',
-        'ajax'        => true,
-        'capabilities' => 'local/dixeo:create',
-        'loginrequired' => true,
-    ],
     'block_dixeo_designer_start_generation' => [
         'classname'   => 'block_dixeo_designer\\external\\draft\\start_generation',
         'methodname'  => 'execute',
