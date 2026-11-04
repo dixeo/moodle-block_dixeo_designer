@@ -60,13 +60,7 @@ final class dixeo_capability {
     public static function require_designer_enabled(?int $courseid = null): void {
         $config = \local_dixeo\external\service_factory::get_settings_config();
         $config->require_enabled(\context_system::instance());
-        if ($courseid === null || $courseid <= SITEID) {
-            return;
-        }
-        $coursecontext = \context_course::instance($courseid, IGNORE_MISSING);
-        if ($coursecontext instanceof \context_course) {
-            $config->require_enabled($coursecontext);
-        }
+        $config->require_enabled_for_course($courseid ?? 0);
     }
 
     /**
@@ -77,10 +71,8 @@ final class dixeo_capability {
      * @throws \moodle_exception error:dixeo_disabled (local_dixeo) when Dixeo is off.
      */
     public static function require_designer_enabled_for_job(string $jobid): void {
-        global $DB;
-
-        $courseid = $DB->get_field('block_dixeo_designer_submission', 'courseid', ['jobid' => $jobid]);
-        self::require_designer_enabled(!empty($courseid) ? (int) $courseid : null);
+        $courseid = self::job_courseid($jobid);
+        self::require_designer_enabled($courseid > 0 ? $courseid : null);
     }
 
     /**
@@ -92,15 +84,31 @@ final class dixeo_capability {
      * @return \context
      */
     public static function image_policy_context_for_job(string $jobid): \context {
+        return \local_dixeo\external\service_factory::get_settings_config()->context_for_course(self::job_courseid($jobid));
+    }
+
+    /**
+     * Draft course id of a designer job, read once per request.
+     *
+     * Only a found course id is kept: a job gets its draft course during the workflow, and a
+     * later read in the same request must see it.
+     *
+     * @param string $jobid Designer job id.
+     * @return int Course id, or 0 when the job has no draft course.
+     */
+    private static function job_courseid(string $jobid): int {
         global $DB;
 
-        $courseid = (int) $DB->get_field('block_dixeo_designer_submission', 'courseid', ['jobid' => $jobid]);
-        if ($courseid > SITEID) {
-            $coursecontext = \context_course::instance($courseid, IGNORE_MISSING);
-            if ($coursecontext instanceof \context_course) {
-                return $coursecontext;
-            }
+        $cache = \cache::make_from_params(\cache_store::MODE_REQUEST, 'block_dixeo_designer', 'jobcourseid');
+        $courseid = $cache->get($jobid);
+        if ($courseid !== false) {
+            return (int) $courseid;
         }
-        return \context_system::instance();
+
+        $courseid = (int) $DB->get_field('block_dixeo_designer_submission', 'courseid', ['jobid' => $jobid]);
+        if ($courseid > 0) {
+            $cache->set($jobid, $courseid);
+        }
+        return $courseid;
     }
 }

@@ -148,7 +148,8 @@ class block_dixeo_designer extends block_base {
      * @return bool
      */
     private function dixeo_is_enabled(): bool {
-        return \local_dixeo\external\service_factory::get_settings_config()->enabled_for($this->dixeo_page_context());
+        return \local_dixeo\external\service_factory::get_settings_config()
+            ->enabled_for_course((int) ($this->page->course->id ?? 0));
     }
 
     /**
@@ -157,18 +158,7 @@ class block_dixeo_designer extends block_base {
      * @return string
      */
     private function disabled_block_text(): string {
-        return \local_dixeo\external\service_factory::get_settings_config()->disabled_block_text($this->dixeo_page_context());
-    }
-
-    /**
-     * Course context for a page inside a course, otherwise the Dixeo layer.
-     *
-     * @return \context
-     */
-    private function dixeo_page_context(): \context {
-        $courseid = (int) ($this->page->course->id ?? 0);
-        return $courseid > SITEID
-            ? \context_course::instance($courseid)
-            : \context_system::instance();
+        $config = \local_dixeo\external\service_factory::get_settings_config();
+        return $config->disabled_block_text($config->context_for_course((int) ($this->page->course->id ?? 0)));
     }
 }
