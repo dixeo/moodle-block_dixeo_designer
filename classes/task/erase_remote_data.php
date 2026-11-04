@@ -16,9 +16,8 @@
 
 namespace block_dixeo_designer\task;
 
-use core\task\adhoc_task;
-use core\task\manager;
 use local_dixeo\external\service_factory;
+use local_dixeo\task\remote_erasure_task;
 
 /**
  * Adhoc task asking Dixeo to delete the source files sent for erased designer submissions.
@@ -26,21 +25,14 @@ use local_dixeo\external\service_factory;
  * Designer uploads reach the Dixeo file store under two keys: the designer job id, and the
  * id of the draft course the files were copied into. The privacy provider deletes the local
  * rows first, then queues this task with both keys, so the remote calls never run inside
- * the privacy request and a failure is retried instead of being lost.
- *
- * A failure, including a missing API key, is left to propagate so the adhoc runner retries
- * with its growing delay. {@see RETRY_ATTEMPTS} covers roughly 20 days of outage. When the
- * last attempt fails, site administrators are notified, because the runner will not pick
- * the task up again.
+ * the privacy request and a failure is retried instead of being lost. The retry budget, the
+ * missing-key failure and the alert on the last attempt come from {@see remote_erasure_task}.
  *
  * @package    block_dixeo_designer
  * @copyright  2026 Dixeo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class erase_remote_data extends adhoc_task {
-    /** @var int Failed runs to allow, covering roughly 20 days of API outage. */
-    public const RETRY_ATTEMPTS = 30;
-
+class erase_remote_data extends remote_erasure_task {
     /**
      * Get the task name for display.
      *
@@ -73,8 +65,7 @@ class erase_remote_data extends adhoc_task {
             'jobids' => $jobids,
             'courseids' => $courseids,
         ]);
-        $task->set_attempts_available(self::RETRY_ATTEMPTS);
-        manager::queue_adhoc_task($task);
+        self::queue_task($task, false);
     }
 
     /**
@@ -84,40 +75,28 @@ class erase_remote_data extends adhoc_task {
      * sync and deletes the remote files with its own retry. Any other key is deleted directly.
      *
      * @return void
-     * @throws \moodle_exception When the API key is missing or a remote call fails.
+     * @throws \moodle_exception When a remote call fails.
      */
-    public function execute(): void {
+    protected function erase(): void {
         global $DB;
 
         $data = $this->get_custom_data();
-        $userid = (int) ($data->userid ?? 0);
         $jobids = array_map('strval', (array) ($data->jobids ?? []));
         $courseids = array_map('intval', (array) ($data->courseids ?? []));
 
-        try {
-            $client = service_factory::get_client();
-            if (!$client->is_configured()) {
-                throw new \moodle_exception('privacyfailure_nokey', 'block_dixeo_designer');
+        $client = service_factory::get_client();
+        foreach ($jobids as $jobid) {
+            $client->delete_files($jobid);
+        }
+        $adminid = (int) get_admin()->id;
+        foreach ($courseids as $courseid) {
+            if ($DB->record_exists('course', ['id' => $courseid])) {
+                // The clean-up is a system action: recording the subject as the actor would
+                // store their id again in local_dixeo and in the event log after erasure.
+                service_factory::get_file_sync_service()->disable_sync($courseid, $adminid, true);
+            } else {
+                $client->delete_files((string) $courseid);
             }
-            foreach ($jobids as $jobid) {
-                $client->delete_files($jobid);
-            }
-            $adminid = (int) get_admin()->id;
-            foreach ($courseids as $courseid) {
-                if ($DB->record_exists('course', ['id' => $courseid])) {
-                    // The clean-up is a system action: recording the subject as the actor would
-                    // store their id again in local_dixeo and in the event log after erasure.
-                    service_factory::get_file_sync_service()->disable_sync($courseid, $adminid, true);
-                } else {
-                    $client->delete_files((string) $courseid);
-                }
-            }
-        } catch (\Throwable $e) {
-            // The runner decrements the attempts after this run fails.
-            if ($this->get_attempts_available() <= 1) {
-                self::notify_admins($userid);
-            }
-            throw $e;
         }
 
         mtrace('erase_remote_data: requested deletion for ' . count($jobids) . ' job(s) and ' .
@@ -125,30 +104,20 @@ class erase_remote_data extends adhoc_task {
     }
 
     /**
-     * Tell site administrators that an erasure could not be completed at Dixeo.
+     * Subject of the erasure.
      *
-     * @param int $userid Subject of the privacy request, or 0 for a whole context.
-     * @return void
+     * @return int User id, or 0 when a whole context is erased.
      */
-    public static function notify_admins(int $userid): void {
-        $user = $userid > 0 ? \core_user::get_user($userid) : false;
-        $subject = get_string('privacyfailure_subject', 'block_dixeo_designer');
-        $subjectname = $user ? fullname($user) : get_string('privacyfailure_everyone', 'block_dixeo_designer');
-        $body = get_string('privacyfailure_body', 'block_dixeo_designer', $subjectname);
+    protected function get_subject_userid(): int {
+        return (int) ($this->get_custom_data()->userid ?? 0);
+    }
 
-        foreach (get_admins() as $admin) {
-            $message = new \core\message\message();
-            $message->component = 'block_dixeo_designer';
-            $message->name = 'privacyfailure';
-            $message->userfrom = \core_user::get_noreply_user();
-            $message->userto = $admin;
-            $message->subject = $subject;
-            $message->fullmessage = $body;
-            $message->fullmessageformat = FORMAT_PLAIN;
-            $message->fullmessagehtml = text_to_html($body);
-            $message->smallmessage = $subject;
-            $message->notification = 1;
-            message_send($message);
-        }
+    /**
+     * Component named in the failure report.
+     *
+     * @return string
+     */
+    protected function get_component_for_report(): string {
+        return 'block_dixeo_designer';
     }
 }

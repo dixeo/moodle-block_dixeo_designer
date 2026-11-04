@@ -46,6 +46,8 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
+        // Remote erasures are only queued on a site that has sent data to Dixeo.
+        \local_dixeo\privacy\remote_state::record_transfer();
     }
 
     public function tearDown(): void {
@@ -327,7 +329,7 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
     }
 
     /**
-     * Without an API key the task fails so it is retried, and the last failure notifies administrators.
+     * Without an API key the task fails so it is retried, and the last failure alerts administrators through local_dixeo.
      */
     public function test_erase_task_fails_loudly_without_api_key(): void {
         $client = $this->createMock(\local_dixeo\api\client::class);
@@ -338,25 +340,28 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
         $task = new erase_remote_data();
         $task->set_custom_data((object) ['userid' => 0, 'jobids' => ['djobkey'], 'courseids' => []]);
         $task->set_attempts_available(2);
+        $sink = $this->redirectMessages();
         try {
             $task->execute();
             $this->fail('The erasure task completed without an API key.');
-        } catch (\moodle_exception $e) {
-            $this->assertSame('privacyfailure_nokey', $e->errorcode);
+        } catch (\local_dixeo\api\exception\api_exception $e) {
+            $this->assertSame(\local_dixeo\privacy\remote_state::ERROR_NOT_CONFIGURED, $e->get_error_code());
         }
+        $this->assertSame(0, $sink->count());
 
-        $sink = $this->redirectMessages();
         $task->set_attempts_available(1);
         try {
             $task->execute();
             $this->fail('The erasure task completed without an API key.');
-        } catch (\moodle_exception $e) {
-            $this->assertSame('privacyfailure_nokey', $e->errorcode);
+        } catch (\local_dixeo\api\exception\api_exception $e) {
+            $this->assertSame(\local_dixeo\privacy\remote_state::ERROR_NOT_CONFIGURED, $e->get_error_code());
         }
         $messages = $sink->get_messages();
         $sink->close();
         $this->assertCount(count(get_admins()), $messages);
+        $this->assertSame('local_dixeo', $messages[0]->component);
         $this->assertSame('privacyfailure', $messages[0]->eventtype);
+        $this->assertStringContainsString('block_dixeo_designer', $messages[0]->fullmessage);
     }
 
     /**
