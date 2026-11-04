@@ -247,6 +247,18 @@ class provider implements
                     );
             }
 
+            // Uploads whose submission row is gone are still the uploader's files.
+            foreach (self::get_orphan_submission_files([$userid]) as $file) {
+                writer::with_context($context)->export_file(
+                    [
+                        $pluginname,
+                        get_string('privacy:path:submissions', 'block_dixeo_designer'),
+                        (string) $file->get_itemid(),
+                    ],
+                    $file
+                );
+            }
+
             $structures = $DB->get_records('block_dixeo_designer_structure', ['userid' => $userid], 'id ASC');
             foreach ($structures as $structure) {
                 $path = [
@@ -382,6 +394,10 @@ class provider implements
             );
         }
 
+        foreach (self::get_orphan_submission_files($userids) as $file) {
+            $file->delete();
+        }
+
         foreach ($userids as $userid) {
             $fs->delete_area_files(
                 $context->id,
@@ -399,6 +415,45 @@ class provider implements
             $userstructures = array_filter($structures, fn($row) => (int) $row->userid === $userid);
             self::queue_remote_erasure($userid, $usersubmissions, array_column($userstructures, 'jobid'));
         }
+    }
+
+    /**
+     * Uploaded source files of the given users that no submission row points to.
+     *
+     * Earlier versions could remove a submission row and leave its files behind. Those
+     * files are found by uploader, since their item id no longer leads to an owner.
+     *
+     * @param int[] $userids Uploaders.
+     * @return \stored_file[]
+     */
+    private static function get_orphan_submission_files(array $userids): array {
+        global $DB;
+
+        if ($userids === []) {
+            return [];
+        }
+        [$userinsql, $params] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED);
+        $params += [
+            'contextid' => \context_system::instance()->id,
+            'component' => 'block_dixeo_designer',
+            'filearea' => self::FILEAREA_SUBMISSIONFILES,
+        ];
+        $records = $DB->get_records_sql(
+            "SELECT f.*
+               FROM {files} f
+          LEFT JOIN {block_dixeo_designer_submission} s ON s.id = f.itemid
+              WHERE f.contextid = :contextid
+                AND f.component = :component
+                AND f.filearea = :filearea
+                AND f.filename <> '.'
+                AND f.userid {$userinsql}
+                AND s.id IS NULL
+           ORDER BY f.itemid, f.id",
+            $params
+        );
+
+        $fs = get_file_storage();
+        return array_values(array_map(fn($record) => $fs->get_file_instance($record), $records));
     }
 
     /**

@@ -205,5 +205,26 @@ function xmldb_block_dixeo_designer_upgrade($oldversion) {
         upgrade_block_savepoint(true, 2026061200, 'dixeo_designer');
     }
 
+    if ($oldversion < 2026110400) {
+        // Remove uploaded source files left behind by submissions that no longer exist.
+        // Copies made into courses belong to mod_resource and are not touched.
+        $fs = get_file_storage();
+        $orphans = $DB->get_recordset_sql(
+            "SELECT f.*
+               FROM {files} f
+          LEFT JOIN {block_dixeo_designer_submission} s ON s.id = f.itemid
+              WHERE f.component = :component
+                AND f.filearea = :filearea
+                AND s.id IS NULL",
+            ['component' => 'block_dixeo_designer', 'filearea' => 'submissionfiles']
+        );
+        foreach ($orphans as $record) {
+            $fs->get_file_instance($record)->delete();
+        }
+        $orphans->close();
+
+        upgrade_block_savepoint(true, 2026110400, 'dixeo_designer');
+    }
+
     return true;
 }

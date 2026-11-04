@@ -352,6 +352,82 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
     }
 
     /**
+     * Uploads without a submission row are exported and erased with their uploader's data.
+     */
+    public function test_orphan_submission_files_are_exported_and_deleted(): void {
+        $user = $this->getDataGenerator()->create_user();
+        $other = $this->getDataGenerator()->create_user();
+        $systemcontext = \context_system::instance();
+        $this->insert_submission('djobkept', (int) $user->id, null);
+        $orphan = $this->create_submission_file(987654, (int) $user->id, 'orphan.txt');
+        $otherorphan = $this->create_submission_file(987655, (int) $other->id, 'other.txt');
+
+        $contextlist = provider::get_contexts_for_userid((int) $user->id);
+        $this->assertEquals([$systemcontext->id], $contextlist->get_contextids());
+
+        $approved = new approved_contextlist($user, 'block_dixeo_designer', [$systemcontext->id]);
+        provider::export_user_data($approved);
+        $writer = writer::with_context($systemcontext);
+        $path = [
+            get_string('pluginname', 'block_dixeo_designer'),
+            get_string('privacy:path:submissions', 'block_dixeo_designer'),
+            '987654',
+        ];
+        $this->assertArrayHasKey('orphan.txt', $writer->get_files($path));
+
+        provider::delete_data_for_user($approved);
+        $fs = get_file_storage();
+        $this->assertFalse($fs->get_file_by_id($orphan->get_id()));
+        $this->assertNotFalse($fs->get_file_by_id($otherorphan->get_id()));
+
+        $users = new approved_userlist($systemcontext, 'block_dixeo_designer', [$other->id]);
+        provider::delete_data_for_users($users);
+        $this->assertFalse($fs->get_file_by_id($otherorphan->get_id()));
+    }
+
+    /**
+     * The upgrade step removes orphan uploads and keeps files of existing submissions.
+     */
+    public function test_upgrade_removes_orphan_submission_files(): void {
+        global $CFG;
+
+        require_once($CFG->dirroot . '/blocks/dixeo_designer/db/upgrade.php');
+        require_once($CFG->libdir . '/upgradelib.php');
+
+        $user = $this->getDataGenerator()->create_user();
+        $submissionid = $this->insert_submission('djobupgrade', (int) $user->id, null);
+        $kept = $this->create_submission_file($submissionid, (int) $user->id, 'kept.txt');
+        $orphan = $this->create_submission_file(987656, (int) $user->id, 'orphan.txt');
+
+        set_config('version', 2026061200, 'block_dixeo_designer');
+        xmldb_block_dixeo_designer_upgrade(2026061200);
+
+        $fs = get_file_storage();
+        $this->assertNotFalse($fs->get_file_by_id($kept->get_id()));
+        $this->assertFalse($fs->get_file_by_id($orphan->get_id()));
+    }
+
+    /**
+     * Store an uploaded source file.
+     *
+     * @param int $itemid Submission id the file is stored under.
+     * @param int $userid Uploader.
+     * @param string $filename File name.
+     * @return \stored_file
+     */
+    private function create_submission_file(int $itemid, int $userid, string $filename): \stored_file {
+        return get_file_storage()->create_file_from_string([
+            'contextid' => \context_system::instance()->id,
+            'component' => 'block_dixeo_designer',
+            'filearea' => provider::FILEAREA_SUBMISSIONFILES,
+            'itemid' => $itemid,
+            'filepath' => '/',
+            'filename' => $filename,
+            'userid' => $userid,
+        ], 'source document');
+    }
+
+    /**
      * Insert a submission row.
      *
      * @param string $jobid Designer job id.
