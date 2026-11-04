@@ -81,6 +81,7 @@ final class save_structure extends external_api {
         self::validate_context($context);
         require_capability('local/dixeo:create', $context);
         require_sesskey();
+        \block_dixeo_designer\local\job_id::require_valid($params['job_id']);
         dixeo_capability::require_designer_enabled_for_job($params['job_id']);
 
         // Validate JSON.
@@ -89,8 +90,17 @@ final class save_structure extends external_api {
             throw new \moodle_exception('invalidjson', 'block_dixeo_designer');
         }
 
+        // A structure belongs to the submission of the same job: only its owner (or a site administrator) saves it.
+        $submission = (new \block_dixeo_designer\service\submission\service())->get_submission($params['job_id']);
+        if (!$submission || ((int) $submission->userid !== (int) $USER->id && !is_siteadmin())) {
+            throw new \moodle_exception('nopermissions', 'error');
+        }
+        $ownerid = (int) $submission->userid;
+
         $existing = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
-        $ownerid = $existing ? (int) $existing->userid : (int) $USER->id;
+        if ($existing && (int) $existing->userid !== $ownerid) {
+            throw new \moodle_exception('nopermissions', 'error');
+        }
 
         // The course image may only reference the owner's own generated image, and module
         // types must be plain identifiers because the designer builds icon URLs from them.
@@ -98,10 +108,6 @@ final class save_structure extends external_api {
         $structurejson = $sanitised === $decoded ? $params['structure'] : json_encode($sanitised);
 
         if ($existing) {
-            // Check user owns this structure (or is a site administrator).
-            if ($existing->userid != $USER->id && !is_siteadmin()) {
-                throw new \moodle_exception('nopermissions', 'error');
-            }
             $DB->set_field('block_dixeo_designer_structure', 'structure', $structurejson, ['id' => $existing->id]);
             $DB->set_field('block_dixeo_designer_structure', 'timecreated', time(), ['id' => $existing->id]);
             return ['success' => true];
@@ -110,7 +116,7 @@ final class save_structure extends external_api {
         // No record yet (e.g. designer opened before any structure saved); insert one.
         $DB->insert_record('block_dixeo_designer_structure', (object) [
             'jobid' => $params['job_id'],
-            'userid' => $USER->id,
+            'userid' => $ownerid,
             'description' => '',
             'structure' => $structurejson,
             'timecreated' => time(),
@@ -124,7 +130,7 @@ final class save_structure extends external_api {
             )
         ) {
             $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
-            $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
+            $service->start_structure_image_generation($params['job_id'], $ownerid);
         }
 
         return ['success' => true];

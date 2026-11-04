@@ -41,6 +41,7 @@ header('Content-Type: application/json');
 try {
     global $USER;
 
+    \block_dixeo_designer\local\job_id::require_valid($jobid);
     \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
 
     $service = new \block_dixeo_designer\service\designer_submission_ui_service();

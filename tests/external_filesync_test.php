@@ -94,11 +94,11 @@ final class external_filesync_test extends advanced_testcase {
 
     public function test_start_generation_returns_courseid_and_noop_when_service_returns_values(): void {
         $this->mockdesignerservice->method('prepare_generation')
-            ->with('job-2', $this->user->id, 'My description', 'tpl-1')
+            ->with('d6c49804e493119932adad96a70b8822b', $this->user->id, 'My description', 'tpl-1')
             ->willReturn((object) ['courseid' => 12, 'noop' => true]);
 
         $result = start_generation::execute(
-            'job-2',
+            'd6c49804e493119932adad96a70b8822b',
             'My description',
             'tpl-1',
             $this->sesskey
@@ -110,7 +110,7 @@ final class external_filesync_test extends advanced_testcase {
 
     public function test_get_filesync_status_maps_fields_from_service(): void {
         $this->mockdesignerservice->method('get_filesync_status')
-            ->with('job-3', $this->user->id)
+            ->with('d02ef992fdda1e50134008724c05bde16', $this->user->id)
             ->willReturn((object) [
                 'status' => 'syncing',
                 'progresspercent' => 15.5,
@@ -125,7 +125,7 @@ final class external_filesync_test extends advanced_testcase {
                 'moodlepreparepercent' => null,
             ]);
 
-        $result = get_filesync_status::execute('job-3', $this->sesskey);
+        $result = get_filesync_status::execute('d02ef992fdda1e50134008724c05bde16', $this->sesskey);
 
         $this->assertSame('syncing', $result['status']);
         $this->assertSame(15.5, (float) $result['progresspercent']);
@@ -142,10 +142,10 @@ final class external_filesync_test extends advanced_testcase {
 
     public function test_submit_structure_job_maps_remotejobid_and_courseid(): void {
         $this->mockdesignerservice->method('submit_structure_generation')
-            ->with('job-4', $this->user->id)
+            ->with('d214b775f0f70886713deb7618828492b', $this->user->id)
             ->willReturn((object) ['remotejobid' => 'remote-1', 'courseid' => 55]);
 
-        $result = submit_structure_job::execute('job-4', $this->sesskey);
+        $result = submit_structure_job::execute('d214b775f0f70886713deb7618828492b', $this->sesskey);
 
         $this->assertSame('remote-1', $result['remotejobid']);
         $this->assertSame(55, (int) $result['courseid']);

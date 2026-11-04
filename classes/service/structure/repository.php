@@ -46,11 +46,14 @@ class repository {
     /**
      * Persist structure for a job (insert or update single row).
      *
+     * An existing row keeps its owner: saving it for another user is refused.
+     *
      * @param string $jobid
      * @param int $userid
      * @param string $description
      * @param array $result Structure payload (will be JSON-encoded).
      * @return void
+     * @throws \moodle_exception nopermissions when the row belongs to another user.
      */
     public function save_structure(string $jobid, int $userid, string $description, array $result): void {
         global $DB;
@@ -60,7 +63,9 @@ class repository {
         $existing = $DB->get_record(self::TABLE, ['jobid' => $jobid], '*', IGNORE_MISSING);
 
         if ($existing) {
-            $existing->userid = $userid;
+            if ((int) $existing->userid !== $userid) {
+                throw new \moodle_exception('nopermissions', 'error');
+            }
             $existing->description = $description;
             $existing->structure = $json;
             $existing->timecreated = $now;

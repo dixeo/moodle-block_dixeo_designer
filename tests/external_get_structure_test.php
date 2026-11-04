@@ -64,13 +64,13 @@ final class external_get_structure_test extends advanced_testcase {
 
     public function test_get_structure_throws_when_no_structure(): void {
         $this->expectException(\moodle_exception::class);
-        get_structure::execute('job-nonexistent', $this->sesskey);
+        get_structure::execute('d72541d81f26fd4f91ad26f4e86687380', $this->sesskey);
     }
 
     public function test_get_structure_returns_persisted_record(): void {
         global $DB;
 
-        $jobid = 'job-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $structurejson = json_encode(['course_structure' => ['title' => 'Persisted Course', 'sections' => []]]);
         $DB->insert_record('block_dixeo_designer_structure', (object) [
             'jobid' => $jobid,
@@ -99,7 +99,7 @@ final class external_get_structure_test extends advanced_testcase {
             $this->markTestSkipped('local_dixeo does not provide image failure messages.');
         }
 
-        $jobid = 'job-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $DB->insert_record('block_dixeo_designer_structure', (object) [
             'jobid' => $jobid,
             'userid' => $this->user->id,
@@ -124,6 +124,6 @@ final class external_get_structure_test extends advanced_testcase {
         $_POST['sesskey'] = sesskey();
 
         $this->expectException(\required_capability_exception::class);
-        get_structure::execute('job-1', sesskey());
+        get_structure::execute('dac15a52e59f363d653442a598ffab484', sesskey());
     }
 }

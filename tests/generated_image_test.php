@@ -93,18 +93,19 @@ final class generated_image_test extends \advanced_testcase {
         $_POST['sesskey'] = sesskey();
         $service = $this->createMock(designer_service::class);
         designer_service_factory::set_test_designer_service($service);
-        (new submission_service())->get_or_create_submission('djobforeign', (int) $this->other->id);
+        $jobid = 'df89b5f74ba17d1d842558ef0b862fd28';
+        (new submission_service())->get_or_create_submission($jobid, (int) $this->other->id);
 
         $payload = ['image' => $ownerimage, 'course_structure' => ['title' => 'Rivers', 'image' => $private]];
-        save_structure::execute('djobforeign', json_encode($payload), sesskey());
-        $stored = json_decode($DB->get_field('block_dixeo_designer_structure', 'structure', ['jobid' => 'djobforeign']), true);
+        save_structure::execute($jobid, json_encode($payload), sesskey());
+        $stored = json_decode($DB->get_field('block_dixeo_designer_structure', 'structure', ['jobid' => $jobid]), true);
         $this->assertArrayNotHasKey('image', $stored);
         $this->assertArrayNotHasKey('image', $stored['course_structure']);
         $this->assertSame('Rivers', $stored['course_structure']['title']);
 
         $payload['course_structure']['image'] = $ownimage;
-        save_structure::execute('djobforeign', json_encode($payload), sesskey());
-        $stored = json_decode($DB->get_field('block_dixeo_designer_structure', 'structure', ['jobid' => 'djobforeign']), true);
+        save_structure::execute($jobid, json_encode($payload), sesskey());
+        $stored = json_decode($DB->get_field('block_dixeo_designer_structure', 'structure', ['jobid' => $jobid]), true);
         $this->assertSame($ownimage, $stored['course_structure']['image']);
     }
 
@@ -115,14 +116,15 @@ final class generated_image_test extends \advanced_testcase {
         global $DB;
 
         $course = $this->getDataGenerator()->create_course();
-        $submission = (new submission_service())->get_or_create_submission('djobedit', (int) $this->other->id);
+        $jobid = 'd865f9bf559661a403492c0475de8e675';
+        $submission = (new submission_service())->get_or_create_submission($jobid, (int) $this->other->id);
         $DB->set_field('block_dixeo_designer_submission', 'courseid', $course->id, ['id' => $submission->id]);
         $targets = [
             $this->store_file($this->owner, 'user', 'private'),
             $this->store_file($this->owner, 'block_dixeo_designer', 'generated_images'),
         ];
         $structureid = $DB->insert_record('block_dixeo_designer_structure', (object) [
-            'jobid' => 'djobedit',
+            'jobid' => $jobid,
             'userid' => $this->other->id,
             'description' => '',
             'structure' => '{}',
@@ -147,7 +149,7 @@ final class generated_image_test extends \advanced_testcase {
                 ['id' => $structureid]
             );
             try {
-                $service->start_structure_image_edit('djobedit', (int) $this->other->id, 'Change nothing');
+                $service->start_structure_image_edit($jobid, (int) $this->other->id, 'Change nothing');
                 $this->fail('An edit job started from another user\'s file.');
             } catch (\moodle_exception $e) {
                 $this->assertSame('invalidinput', $e->errorcode);

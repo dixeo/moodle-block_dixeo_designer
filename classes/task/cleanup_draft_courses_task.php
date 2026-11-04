@@ -75,6 +75,21 @@ class cleanup_draft_courses_task extends \core\task\scheduled_task {
             $deletedsubmissions += $DB->delete_records('block_dixeo_designer_submission', ['id' => $submission->id]);
         }
 
+        // Structure rows whose job has no submission are never reached from a submission above.
+        $orphanstructures = $DB->get_fieldset_sql(
+            "SELECT st.id
+               FROM {block_dixeo_designer_structure} st
+          LEFT JOIN {block_dixeo_designer_submission} s ON s.jobid = st.jobid
+              WHERE s.id IS NULL
+                AND st.timecreated < :olderthan",
+            ['olderthan' => $olderthan]
+        );
+        if ($orphanstructures) {
+            [$insql, $inparams] = $DB->get_in_or_equal($orphanstructures);
+            $deletedstructures += count($orphanstructures);
+            $DB->delete_records_select('block_dixeo_designer_structure', "id {$insql}", $inparams);
+        }
+
         if ($deleted > 0 || $deletedsubmissions > 0 || $deletedstructures > 0) {
             mtrace(
                 "[block_dixeo_designer] Deleted {$deleted} draft course(s), " .

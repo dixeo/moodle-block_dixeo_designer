@@ -77,14 +77,15 @@ final class entry_point_gate_test extends \advanced_testcase {
         $service->expects($this->never())->method($this->anything());
         designer_service_factory::set_test_designer_service($service);
         $coursesbefore = $DB->count_records('course');
+        $jobid = 'd52a69c24405db981af7ddd5a8f38a365';
 
         $calls = [
-            fn() => start_generation::execute('djob', 'A course about rivers and lakes', null, sesskey()),
-            fn() => submit_structure_job::execute('djob', sesskey()),
-            fn() => save_structure::execute('djob', '{"course_structure":{"title":"x"}}', sesskey()),
-            fn() => get_structure::execute('djob', sesskey()),
-            fn() => start_image_edit::execute('djob', 'Make it blue', sesskey()),
-            fn() => cancel_draft::execute('djob', sesskey(), false),
+            fn() => start_generation::execute($jobid, 'A course about rivers and lakes', null, sesskey()),
+            fn() => submit_structure_job::execute($jobid, sesskey()),
+            fn() => save_structure::execute($jobid, '{"course_structure":{"title":"x"}}', sesskey()),
+            fn() => get_structure::execute($jobid, sesskey()),
+            fn() => start_image_edit::execute($jobid, 'Make it blue', sesskey()),
+            fn() => cancel_draft::execute($jobid, sesskey(), false),
         ];
         foreach ($calls as $index => $call) {
             try {
@@ -106,30 +107,30 @@ final class entry_point_gate_test extends \advanced_testcase {
      */
     public function test_job_with_disabled_draft_course_is_refused(): void {
         $course = $this->getDataGenerator()->create_course();
-        $this->create_submission('djobcourse', (int) $course->id);
+        $this->create_submission('d09ed886443dc165af3a30102e3b18318', (int) $course->id);
         $this->set_config_value('enabled', \context_course::instance($course->id), '0');
 
-        dixeo_capability::require_designer_enabled_for_job('dunknown');
+        dixeo_capability::require_designer_enabled_for_job('dd1038189370a18cccde2c367d6dd70c9');
 
         $this->expectException(\moodle_exception::class);
         $this->expectExceptionMessage(get_string('error:dixeo_disabled', 'local_dixeo'));
-        dixeo_capability::require_designer_enabled_for_job('djobcourse');
+        dixeo_capability::require_designer_enabled_for_job('d09ed886443dc165af3a30102e3b18318');
     }
 
     /**
      * Course images set to "generate only" refuse an edit job, and nothing is sent to Dixeo.
      */
     public function test_image_edit_is_refused_when_course_mode_is_generate_only(): void {
-        [$service] = $this->service_with_structure('djobedit', 'generate');
+        [$service] = $this->service_with_structure('d865f9bf559661a403492c0475de8e675', 'generate');
 
         try {
-            $service->start_structure_image_edit('djobedit', (int) $this->user->id, 'Make it blue');
+            $service->start_structure_image_edit('d865f9bf559661a403492c0475de8e675', (int) $this->user->id, 'Make it blue');
             $this->fail('Image edit ran while the course image mode is generate only.');
         } catch (\moodle_exception $e) {
             $this->assertSame('dixeo_image_generation_disabled', $e->errorcode);
         }
 
-        $structure = (new service\structure\repository())->get_by_jobid('djobedit');
+        $structure = (new service\structure\repository())->get_by_jobid('d865f9bf559661a403492c0475de8e675');
         $this->assertEmpty($structure->imagejobid);
     }
 
@@ -137,16 +138,16 @@ final class entry_point_gate_test extends \advanced_testcase {
      * Course images turned off refuse a generation job, and nothing is sent to Dixeo.
      */
     public function test_image_generation_is_refused_when_course_mode_is_disabled(): void {
-        [$service] = $this->service_with_structure('djobgen', 'disabled');
+        [$service] = $this->service_with_structure('d4be267aa8319c44c42afbe0d96452126', 'disabled');
 
         try {
-            $service->start_structure_image_generation('djobgen', (int) $this->user->id);
+            $service->start_structure_image_generation('d4be267aa8319c44c42afbe0d96452126', (int) $this->user->id);
             $this->fail('Image generation ran while course images are off.');
         } catch (\moodle_exception $e) {
             $this->assertSame('dixeo_image_generation_disabled', $e->errorcode);
         }
 
-        $structure = (new service\structure\repository())->get_by_jobid('djobgen');
+        $structure = (new service\structure\repository())->get_by_jobid('d4be267aa8319c44c42afbe0d96452126');
         $this->assertEmpty($structure->imagejobid);
     }
 

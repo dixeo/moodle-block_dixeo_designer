@@ -121,11 +121,11 @@ final class external_test extends advanced_testcase {
 
     public function test_generate_course_returns_start_result_from_service(): void {
         $this->mockdesignerservice->method('start_generation')
-            ->with('job-123', $this->user->id, 'My course', null)
+            ->with('d0d88ba2d9bf8889d63a4f29979253463', $this->user->id, 'My course', null)
             ->willReturn((object) ['courseid' => 42, 'remotejobid' => 'remote-uuid']);
 
         $result = generate_course::execute(
-            'job-123',
+            'd0d88ba2d9bf8889d63a4f29979253463',
             'My course',
             null,
             $this->sesskey,
@@ -138,21 +138,21 @@ final class external_test extends advanced_testcase {
 
     public function test_generate_course_passes_templateid_to_service(): void {
         $this->mockdesignerservice->method('start_generation')
-            ->with('job-456', $this->user->id, 'Desc', 'template-uuid')
+            ->with('d4cf782c76ced4781c79abaa17401ce87', $this->user->id, 'Desc', 'template-uuid')
             ->willReturn((object) ['courseid' => 1, 'remotejobid' => 'r']);
 
-        generate_course::execute('job-456', 'Desc', 'template-uuid', $this->sesskey, false);
+        generate_course::execute('d4cf782c76ced4781c79abaa17401ce87', 'Desc', 'template-uuid', $this->sesskey, false);
     }
 
     public function test_generate_course_requires_sesskey(): void {
         $_POST['sesskey'] = 'wrong-sesskey';
         $this->expectException(\moodle_exception::class);
-        generate_course::execute('job-1', 'D', null, 'wrong-sesskey', false);
+        generate_course::execute('dac15a52e59f363d653442a598ffab484', 'D', null, 'wrong-sesskey', false);
     }
 
     public function test_get_structure_status_returns_status_from_service(): void {
         $this->mockdesignerservice->method('get_structure_status')
-            ->with('job-1', $this->user->id)
+            ->with('dac15a52e59f363d653442a598ffab484', $this->user->id)
             ->willReturn((object) [
                 'status' => 'processing',
                 'progress' => 50,
@@ -162,7 +162,7 @@ final class external_test extends advanced_testcase {
                 'error' => null,
             ]);
 
-        $result = get_structure_status::execute('job-1', $this->sesskey);
+        $result = get_structure_status::execute('dac15a52e59f363d653442a598ffab484', $this->sesskey);
 
         $this->assertSame('processing', $result['status']);
         $this->assertSame(50, $result['progress']);
@@ -181,7 +181,7 @@ final class external_test extends advanced_testcase {
                 'error' => null,
             ]);
 
-        $result = get_structure_status::execute('job-1', $this->sesskey);
+        $result = get_structure_status::execute('dac15a52e59f363d653442a598ffab484', $this->sesskey);
 
         $this->assertTrue($result['completed']);
         $this->assertIsString($result['result']);
@@ -191,10 +191,10 @@ final class external_test extends advanced_testcase {
     public function test_finalize_course_returns_course_when_createcourse_true(): void {
         $course = (object) ['id' => 10, 'fullname' => 'My Course'];
         $this->mockdesignerservice->method('finalize_course')
-            ->with('job-1', $this->user->id, true, '')
+            ->with('dac15a52e59f363d653442a598ffab484', $this->user->id, true, '')
             ->willReturn($course);
 
-        $result = finalize_course::execute('job-1', true, $this->sesskey);
+        $result = finalize_course::execute('dac15a52e59f363d653442a598ffab484', true, $this->sesskey);
 
         $this->assertSame(10, $result['courseid']);
         $this->assertSame('My Course', $result['coursename']);
@@ -202,10 +202,10 @@ final class external_test extends advanced_testcase {
 
     public function test_finalize_course_returns_empty_when_structure_only(): void {
         $this->mockdesignerservice->method('finalize_course')
-            ->with('job-1', $this->user->id, false, '')
+            ->with('dac15a52e59f363d653442a598ffab484', $this->user->id, false, '')
             ->willReturn(null);
 
-        $result = finalize_course::execute('job-1', false, $this->sesskey);
+        $result = finalize_course::execute('dac15a52e59f363d653442a598ffab484', false, $this->sesskey);
 
         $this->assertSame(0, $result['courseid']);
         $this->assertSame('', $result['coursename']);
@@ -213,15 +213,15 @@ final class external_test extends advanced_testcase {
 
     public function test_finalize_course_throws_when_createcourse_and_service_returns_null(): void {
         $this->mockdesignerservice->method('finalize_course')
-            ->with('job-1', $this->user->id, true, '')
+            ->with('dac15a52e59f363d653442a598ffab484', $this->user->id, true, '')
             ->willReturn(null);
 
         $this->expectException(\moodle_exception::class);
-        finalize_course::execute('job-1', true, $this->sesskey);
+        finalize_course::execute('dac15a52e59f363d653442a598ffab484', true, $this->sesskey);
     }
 
     public function test_finalize_course_returns_empty_when_createcourse_true_and_cancelled_flag_is_set(): void {
-        $jobid = 'job-cancelled-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cache->set($jobid, ['cancelled' => true]);
 
@@ -237,20 +237,20 @@ final class external_test extends advanced_testcase {
 
     public function test_cancel_draft_returns_success_from_service(): void {
         $this->mockdesignerservice->method('cancel_draft')
-            ->with('job-1', $this->user->id, false)
+            ->with('dac15a52e59f363d653442a598ffab484', $this->user->id, false)
             ->willReturn(true);
 
-        $result = cancel_draft::execute('job-1', $this->sesskey);
+        $result = cancel_draft::execute('dac15a52e59f363d653442a598ffab484', $this->sesskey);
 
         $this->assertTrue($result['success']);
     }
 
     public function test_cancel_draft_passes_delete_structure_true_for_footer_hard_reset(): void {
         $this->mockdesignerservice->method('cancel_draft')
-            ->with('job-1', $this->user->id, true)
+            ->with('dac15a52e59f363d653442a598ffab484', $this->user->id, true)
             ->willReturn(true);
 
-        $result = cancel_draft::execute('job-1', $this->sesskey, true);
+        $result = cancel_draft::execute('dac15a52e59f363d653442a598ffab484', $this->sesskey, true);
 
         $this->assertTrue($result['success']);
     }
@@ -259,7 +259,7 @@ final class external_test extends advanced_testcase {
         $this->mockdesignerservice->method('cancel_draft')
             ->willReturn(false);
 
-        $result = cancel_draft::execute('job-unknown', $this->sesskey);
+        $result = cancel_draft::execute('d9373655d206f48d2e62094a7af7dea77', $this->sesskey);
 
         $this->assertFalse($result['success']);
     }
@@ -270,11 +270,11 @@ final class external_test extends advanced_testcase {
         // User $other has no local/dixeo:create capability.
 
         $this->expectException(\required_capability_exception::class);
-        generate_course::execute('job-1', 'D', null, sesskey(), false);
+        generate_course::execute('dac15a52e59f363d653442a598ffab484', 'D', null, sesskey(), false);
     }
 
     public function test_get_finalize_progress_returns_empty_when_cache_missing(): void {
-        $jobid = 'job-no-cache-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $this->create_submission($jobid);
 
         $result = get_finalize_progress::execute($jobid, $this->sesskey);
@@ -289,7 +289,7 @@ final class external_test extends advanced_testcase {
     }
 
     public function test_get_finalize_progress_denies_unknown_job_id_before_cache_read(): void {
-        $jobid = 'job-unknown-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cache->set($jobid, [
             'phase' => 'generating_content',
@@ -308,7 +308,7 @@ final class external_test extends advanced_testcase {
     public function test_get_finalize_progress_allows_structure_owner_without_submission(): void {
         global $DB;
 
-        $jobid = 'job-structure-only-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $DB->insert_record('block_dixeo_designer_structure', (object) [
             'jobid' => $jobid,
             'userid' => $this->user->id,
@@ -332,7 +332,7 @@ final class external_test extends advanced_testcase {
     }
 
     public function test_get_finalize_progress_returns_data_from_cache(): void {
-        $jobid = '5f38d9aa-f40c-4992-9727-982f050ff9fd';
+        $jobid = 'd5f38d9aaf40c49929727982f050ff9fd';
         $this->create_submission($jobid);
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cache->set($jobid, [
@@ -355,7 +355,7 @@ final class external_test extends advanced_testcase {
     }
 
     public function test_get_finalize_progress_returns_done_with_course(): void {
-        $jobid = 'job-done-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $this->create_submission($jobid);
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cache->set($jobid, [
@@ -372,7 +372,7 @@ final class external_test extends advanced_testcase {
     }
 
     public function test_get_finalize_progress_returns_done_after_submission_deleted_when_owner_in_cache(): void {
-        $jobid = 'job-done-post-delete-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
         $cache->set($jobid, [
             'phase' => 'done',
@@ -390,7 +390,7 @@ final class external_test extends advanced_testcase {
     public function test_get_finalize_progress_requires_sesskey(): void {
         $_POST['sesskey'] = 'wrong';
         $this->expectException(\moodle_exception::class);
-        get_finalize_progress::execute('job-1', 'wrong');
+        get_finalize_progress::execute('dac15a52e59f363d653442a598ffab484', 'wrong');
     }
 
     public function test_get_finalize_progress_requires_create_capability(): void {
@@ -398,12 +398,12 @@ final class external_test extends advanced_testcase {
         $this->setUser($other);
 
         $this->expectException(\required_capability_exception::class);
-        get_finalize_progress::execute('job-1', sesskey());
+        get_finalize_progress::execute('dac15a52e59f363d653442a598ffab484', sesskey());
     }
 
     public function test_get_finalize_progress_denies_peer_before_cache_read(): void {
         $owner = $this->user;
-        $jobid = 'job-peer-progress-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $this->create_submission($jobid, (int) $owner->id);
 
         $cache = \cache::make('block_dixeo_designer', 'finalize_progress');
@@ -430,7 +430,8 @@ final class external_test extends advanced_testcase {
     }
 
     public function test_save_structure_inserts_new_record(): void {
-        $jobid = 'job-save-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
+        $this->create_submission($jobid);
         $structure = json_encode(['course_structure' => ['title' => 'New Course', 'sections' => []]]);
 
         $result = save_structure::execute($jobid, $structure, $this->sesskey);
@@ -449,7 +450,8 @@ final class external_test extends advanced_testcase {
     public function test_save_structure_updates_existing_record(): void {
         global $DB;
 
-        $jobid = 'job-update-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
+        $this->create_submission($jobid);
         $DB->insert_record('block_dixeo_designer_structure', (object) [
             'jobid' => $jobid,
             'userid' => $this->user->id,
@@ -473,7 +475,7 @@ final class external_test extends advanced_testcase {
 
     public function test_save_structure_throws_on_invalid_json(): void {
         $this->expectException(\moodle_exception::class);
-        save_structure::execute('job-1', 'not valid json{', $this->sesskey);
+        save_structure::execute('dac15a52e59f363d653442a598ffab484', 'not valid json{', $this->sesskey);
     }
 
     public function test_save_structure_requires_create_capability(): void {
@@ -483,7 +485,7 @@ final class external_test extends advanced_testcase {
 
         $this->expectException(\required_capability_exception::class);
         save_structure::execute(
-            'job-1',
+            'dac15a52e59f363d653442a598ffab484',
             json_encode(['course_structure' => ['title' => 'X', 'sections' => []]]),
             sesskey()
         );
@@ -493,14 +495,14 @@ final class external_test extends advanced_testcase {
         $_POST['sesskey'] = 'wrong-sesskey';
         $this->expectException(\moodle_exception::class);
         save_structure::execute(
-            'job-1',
+            'dac15a52e59f363d653442a598ffab484',
             json_encode(['course_structure' => ['title' => 'X', 'sections' => []]]),
             'wrong-sesskey'
         );
     }
 
     public function test_validate_structure_for_finalize_returns_invalid_for_bad_json(): void {
-        $result = validate_structure_for_finalize::execute('job-1', 'not valid json{', $this->sesskey);
+        $result = validate_structure_for_finalize::execute('dac15a52e59f363d653442a598ffab484', 'not valid json{', $this->sesskey);
         $this->assertFalse($result['valid']);
         $this->assertNotEmpty($result['errors']);
         $this->assertArrayHasKey('fielderrors', $result);
@@ -526,7 +528,7 @@ final class external_test extends advanced_testcase {
                 ],
             ],
         ]);
-        $result = validate_structure_for_finalize::execute('job-val-' . uniqid(), $structure, $this->sesskey);
+        $result = validate_structure_for_finalize::execute('d' . bin2hex(random_bytes(16)), $structure, $this->sesskey);
         $this->assertTrue($result['valid'], json_encode($result['errors']));
         $this->assertSame([], $result['errors']);
         $this->assertSame([], $result['fielderrors']);
@@ -539,7 +541,7 @@ final class external_test extends advanced_testcase {
                 'sections' => [],
             ],
         ]);
-        $result = validate_structure_for_finalize::execute('job-val-' . uniqid(), $structure, $this->sesskey);
+        $result = validate_structure_for_finalize::execute('d' . bin2hex(random_bytes(16)), $structure, $this->sesskey);
         $this->assertFalse($result['valid']);
         $this->assertNotEmpty($result['errors']);
         $this->assertNotEmpty($result['fielderrors']);
@@ -565,7 +567,7 @@ final class external_test extends advanced_testcase {
                 ],
             ],
         ]);
-        $jobid = 'job-val-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $full = validate_structure_for_finalize::execute($jobid, $structure, $this->sesskey);
         $this->assertFalse($full['valid']);
         $this->assertGreaterThan(1, count($full['fielderrors']));
@@ -618,7 +620,7 @@ final class external_test extends advanced_testcase {
     public function test_validate_structure_for_finalize_throws_when_structure_owned_by_other(): void {
         global $DB;
 
-        $jobid = 'job-owned-' . uniqid();
+        $jobid = 'd' . bin2hex(random_bytes(16));
         $other = $this->getDataGenerator()->create_user();
         $DB->insert_record('block_dixeo_designer_structure', (object) [
             'jobid' => $jobid,
@@ -643,7 +645,7 @@ final class external_test extends advanced_testcase {
 
         $this->expectException(\required_capability_exception::class);
         validate_structure_for_finalize::execute(
-            'job-1',
+            'dac15a52e59f363d653442a598ffab484',
             json_encode(['course_structure' => ['title' => 'Y', 'sections' => []]]),
             sesskey()
         );

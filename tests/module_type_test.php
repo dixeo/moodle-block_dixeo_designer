@@ -72,7 +72,8 @@ final class module_type_test extends \advanced_testcase {
         $this->setUser($user);
         $_POST['sesskey'] = sesskey();
         designer_service_factory::set_test_designer_service($this->createMock(designer_service::class));
-        (new service\submission\service())->get_or_create_submission('djobtype', (int) $user->id);
+        $jobid = 'd36496cd7558f96ca3a0aec802c4bdeef';
+        (new service\submission\service())->get_or_create_submission($jobid, (int) $user->id);
 
         $payload = ['course_structure' => ['title' => 'Rivers', 'sections' => [[
             'title' => 'One',
@@ -81,10 +82,10 @@ final class module_type_test extends \advanced_testcase {
                 ['type' => 'page', 'title' => 'Good'],
             ],
         ]]]];
-        save_structure::execute('djobtype', json_encode($payload), sesskey());
+        save_structure::execute($jobid, json_encode($payload), sesskey());
         designer_service_factory::reset();
 
-        $stored = json_decode($DB->get_field('block_dixeo_designer_structure', 'structure', ['jobid' => 'djobtype']), true);
+        $stored = json_decode($DB->get_field('block_dixeo_designer_structure', 'structure', ['jobid' => $jobid]), true);
         $modules = $stored['course_structure']['sections'][0]['modules'];
         $this->assertSame('', $modules[0]['type']);
         $this->assertSame('Bad', $modules[0]['title']);
@@ -99,11 +100,11 @@ final class module_type_test extends \advanced_testcase {
         $user = $this->getDataGenerator()->create_user();
         $structures = new structure_repository();
 
-        $structures->save_structure('djobrepo', (int) $user->id, '', ['sections' => [[
+        $structures->save_structure('d0c6f3a33c375fbd3a32783927aa8787a', (int) $user->id, '', ['sections' => [[
             'modules' => [['type' => 'url(evil)'], ['type' => 'quiz']],
         ]]]);
 
-        $stored = json_decode($structures->get_latest_structure('djobrepo'), true);
+        $stored = json_decode($structures->get_latest_structure('d0c6f3a33c375fbd3a32783927aa8787a'), true);
         $this->assertSame('', $stored['sections'][0]['modules'][0]['type']);
         $this->assertSame('quiz', $stored['sections'][0]['modules'][1]['type']);
     }

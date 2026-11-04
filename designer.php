@@ -35,6 +35,9 @@ global $PAGE, $OUTPUT, $USER;
 
 $jobid = optional_param('id', '', PARAM_TEXT);
 $hasexistingjob = ($jobid !== '');
+if ($hasexistingjob && !\block_dixeo_designer\local\job_id::is_valid($jobid)) {
+    redirect(new moodle_url('/blocks/dixeo_designer/designer.php'));
+}
 
 // Dixeo off stops the designer before any submission or draft course is created.
 try {

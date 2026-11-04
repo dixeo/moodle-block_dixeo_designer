@@ -556,6 +556,12 @@ class designer_service {
             $cache->set($jobid, $merged);
         }
 
+        // The structure a course is built from must belong to the submission owner.
+        $structurerow = $this->structures->get_by_jobid($jobid);
+        if ($structurerow && (int) $structurerow->userid !== (int) $submission->userid) {
+            throw new \moodle_exception('nopermissions', 'error');
+        }
+
         $structurejson = $this->structures->get_latest_structure($jobid);
         if ($structurejson !== null) {
             $result = json_decode($structurejson, true);
