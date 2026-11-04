@@ -1010,33 +1010,20 @@ class designer_service {
     }
 
     /**
-     * Choose what to store for a failed course image job.
-     *
-     * A known API code is stored when the image failure mapper is available.
-     * Otherwise the provider sentence already on the job is kept.
+     * Choose what to store for a failed course image job: the known API code, never the provider sentence.
      *
      * @param \local_dixeo\dto\job_status $jobstatus Failed image job.
      * @return string
      */
     private static function image_failure_for_storage(\local_dixeo\dto\job_status $jobstatus): string {
-        if (class_exists(failure_message::class)) {
-            return failure_message::for_storage($jobstatus->errorcode);
-        }
-
-        $stored = trim((string) ($jobstatus->errormessage ?? ''));
-        if ($stored === '') {
-            return get_string('designer_image_generate_unavailable', 'block_dixeo_designer');
-        }
-
-        return $stored;
+        return failure_message::for_storage($jobstatus->errorcode);
     }
 
     /**
      * Translate a stored image failure code for the current user.
      *
      * An empty value stays empty so a structure with no image error does not
-     * show the generic failure sentence. A stored sentence is returned unchanged
-     * when the image failure mapper is not available.
+     * show the generic failure sentence.
      *
      * @param string|null $stored Code or sentence saved on the structure.
      * @return string|null
@@ -1044,9 +1031,6 @@ class designer_service {
     private static function present_image_error(?string $stored): ?string {
         if ($stored === null || $stored === '') {
             return null;
-        }
-        if (!class_exists(failure_message::class)) {
-            return $stored;
         }
 
         return failure_message::for_display($stored);

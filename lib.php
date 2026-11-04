@@ -393,8 +393,5 @@ function block_dixeo_designer_course_template_choices(): array {
  * The catalogue itself only reads that cache, so other setting reads do not call the API.
  */
 function block_dixeo_designer_warm_course_templates(): void {
-    if (!class_exists(\block_dixeo_designer\service\course_template_helper::class)) {
-        return;
-    }
     \block_dixeo_designer\service\course_template_helper::get_remote_course_template_choices();
 }
