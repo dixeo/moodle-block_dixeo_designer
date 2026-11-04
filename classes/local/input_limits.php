@@ -17,9 +17,13 @@
 namespace block_dixeo_designer\local;
 
 use block_dixeo_designer\workflow_constants;
+use local_dixeo\util\input_limits as shared_input_limits;
 
 /**
  * Size bounds applied to designer input before it is stored, decoded, or sent to Dixeo.
+ *
+ * The designer limits are domain values from {@see workflow_constants}; the checks themselves
+ * are the shared local_dixeo input primitives.
  *
  * @package    block_dixeo_designer
  * @copyright  2026 Dixeo
@@ -36,14 +40,14 @@ final class input_limits {
      * @throws \moodle_exception designer_error_structure_too_large, or invalidjson when it does not decode to an object.
      */
     public static function decode_structure(string $json): array {
-        if (strlen($json) > workflow_constants::MAX_STRUCTURE_BYTES) {
-            throw new \moodle_exception('designer_error_structure_too_large', 'block_dixeo_designer');
-        }
-        $decoded = json_decode($json, true, workflow_constants::MAX_STRUCTURE_DEPTH);
-        if (!is_array($decoded)) {
-            throw new \moodle_exception('invalidjson', 'block_dixeo_designer');
-        }
-        return $decoded;
+        return shared_input_limits::require_json_array(
+            $json,
+            workflow_constants::MAX_STRUCTURE_BYTES,
+            workflow_constants::MAX_STRUCTURE_DEPTH,
+            'block_dixeo_designer',
+            'designer_error_structure_too_large',
+            'invalidjson'
+        );
     }
 
     /**
@@ -86,8 +90,6 @@ final class input_limits {
      * @throws \moodle_exception
      */
     private static function require_max_length(string $text, int $max, string $errorkey): void {
-        if (\core_text::strlen($text) > $max) {
-            throw new \moodle_exception($errorkey, 'block_dixeo_designer', '', $max);
-        }
+        shared_input_limits::require_max_chars($text, $max, $errorkey, 'block_dixeo_designer');
     }
 }
