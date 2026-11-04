@@ -29,6 +29,7 @@ $string['attachfile'] = 'Joignez des documents sources qui seront utilisés pour
 $string['blocktitle'] = 'Concepteur de Cours';
 $string['cachedef_finalize_progress'] = 'Progression de finalisation du cours pour les tâches du concepteur';
 $string['cachedef_prepare_progress'] = 'Progression de préparation du cours pour les tâches du concepteur';
+$string['categorymissing'] = 'La catégorie de cours « {$a} » n’existe pas et vous n’êtes pas autorisé à la créer. Demandez à un administrateur de la créer.';
 $string['categoryname'] = 'Catégorie pour les cours créés';
 $string['categoryname_desc'] = 'Saisissez le nom de la catégorie de cours de premier niveau dans laquelle seront placés les cours créés par le Concepteur de Cours. La catégorie sera créée si elle n\'existe pas.';
 $string['certificate_generation'] = 'Activer la génération de certificat';

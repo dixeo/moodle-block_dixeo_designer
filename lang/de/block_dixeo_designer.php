@@ -29,6 +29,7 @@ $string['attachfile'] = 'Quelldokumente anhängen, die zur Kursgenerierung verwe
 $string['blocktitle'] = 'Kursdesigner';
 $string['cachedef_finalize_progress'] = 'Fortschritt der Kursfinalisierung für Designer-Aufträge';
 $string['cachedef_prepare_progress'] = 'Fortschritt der Kursvorbereitung für Designer-Aufträge';
+$string['categorymissing'] = 'Die Kurskategorie „{$a}“ existiert nicht und Sie dürfen sie nicht anlegen. Bitten Sie eine Administratorin oder einen Administrator, sie anzulegen.';
 $string['categoryname'] = 'Kategorie für erstellte Kurse';
 $string['categoryname_desc'] = 'Geben Sie den Namen der übergeordneten Kurskategorie ein, in der vom Kursdesigner erstellte Kurse abgelegt werden. Die Kategorie wird angelegt, falls sie noch nicht existiert.';
 $string['certificate_generation'] = 'Zertifikatsgenerierung aktivieren';

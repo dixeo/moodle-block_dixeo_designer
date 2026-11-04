@@ -39,15 +39,20 @@ class designer_course_creation_service {
     /**
      * Create an empty draft course for structure generation.
      *
+     * The user must be allowed to create courses in the Dixeo category, and to create that
+     * category when it does not exist yet. The user is then enrolled with the course creator role.
+     *
      * @param int $userid
      * @return \stdClass
+     * @throws \required_capability_exception When the user may not create the course or the category.
      */
     public function create_draft_course(int $userid): \stdClass {
         global $CFG, $DB;
 
         require_once($CFG->dirroot . '/course/lib.php');
 
-        $categoryid = $this->resolve_category_id();
+        $categoryid = $this->resolve_category_id($userid);
+        require_capability('moodle/course:create', \context_coursecat::instance($categoryid), $userid);
         $idnumber = self::IDNUMBER_DRAFT_PREFIX . gmdate('Ymd_His');
         $shortname = 'draft-' . gmdate('Ymd-His');
         $defaultformat = $this->default_course_format();
@@ -617,9 +622,13 @@ class designer_course_creation_service {
     /**
      * Resolve the category id used for new draft courses.
      *
+     * A missing category is created only for a user who may manage categories.
+     *
+     * @param int $userid User on whose behalf the category may be created.
      * @return int
+     * @throws \moodle_exception categorymissing when the category is missing and the user may not create it.
      */
-    private function resolve_category_id(): int {
+    private function resolve_category_id(int $userid): int {
         $categoryname = $this->designer_setting('categoryname');
         if ($categoryname === '') {
             $categoryname = get_string('default_categoryname', 'block_dixeo_designer');
@@ -630,6 +639,10 @@ class designer_course_creation_service {
         $existingid = $DB->get_field('course_categories', 'id', ['name' => $categoryname, 'parent' => 0]);
         if ($existingid) {
             return (int) $existingid;
+        }
+
+        if (!has_capability('moodle/category:manage', \context_system::instance(), $userid)) {
+            throw new \moodle_exception('categorymissing', 'block_dixeo_designer', '', s($categoryname));
         }
 
         $created = \core_course_category::create([
@@ -1087,7 +1100,7 @@ class designer_course_creation_service {
      * @return bool False if the course row is missing.
      */
     public function restore_draft_course_metadata_after_cancel(int $courseid): bool {
-        global $CFG, $DB;
+        global $CFG, $DB, $USER;
 
         require_once($CFG->dirroot . '/course/lib.php');
 
@@ -1096,7 +1109,12 @@ class designer_course_creation_service {
             return false;
         }
 
-        $categoryid = $this->resolve_category_id();
+        try {
+            $categoryid = $this->resolve_category_id((int) $USER->id);
+        } catch (\moodle_exception $e) {
+            // The Dixeo category is gone and this user may not recreate it: the course stays where it is.
+            $categoryid = (int) $course->category;
+        }
         $idnumber = self::IDNUMBER_DRAFT_PREFIX . gmdate('Ymd_His');
         $basename = 'draft-' . gmdate('Ymd-His');
         $candidate = $basename;

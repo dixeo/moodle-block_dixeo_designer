@@ -29,6 +29,7 @@ $string['attachfile'] = 'Adjunte documentos fuente que se utilizarán para gener
 $string['blocktitle'] = 'Diseñador de Cursos';
 $string['cachedef_finalize_progress'] = 'Progreso de finalización del curso para trabajos del diseñador';
 $string['cachedef_prepare_progress'] = 'Progreso de preparación del curso para trabajos del diseñador';
+$string['categorymissing'] = 'La categoría de cursos «{$a}» no existe y no tiene permiso para crearla. Pida a un administrador que la cree.';
 $string['categoryname'] = 'Categoría para cursos creados';
 $string['categoryname_desc'] = 'Introduce el nombre de la categoría de curso de nivel superior donde se colocarán los cursos creados con el Diseñador de Cursos. Se creará la categoría si no existe.';
 $string['certificate_generation'] = 'Habilitar generación de certificados';

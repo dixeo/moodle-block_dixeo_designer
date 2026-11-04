@@ -29,6 +29,7 @@ $string['attachfile'] = 'Attach source documents that will be used to generate t
 $string['blocktitle'] = 'Course Designer';
 $string['cachedef_finalize_progress'] = 'Course finalization progress for designer jobs';
 $string['cachedef_prepare_progress'] = 'Course preparation progress for designer jobs';
+$string['categorymissing'] = 'The course category "{$a}" does not exist and you are not allowed to create it. Ask an administrator to create it.';
 $string['categoryname'] = 'Category for created courses';
 $string['categoryname_desc'] = 'Enter the name of the top-level course category where courses created by Course Designer will be placed. The category will be created if it does not exist.';
 $string['certificate_generation'] = 'Enable Certificate Generation';

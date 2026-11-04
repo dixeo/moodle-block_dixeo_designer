@@ -393,6 +393,74 @@ final class designer_course_creation_service_test extends advanced_testcase {
     }
 
     /**
+     * A user who may not create courses in the Dixeo category gets no draft course.
+     */
+    public function test_create_draft_course_requires_course_create_in_the_category(): void {
+        global $DB;
+
+        $name = get_string('default_categoryname', 'block_dixeo_designer');
+        $category = $this->getDataGenerator()->create_category(['name' => $name]);
+        $user = $this->create_designer_user();
+        $roleid = $DB->get_field('role', 'id', ['shortname' => 'coursecreator']);
+        role_assign($roleid, $user->id, \context_system::instance()->id);
+        $prohibit = $this->getDataGenerator()->create_role();
+        assign_capability('moodle/course:create', CAP_PROHIBIT, $prohibit, \context_coursecat::instance($category->id)->id);
+        role_assign($prohibit, $user->id, \context_coursecat::instance($category->id)->id);
+        $this->setUser($user);
+        $coursesbefore = $DB->count_records('course');
+
+        try {
+            (new designer_course_creation_service())->create_draft_course((int) $user->id);
+            $this->fail('A draft course was created without moodle/course:create.');
+        } catch (\required_capability_exception $e) {
+            $this->assertSame('nopermissions', $e->errorcode);
+        }
+        $this->assertSame($coursesbefore, $DB->count_records('course'));
+    }
+
+    /**
+     * A missing Dixeo category is not created for a user who may not manage categories.
+     */
+    public function test_create_draft_course_does_not_create_the_category_without_category_manage(): void {
+        global $DB;
+
+        $user = $this->create_designer_user();
+        $roleid = $DB->get_field('role', 'id', ['shortname' => 'coursecreator']);
+        role_assign($roleid, $user->id, \context_system::instance()->id);
+        $this->setUser($user);
+        $name = get_string('default_categoryname', 'block_dixeo_designer');
+        $coursesbefore = $DB->count_records('course');
+
+        try {
+            (new designer_course_creation_service())->create_draft_course((int) $user->id);
+            $this->fail('The Dixeo category was created without moodle/category:manage.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('categorymissing', $e->errorcode);
+        }
+        $this->assertFalse($DB->record_exists('course_categories', ['name' => $name, 'parent' => 0]));
+        $this->assertSame($coursesbefore, $DB->count_records('course'));
+
+        $this->setAdminUser();
+        $category = $this->getDataGenerator()->create_category(['name' => $name]);
+        $this->setUser($user);
+        $course = (new designer_course_creation_service())->create_draft_course((int) $user->id);
+        $this->assertSame((int) $category->id, (int) $course->category);
+    }
+
+    /**
+     * Create a user who holds local/dixeo:create at system level.
+     *
+     * @return \stdClass
+     */
+    private function create_designer_user(): \stdClass {
+        $user = $this->getDataGenerator()->create_user();
+        $roleid = $this->getDataGenerator()->create_role();
+        assign_capability('local/dixeo:create', CAP_ALLOW, $roleid, \context_system::instance()->id);
+        role_assign($roleid, $user->id, \context_system::instance()->id);
+        return $user;
+    }
+
+    /**
      * Enable local_dixeo section image generation for this test.
      */
     private function enable_section_image_generation(): void {
