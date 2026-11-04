@@ -296,15 +296,15 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
 
         $client = $this->createMock(\local_dixeo\api\client::class);
         $client->method('is_configured')->willReturn(true);
-        $deleted = [];
-        $client->expects($this->exactly(2))
-            ->method('delete_files')
-            ->willReturnCallback(function (string $key) use (&$deleted): array {
-                $deleted[] = $key;
-                return [];
-            });
+        $client->expects($this->never())->method('delete_files');
         \local_dixeo\external\service_factory::set_test_client($client);
+        $deleted = [];
         $filesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
+        $filesync->expects($this->exactly(2))
+            ->method('delete_remote_files')
+            ->willReturnCallback(function (string $key) use (&$deleted): void {
+                $deleted[] = $key;
+            });
         $filesync->expects($this->once())
             ->method('disable_sync')
             ->with(

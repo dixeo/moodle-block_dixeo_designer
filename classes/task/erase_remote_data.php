@@ -84,18 +84,18 @@ class erase_remote_data extends remote_erasure_task {
         $jobids = array_map('strval', (array) ($data->jobids ?? []));
         $courseids = array_map('intval', (array) ($data->courseids ?? []));
 
-        $client = service_factory::get_client();
+        $filesync = service_factory::get_file_sync_service();
         foreach ($jobids as $jobid) {
-            $client->delete_files($jobid);
+            $filesync->delete_remote_files($jobid);
         }
         $adminid = (int) get_admin()->id;
         foreach ($courseids as $courseid) {
             if ($DB->record_exists('course', ['id' => $courseid])) {
                 // The clean-up is a system action: recording the subject as the actor would
                 // store their id again in local_dixeo and in the event log after erasure.
-                service_factory::get_file_sync_service()->disable_sync($courseid, $adminid, true);
+                $filesync->disable_sync($courseid, $adminid, true);
             } else {
-                $client->delete_files((string) $courseid);
+                $filesync->delete_remote_files((string) $courseid);
             }
         }
 

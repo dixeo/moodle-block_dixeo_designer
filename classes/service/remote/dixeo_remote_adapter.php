@@ -68,17 +68,7 @@ class dixeo_remote_adapter {
      */
     public function get_file_sync_progress(int $courseid): object {
         dixeo_capability::require_generate_for_course($courseid);
-        $filesync = \local_dixeo\external\service_factory::get_file_sync_service();
-
-        // Avoid remote polling when the course is already synchronized/none.
-        $status = $filesync->get_status($courseid);
-        $localstatus = (string) ($status->status ?? 'none');
-        $uploadbytes = (int) ($status->uploadbytes ?? 0);
-        $uploadtotal = (int) ($status->uploadbytestotal ?? 0);
-        $outbounduploadactive = $localstatus === 'syncing' && $uploadtotal > 0 && $uploadbytes < $uploadtotal;
-        if (!in_array($localstatus, ['synchronized', 'none'], true) && !$outbounduploadactive) {
-            $status = $filesync->poll_status($courseid);
-        }
+        $status = \local_dixeo\external\service_factory::get_file_sync_service()->get_live_status($courseid);
 
         return (object) [
             'status' => $status->status ?? 'none',
@@ -93,9 +83,9 @@ class dixeo_remote_adapter {
     }
 
     /**
-     * Upload submission files to remote vector store for the given job.
+     * Replace the files Dixeo holds for the given job with the submission files.
      *
-     * Failure is handled by caller (currently "delete_files" is best-effort).
+     * The pre-delete is best effort; an upload failure is left to the caller.
      *
      * @param string $jobid
      * @param array $files Array of \stored_file instances
@@ -104,16 +94,6 @@ class dixeo_remote_adapter {
      */
     public function sync_files_to_remote(string $jobid, array $files, int $courseid): void {
         dixeo_capability::require_generate_for_course($courseid);
-        $client = \local_dixeo\external\service_factory::get_client();
-
-        try {
-            $client->delete_files($jobid);
-        } catch (\Throwable $e) {
-            debugging('sync_files_to_remote: delete_files ignored: ' . $e->getMessage(), DEBUG_DEVELOPER);
-        }
-
-        if (!empty($files)) {
-            $client->upload_files($jobid, $files);
-        }
+        \local_dixeo\external\service_factory::get_file_sync_service()->replace_remote_files($jobid, $files);
     }
 }
