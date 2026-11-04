@@ -29,6 +29,7 @@ use core_external\external_function_parameters;
 use core_external\external_multiple_structure;
 use core_external\external_single_structure;
 use core_external\external_value;
+use block_dixeo_designer\local\input_limits;
 use local_dixeo\service\designer_structure_finalize_validation_service;
 
 /**
@@ -92,11 +93,12 @@ final class validate_structure_for_finalize extends external_api {
             throw new \moodle_exception('nopermissions', 'error');
         }
 
-        $decoded = json_decode($params['structure'], true);
-        if (!is_array($decoded)) {
+        try {
+            $decoded = input_limits::decode_structure($params['structure']);
+        } catch (\moodle_exception $e) {
             return [
                 'valid' => false,
-                'errors' => [get_string('invalidjson', 'block_dixeo_designer')],
+                'errors' => [get_string($e->errorcode, 'block_dixeo_designer')],
                 'fielderrors' => [],
             ];
         }

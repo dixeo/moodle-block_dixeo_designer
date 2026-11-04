@@ -78,6 +78,8 @@ final class start_generation extends external_api {
         \block_dixeo_designer\local\job_id::require_valid($jobid);
         \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
 
+        \block_dixeo_designer\local\input_limits::require_description($description);
+
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
         $start = $service->prepare_generation($jobid, (int) $USER->id, $description, $templateid);
 

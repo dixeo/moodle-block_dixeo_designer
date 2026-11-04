@@ -31,6 +31,7 @@ use core_external\external_single_structure;
 use core_external\external_value;
 use block_dixeo_designer\local\dixeo_capability;
 use block_dixeo_designer\local\generated_image;
+use block_dixeo_designer\local\input_limits;
 use block_dixeo_designer\local\module_type;
 use local_dixeo\service\image\policy;
 
@@ -84,11 +85,7 @@ final class save_structure extends external_api {
         \block_dixeo_designer\local\job_id::require_valid($params['job_id']);
         dixeo_capability::require_designer_enabled_for_job($params['job_id']);
 
-        // Validate JSON.
-        $decoded = json_decode($params['structure'], true);
-        if (!is_array($decoded)) {
-            throw new \moodle_exception('invalidjson', 'block_dixeo_designer');
-        }
+        $decoded = input_limits::decode_structure($params['structure']);
 
         // A structure belongs to the submission of the same job: only its owner (or a site administrator) saves it.
         $submission = (new \block_dixeo_designer\service\submission\service())->get_submission($params['job_id']);

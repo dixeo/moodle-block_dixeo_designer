@@ -138,7 +138,11 @@ class designer_course_creation_service {
         // - or the unwrapped course_structure itself (what the designer stores).
         $data = $result['course_structure'] ?? $result;
         $sections = $data['sections'] ?? [];
-        $title = $data['title'] ?? get_string('blocktitle', 'block_dixeo_designer');
+        // Course and section names are plain text.
+        $title = trim(clean_param((string) ($data['title'] ?? ''), PARAM_TEXT));
+        if ($title === '') {
+            $title = get_string('blocktitle', 'block_dixeo_designer');
+        }
         $sectiontotal = count($sections);
         $moduletotal = 0;
         foreach (array_values($sections) as $sd) {
@@ -182,7 +186,7 @@ class designer_course_creation_service {
             if (!$section) {
                 return null;
             }
-            $section->name = $sectiondata['title'] ?? '';
+            $section->name = trim(clean_param((string) ($sectiondata['title'] ?? ''), PARAM_TEXT));
             $section->summary = $sectiondata['summary'] ?? '';
             $section->summaryformat = FORMAT_HTML;
             $DB->update_record('course_sections', $section);

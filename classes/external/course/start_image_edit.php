@@ -70,6 +70,8 @@ final class start_image_edit extends external_api {
         \block_dixeo_designer\local\job_id::require_valid($jobid);
         \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
 
+        \block_dixeo_designer\local\input_limits::require_image_instructions($instructions);
+
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
         $result = $service->start_structure_image_edit($jobid, (int) $USER->id, $instructions);
 

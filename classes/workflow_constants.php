@@ -55,4 +55,16 @@ final class workflow_constants {
 
     /** @var int Minimum instruction length enforced by remote structure generation. */
     public const MIN_INSTRUCTIONS_LEN = 20;
+
+    /** @var int Largest structure JSON accepted from the browser, in bytes (1 MB). */
+    public const MAX_STRUCTURE_BYTES = 1048576;
+
+    /** @var int Deepest JSON nesting accepted for a structure. */
+    public const MAX_STRUCTURE_DEPTH = 32;
+
+    /** @var int Longest course description accepted, in characters. */
+    public const MAX_DESCRIPTION_LEN = 10000;
+
+    /** @var int Longest course image edit instruction accepted, in characters. */
+    public const MAX_IMAGE_INSTRUCTIONS_LEN = 2000;
 }

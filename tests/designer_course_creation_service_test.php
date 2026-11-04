@@ -165,6 +165,37 @@ final class designer_course_creation_service_test extends advanced_testcase {
         $this->assertSame('done', $cached['phase']);
     }
 
+    public function test_finalize_draft_course_writes_course_and_section_names_as_plain_text(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course();
+        $pending = operation_result::pending('module-op-1', 'processing', 10);
+        $this->mockmodulegen->method('submit_fill_job_for_course')->willReturn($pending);
+        $this->mockjobservice->method('wait_for_job')->willReturn($pending);
+
+        $result = [
+            'title' => '<b>Rivers</b><script>alert(1)</script>',
+            'sections' => [
+                [
+                    'title' => '<i>Source</i> to sea',
+                    'modules' => [
+                        ['type' => 'page', 'title' => 'Module 1', 'instructions' => 'M instructions'],
+                    ],
+                ],
+            ],
+        ];
+
+        $created = (new designer_course_creation_service())->finalize_draft_course($course->id, $result, 2, 'djobplain');
+        $this->assertDebuggingCalled(null, DEBUG_DEVELOPER);
+
+        $this->assertStringNotContainsString('<', $created->fullname);
+        $this->assertStringStartsWith('Rivers', $created->fullname);
+        $this->assertSame(
+            'Source to sea',
+            $DB->get_field('course_sections', 'name', ['course' => $course->id, 'section' => 1])
+        );
+    }
+
     public function test_finalize_draft_course_returns_null_when_course_missing(): void {
         $userid = 2;
         $jobid = 'job-' . uniqid();
