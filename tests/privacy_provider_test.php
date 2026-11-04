@@ -285,7 +285,8 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
     }
 
     /**
-     * The task deletes job files and the files of a missing draft course, and stops sync on an existing draft.
+     * The task deletes job files and the files of a missing draft course, and stops sync on an existing draft
+     * with the site administrator as the actor, never the erased user.
      */
     public function test_erase_task_requests_remote_deletion(): void {
         $user = $this->getDataGenerator()->create_user();
@@ -304,7 +305,14 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
         $filesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
         $filesync->expects($this->once())
             ->method('disable_sync')
-            ->with((int) $draft->id, (int) $user->id, true);
+            ->with(
+                (int) $draft->id,
+                $this->logicalAnd(
+                    $this->identicalTo((int) get_admin()->id),
+                    $this->logicalNot($this->identicalTo((int) $user->id))
+                ),
+                true
+            );
         \local_dixeo\external\service_factory::set_test_file_sync_service($filesync);
 
         $task = new erase_remote_data();

@@ -102,10 +102,12 @@ class erase_remote_data extends adhoc_task {
             foreach ($jobids as $jobid) {
                 $client->delete_files($jobid);
             }
+            $adminid = (int) get_admin()->id;
             foreach ($courseids as $courseid) {
                 if ($DB->record_exists('course', ['id' => $courseid])) {
-                    $actorid = $userid > 0 ? $userid : (int) get_admin()->id;
-                    service_factory::get_file_sync_service()->disable_sync($courseid, $actorid, true);
+                    // The clean-up is a system action: recording the subject as the actor would
+                    // store their id again in local_dixeo and in the event log after erasure.
+                    service_factory::get_file_sync_service()->disable_sync($courseid, $adminid, true);
                 } else {
                     $client->delete_files((string) $courseid);
                 }
