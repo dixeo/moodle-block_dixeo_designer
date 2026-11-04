@@ -30,6 +30,7 @@ use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
 use block_dixeo_designer\local\dixeo_capability;
+use block_dixeo_designer\local\generated_image;
 use local_dixeo\service\image\policy;
 
 /**
@@ -88,13 +89,18 @@ final class save_structure extends external_api {
         }
 
         $existing = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
+        $ownerid = $existing ? (int) $existing->userid : (int) $USER->id;
+
+        // The course image may only reference the owner's own generated image.
+        $sanitised = generated_image::sanitise_structure($decoded, $ownerid);
+        $structurejson = $sanitised === $decoded ? $params['structure'] : json_encode($sanitised);
 
         if ($existing) {
             // Check user owns this structure (or is a site administrator).
             if ($existing->userid != $USER->id && !is_siteadmin()) {
                 throw new \moodle_exception('nopermissions', 'error');
             }
-            $DB->set_field('block_dixeo_designer_structure', 'structure', $params['structure'], ['id' => $existing->id]);
+            $DB->set_field('block_dixeo_designer_structure', 'structure', $structurejson, ['id' => $existing->id]);
             $DB->set_field('block_dixeo_designer_structure', 'timecreated', time(), ['id' => $existing->id]);
             return ['success' => true];
         }
@@ -104,7 +110,7 @@ final class save_structure extends external_api {
             'jobid' => $params['job_id'],
             'userid' => $USER->id,
             'description' => '',
-            'structure' => $params['structure'],
+            'structure' => $structurejson,
             'timecreated' => time(),
         ]);
 

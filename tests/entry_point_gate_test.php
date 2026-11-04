@@ -160,26 +160,47 @@ final class entry_point_gate_test extends \advanced_testcase {
     private function service_with_structure(string $jobid, string $mode): array {
         $course = $this->getDataGenerator()->create_course();
         $this->create_submission($jobid, (int) $course->id);
-        $url = \moodle_url::make_pluginfile_url(
-            \context_system::instance()->id,
-            'block_dixeo_designer',
-            'generated_images',
-            (int) $this->user->id,
-            '/',
-            'course-image.jpg'
-        )->out(false);
+        $url = $this->create_owned_image();
         (new service\structure\repository())->save_structure(
             $jobid,
             (int) $this->user->id,
             '',
             ['course_structure' => ['title' => 'Rivers', 'image' => $url, 'sections' => []]]
         );
+        $this->set_config_value('image_generation_enabled', \context_system::instance(), '1');
         $this->set_config_value('image_generation_course_mode', \context_system::instance(), $mode);
 
         $jobservice = $this->createMock(\local_dixeo\service\job_service::class);
         $jobservice->expects($this->never())->method($this->anything());
 
         return [new designer_service(null, null, null, null, null, $jobservice, null)];
+    }
+
+    /**
+     * Store a generated course image for the test user and return its pluginfile URL.
+     *
+     * @return string
+     */
+    private function create_owned_image(): string {
+        global $CFG;
+
+        $file = get_file_storage()->create_file_from_pathname([
+            'contextid' => \context_system::instance()->id,
+            'component' => 'block_dixeo_designer',
+            'filearea' => 'generated_images',
+            'itemid' => (int) $this->user->id,
+            'filepath' => '/',
+            'filename' => 'course-image.png',
+        ], $CFG->dirroot . '/blocks/dixeo_designer/pix/dixeo-logo.png');
+
+        return \moodle_url::make_pluginfile_url(
+            $file->get_contextid(),
+            $file->get_component(),
+            $file->get_filearea(),
+            $file->get_itemid(),
+            $file->get_filepath(),
+            $file->get_filename()
+        )->out(false);
     }
 
     /**

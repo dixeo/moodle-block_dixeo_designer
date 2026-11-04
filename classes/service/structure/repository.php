@@ -53,7 +53,7 @@ class repository {
         global $DB;
 
         $now = time();
-        $json = json_encode($result);
+        $json = json_encode(\block_dixeo_designer\local\generated_image::sanitise_structure($result, $userid));
         $existing = $DB->get_record(self::TABLE, ['jobid' => $jobid], '*', IGNORE_MISSING);
 
         if ($existing) {

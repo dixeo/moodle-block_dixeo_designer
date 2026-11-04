@@ -22,12 +22,12 @@ use block_dixeo_designer\event\generation_started;
 use block_dixeo_designer\cancellation\cancellation_context;
 use block_dixeo_designer\cancellation\cancellation_policy_resolver;
 use block_dixeo_designer\local\dixeo_capability;
+use block_dixeo_designer\local\generated_image;
 use block_dixeo_designer\service\cache\prepare_progress_cache;
 use block_dixeo_designer\service\remote\dixeo_remote_adapter;
 use local_dixeo\repository\image\job_repository;
 use local_dixeo\service\image\failure_message;
 use local_dixeo\service\image\job_orchestrator;
-use local_dixeo\service\image\pluginfile_helper;
 use local_dixeo\service\image\policy;
 use local_dixeo\service\image_generation_service;
 use local_dixeo\service\image\poll\manager as poll_manager;
@@ -921,23 +921,24 @@ class designer_service {
             throw new \moodle_exception('structurenotfound', 'block_dixeo_designer');
         }
 
-        $currentimage = $this->extract_structure_image($structure->structure);
-        if (!$currentimage) {
-            throw new \moodle_exception('invalidinput', 'block_dixeo_designer');
-        }
-
         policy::assert_enabled(
             policy::ENTITY_COURSE,
             policy::ACTION_EDIT,
             \context_course::instance((int) $submission->courseid)
         );
+
+        $currentimage = $this->extract_structure_image($structure->structure);
+        $currentfile = $currentimage ? generated_image::get_owned_file($currentimage, $userid) : null;
+        if (!$currentfile) {
+            throw new \moodle_exception('invalidinput', 'block_dixeo_designer');
+        }
         $this->cancel_image_job_if_running(
             $structure->imagejobid ?? null,
             (int) $submission->courseid,
             $userid
         );
 
-        $imagesbase64 = [pluginfile_helper::image_url_to_base64($currentimage)];
+        $imagesbase64 = [base64_encode($currentfile->get_content())];
 
         $operation = $this->get_image_service()->submit_course_image_edit_job(
             (int) $submission->courseid,
@@ -1335,19 +1336,18 @@ class designer_service {
     }
 
     /**
-     * Copy a designer-generated pluginfile image onto the course overview file area.
+     * Copy the owner's designer-generated image onto the course overview file area.
+     *
+     * Any URL that is not the owner's generated image is ignored.
      *
      * @param int $courseid
      * @param string $imageurl
-     * @param int $userid
+     * @param int $userid Submission owner.
      * @return void
      */
     private function try_apply_designer_saved_image_to_course(int $courseid, string $imageurl, int $userid): void {
-        $file = pluginfile_helper::get_stored_file_from_pluginfile_url($imageurl);
+        $file = generated_image::get_owned_file($imageurl, $userid);
         if (!$file) {
-            return;
-        }
-        if ($file->get_component() !== 'block_dixeo_designer' || $file->get_filearea() !== 'generated_images') {
             return;
         }
         $binary = $file->get_content();
