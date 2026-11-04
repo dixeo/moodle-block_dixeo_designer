@@ -110,6 +110,42 @@ final class course_template_helper_test extends advanced_testcase {
     }
 
     /**
+     * Template names from the catalogue reach the selector as plain text.
+     */
+    public function test_export_template_selector_strips_markup_from_names(): void {
+        global $PAGE;
+
+        $this->resetAfterTest(true);
+        $mockservice = $this->createMock(course_template_service::class);
+        $mockservice->method('is_configured')->willReturn(true);
+        $mockservice->method('get_cached_templates')->willReturn([
+            [
+                'id' => 'tpl-x',
+                'name' => '<b>x</b></select><script>alert(1)</script> & co',
+                'description' => '',
+            ],
+        ]);
+        $mockservice->method('get_cached_choices')->willReturn(['tpl-x' => '<img src=x onerror=alert(1)>Plain']);
+        service_factory::set_test_course_template_service($mockservice);
+
+        $output = $PAGE->get_renderer('core');
+        $export = course_template_helper::export_template_selector($output, 'tpl-x');
+        $this->assertNotNull($export);
+
+        foreach ($export['select']['options'] as $option) {
+            $this->assertStringNotContainsString('<', $option['name']);
+        }
+        $this->assertStringNotContainsString('<', $export['dropdown']['buttoncontent']);
+        $this->assertStringContainsString('&amp; co', $export['dropdown']['buttoncontent']);
+
+        $html = $output->render_from_template('block_dixeo_designer/template_selector', ['template_selector' => $export]);
+        $this->assertStringNotContainsString('<script', $html);
+        $this->assertStringNotContainsString('</select><', $html);
+
+        $this->assertSame(['tpl-x' => 'Plain'], course_template_helper::get_remote_course_template_choices());
+    }
+
+    /**
      * Create a mock course template service with default and alt templates.
      *
      * @return course_template_service

@@ -58,7 +58,21 @@ class course_template_helper {
         if (!$service->is_configured()) {
             return [];
         }
-        return $service->get_cached_choices();
+        $choices = [];
+        foreach ($service->get_cached_choices() as $id => $label) {
+            $choices[$id] = self::clean_template_name($label);
+        }
+        return $choices;
+    }
+
+    /**
+     * Template names come from the Dixeo catalogue and are shown as plain text only.
+     *
+     * @param mixed $name Remote template name.
+     * @return string Name without markup.
+     */
+    public static function clean_template_name($name): string {
+        return trim(clean_param((string) $name, PARAM_TEXT));
     }
 
     /**
@@ -160,7 +174,7 @@ class course_template_helper {
             if ((string) $template['id'] === (string) $selectedtemplateid) {
                 $definition['selected'] = true;
             }
-            $choicelist->add_option($template['id'], $template['name'], $definition);
+            $choicelist->add_option($template['id'], self::clean_template_name($template['name']), $definition);
         }
 
         return $choicelist;
@@ -182,8 +196,9 @@ class course_template_helper {
             return null;
         }
 
+        // The trigger button content is printed as HTML, so the selected plain-text name is escaped here.
         $dialog = new status(
-            $choicelist->get_selected_content($output),
+            s($choicelist->get_selected_content($output)),
             $choicelist,
             [
                 'extras' => ['data-form-controls' => 'templateid'],

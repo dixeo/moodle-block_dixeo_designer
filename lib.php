@@ -367,7 +367,7 @@ function block_dixeo_designer_course_template_choices(): array {
                 continue;
             }
             $id = (string) ($template['id'] ?? '');
-            $name = trim((string) ($template['name'] ?? ''));
+            $name = trim(clean_param((string) ($template['name'] ?? ''), PARAM_TEXT));
             if ($id !== '' && $name !== '') {
                 $choices[$id] = $name;
             }
