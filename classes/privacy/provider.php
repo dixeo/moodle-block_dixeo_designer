@@ -24,6 +24,8 @@
 
 namespace block_dixeo_designer\privacy;
 
+use block_dixeo_designer\service\designer_course_creation_service;
+use block_dixeo_designer\task\erase_remote_data;
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
 use core_privacy\local\request\approved_userlist;
@@ -289,12 +291,17 @@ class provider implements
             return;
         }
 
+        $submissions = $DB->get_records('block_dixeo_designer_submission', null, '', 'id, jobid, courseid');
+        $structurejobids = $DB->get_fieldset_select('block_dixeo_designer_structure', 'jobid', '1 = 1');
+
         $fs = get_file_storage();
         $fs->delete_area_files($context->id, 'block_dixeo_designer', self::FILEAREA_SUBMISSIONFILES);
         $fs->delete_area_files($context->id, 'block_dixeo_designer', self::FILEAREA_GENERATED_IMAGES);
 
         $DB->delete_records('block_dixeo_designer_submission');
         $DB->delete_records('block_dixeo_designer_structure');
+
+        self::queue_remote_erasure(0, $submissions, $structurejobids);
     }
 
     /**
@@ -357,7 +364,14 @@ class provider implements
             'userid ' . $userinsql,
             $userinparams,
             '',
-            'id, userid'
+            'id, userid, jobid, courseid'
+        );
+        $structures = $DB->get_records_select(
+            'block_dixeo_designer_structure',
+            'userid ' . $userinsql,
+            $userinparams,
+            '',
+            'id, userid, jobid'
         );
         foreach ($submissions as $submission) {
             $fs->delete_area_files(
@@ -379,5 +393,44 @@ class provider implements
 
         $DB->delete_records_select('block_dixeo_designer_structure', 'userid ' . $userinsql, $userinparams);
         $DB->delete_records_select('block_dixeo_designer_submission', 'userid ' . $userinsql, $userinparams);
+
+        foreach ($userids as $userid) {
+            $usersubmissions = array_filter($submissions, fn($row) => (int) $row->userid === $userid);
+            $userstructures = array_filter($structures, fn($row) => (int) $row->userid === $userid);
+            self::queue_remote_erasure($userid, $usersubmissions, array_column($userstructures, 'jobid'));
+        }
+    }
+
+    /**
+     * Queue the deletion of the files that erased submissions sent to Dixeo.
+     *
+     * Runs after the local rows are gone, so the remote calls happen outside the privacy
+     * request and are retried by {@see erase_remote_data} until Dixeo confirms them.
+     * Only draft courses are erased remotely: a finished course is course content, not
+     * personal data of its designer.
+     *
+     * @param int $userid Subject of the request, or 0 for a whole context.
+     * @param \stdClass[] $submissions Submission rows with jobid and courseid.
+     * @param string[] $structurejobids Job ids of the erased structure rows.
+     * @return void
+     */
+    private static function queue_remote_erasure(int $userid, array $submissions, array $structurejobids): void {
+        global $DB;
+
+        $jobids = $structurejobids;
+        $courseids = [];
+        foreach ($submissions as $submission) {
+            $jobids[] = (string) $submission->jobid;
+            $courseid = (int) ($submission->courseid ?? 0);
+            if ($courseid <= SITEID) {
+                continue;
+            }
+            $idnumber = $DB->get_field('course', 'idnumber', ['id' => $courseid]);
+            if ($idnumber === false || strpos((string) $idnumber, designer_course_creation_service::IDNUMBER_DRAFT_PREFIX) === 0) {
+                $courseids[] = $courseid;
+            }
+        }
+
+        erase_remote_data::queue($userid, $jobids, $courseids);
     }
 }

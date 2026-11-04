@@ -26,6 +26,7 @@
 namespace block_dixeo_designer;
 
 use block_dixeo_designer\privacy\provider;
+use block_dixeo_designer\task\erase_remote_data;
 use core_privacy\local\metadata\collection;
 use core_privacy\local\request\approved_contextlist;
 use core_privacy\local\request\approved_userlist;
@@ -39,11 +40,17 @@ use core_privacy\local\request\writer;
  * @copyright  2026 Dixeo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers     \block_dixeo_designer\privacy\provider
+ * @covers     \block_dixeo_designer\task\erase_remote_data
  */
 final class privacy_provider_test extends \core_privacy\tests\provider_testcase {
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
+    }
+
+    public function tearDown(): void {
+        \local_dixeo\external\service_factory::reset();
+        parent::tearDown();
     }
 
     public function test_get_metadata(): void {
@@ -230,5 +237,160 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
         provider::delete_data_for_all_users_in_context($systemcontext);
         $this->assertFalse($DB->record_exists('block_dixeo_designer_submission', []));
         $this->assertFalse($DB->record_exists('block_dixeo_designer_structure', []));
+    }
+
+    /**
+     * Erasing a user queues remote deletion of their job ids and draft courses, after the rows are gone.
+     */
+    public function test_delete_data_for_user_queues_remote_erasure(): void {
+        $user = $this->getDataGenerator()->create_user();
+        $other = $this->getDataGenerator()->create_user();
+        $draft = $this->getDataGenerator()->create_course(['idnumber' => 'dixeo_draft_privacy']);
+        $finished = $this->getDataGenerator()->create_course(['idnumber' => 'finished']);
+        $this->insert_submission('djobdraft', (int) $user->id, (int) $draft->id);
+        $this->insert_submission('djobfinished', (int) $user->id, (int) $finished->id);
+        $this->insert_submission('djobgone', (int) $user->id, 999999);
+        $this->insert_structure('djobstructure', (int) $user->id);
+        $this->insert_submission('djobother', (int) $other->id, null);
+
+        $approved = new approved_contextlist($user, 'block_dixeo_designer', [\context_system::instance()->id]);
+        provider::delete_data_for_user($approved);
+
+        $tasks = \core\task\manager::get_adhoc_tasks(erase_remote_data::class);
+        $this->assertCount(1, $tasks);
+        $data = reset($tasks)->get_custom_data();
+        $this->assertSame((int) $user->id, (int) $data->userid);
+        $jobids = (array) $data->jobids;
+        sort($jobids);
+        $this->assertSame(['djobdraft', 'djobfinished', 'djobgone', 'djobstructure'], $jobids);
+        $courseids = array_map('intval', (array) $data->courseids);
+        sort($courseids);
+        $this->assertSame([(int) $draft->id, 999999], $courseids);
+    }
+
+    /**
+     * Erasing every user in the system context queues one remote erasure for all jobs.
+     */
+    public function test_delete_data_for_all_users_queues_remote_erasure(): void {
+        $user = $this->getDataGenerator()->create_user();
+        $this->insert_submission('djoball', (int) $user->id, null);
+
+        provider::delete_data_for_all_users_in_context(\context_system::instance());
+
+        $tasks = \core\task\manager::get_adhoc_tasks(erase_remote_data::class);
+        $this->assertCount(1, $tasks);
+        $data = reset($tasks)->get_custom_data();
+        $this->assertSame(0, (int) $data->userid);
+        $this->assertSame(['djoball'], (array) $data->jobids);
+    }
+
+    /**
+     * The task deletes job files and the files of a missing draft course, and stops sync on an existing draft.
+     */
+    public function test_erase_task_requests_remote_deletion(): void {
+        $user = $this->getDataGenerator()->create_user();
+        $draft = $this->getDataGenerator()->create_course(['idnumber' => 'dixeo_draft_task']);
+
+        $client = $this->createMock(\local_dixeo\api\client::class);
+        $client->method('is_configured')->willReturn(true);
+        $deleted = [];
+        $client->expects($this->exactly(2))
+            ->method('delete_files')
+            ->willReturnCallback(function (string $key) use (&$deleted): array {
+                $deleted[] = $key;
+                return [];
+            });
+        \local_dixeo\external\service_factory::set_test_client($client);
+        $filesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
+        $filesync->expects($this->once())
+            ->method('disable_sync')
+            ->with((int) $draft->id, (int) $user->id, true);
+        \local_dixeo\external\service_factory::set_test_file_sync_service($filesync);
+
+        $task = new erase_remote_data();
+        $task->set_custom_data((object) [
+            'userid' => (int) $user->id,
+            'jobids' => ['djobone'],
+            'courseids' => [(int) $draft->id, 999999],
+        ]);
+        $this->expectOutputRegex('/erase_remote_data/');
+        $task->execute();
+        $this->assertSame(['djobone', '999999'], $deleted);
+    }
+
+    /**
+     * Without an API key the task fails so it is retried, and the last failure notifies administrators.
+     */
+    public function test_erase_task_fails_loudly_without_api_key(): void {
+        $client = $this->createMock(\local_dixeo\api\client::class);
+        $client->method('is_configured')->willReturn(false);
+        $client->expects($this->never())->method('delete_files');
+        \local_dixeo\external\service_factory::set_test_client($client);
+
+        $task = new erase_remote_data();
+        $task->set_custom_data((object) ['userid' => 0, 'jobids' => ['djobkey'], 'courseids' => []]);
+        $task->set_attempts_available(2);
+        try {
+            $task->execute();
+            $this->fail('The erasure task completed without an API key.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('privacyfailure_nokey', $e->errorcode);
+        }
+
+        $sink = $this->redirectMessages();
+        $task->set_attempts_available(1);
+        try {
+            $task->execute();
+            $this->fail('The erasure task completed without an API key.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('privacyfailure_nokey', $e->errorcode);
+        }
+        $messages = $sink->get_messages();
+        $sink->close();
+        $this->assertCount(count(get_admins()), $messages);
+        $this->assertSame('privacyfailure', $messages[0]->eventtype);
+    }
+
+    /**
+     * Insert a submission row.
+     *
+     * @param string $jobid Designer job id.
+     * @param int $userid Owner.
+     * @param int|null $courseid Draft course id.
+     * @return int Row id.
+     */
+    private function insert_submission(string $jobid, int $userid, ?int $courseid): int {
+        global $DB;
+
+        return (int) $DB->insert_record('block_dixeo_designer_submission', (object) [
+            'jobid' => $jobid,
+            'userid' => $userid,
+            'prompt' => 'Prompt',
+            'templateid' => null,
+            'status' => 'draft',
+            'remotejobid' => null,
+            'courseid' => $courseid,
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ]);
+    }
+
+    /**
+     * Insert a structure row.
+     *
+     * @param string $jobid Designer job id.
+     * @param int $userid Owner.
+     * @return void
+     */
+    private function insert_structure(string $jobid, int $userid): void {
+        global $DB;
+
+        $DB->insert_record('block_dixeo_designer_structure', (object) [
+            'jobid' => $jobid,
+            'userid' => $userid,
+            'description' => '',
+            'structure' => '{}',
+            'timecreated' => time(),
+        ]);
     }
 }
