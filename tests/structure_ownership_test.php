@@ -233,4 +233,47 @@ final class structure_ownership_test extends \advanced_testcase {
             'timecreated' => $timecreated,
         ]);
     }
+
+    /**
+     * Saving a structure through the web service empties a malformed module type and keeps valid ones.
+     */
+    public function test_save_structure_empties_a_css_breaking_module_type(): void {
+        global $DB;
+
+        $jobid = $this->new_job_id();
+        (new submission_service())->get_or_create_submission($jobid, (int) $this->owner->id);
+        $this->setUser($this->owner);
+        $_POST['sesskey'] = sesskey();
+
+        $payload = ['course_structure' => ['title' => 'Rivers', 'sections' => [[
+            'title' => 'One',
+            'modules' => [
+                ['type' => "x'),url(//e/x", 'title' => 'Bad'],
+                ['type' => 'page', 'title' => 'Good'],
+            ],
+        ]]]];
+        save_structure::execute($jobid, json_encode($payload), sesskey());
+
+        $stored = json_decode($DB->get_field('block_dixeo_designer_structure', 'structure', ['jobid' => $jobid]), true);
+        $modules = $stored['course_structure']['sections'][0]['modules'];
+        $this->assertSame('', $modules[0]['type']);
+        $this->assertSame('Bad', $modules[0]['title']);
+        $this->assertSame('page', $modules[1]['type']);
+    }
+
+    /**
+     * Structures persisted from a generation result go through the same sanitiser.
+     */
+    public function test_repository_empties_a_malformed_module_type(): void {
+        $jobid = $this->new_job_id();
+        $structures = new structure_repository();
+
+        $structures->save_structure($jobid, (int) $this->owner->id, '', ['sections' => [[
+            'modules' => [['type' => 'url(evil)'], ['type' => 'quiz']],
+        ]]]);
+
+        $stored = json_decode($structures->get_latest_structure($jobid), true);
+        $this->assertSame('', $stored['sections'][0]['modules'][0]['type']);
+        $this->assertSame('quiz', $stored['sections'][0]['modules'][1]['type']);
+    }
 }

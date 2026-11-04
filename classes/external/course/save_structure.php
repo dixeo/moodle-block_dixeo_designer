@@ -25,6 +25,7 @@
 
 namespace block_dixeo_designer\external\course;
 
+use local_dixeo\service\course_structure_sanitiser;
 use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
@@ -32,7 +33,6 @@ use core_external\external_value;
 use block_dixeo_designer\local\dixeo_capability;
 use block_dixeo_designer\local\generated_image;
 use block_dixeo_designer\local\input_limits;
-use block_dixeo_designer\local\module_type;
 use local_dixeo\service\image\policy;
 
 /**
@@ -101,7 +101,10 @@ final class save_structure extends external_api {
 
         // The course image may only reference the owner's own generated image, and module
         // types must be plain identifiers because the designer builds icon URLs from them.
-        $sanitised = module_type::sanitise_structure(generated_image::sanitise_structure($decoded, $ownerid));
+        $sanitised = course_structure_sanitiser::sanitise(
+            $decoded,
+            static fn(string $url): bool => generated_image::get_owned_file($url, $ownerid) !== null
+        );
         $structurejson = $sanitised === $decoded ? $params['structure'] : json_encode($sanitised);
 
         if ($existing) {

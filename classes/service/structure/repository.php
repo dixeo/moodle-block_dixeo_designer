@@ -16,8 +16,8 @@
 
 namespace block_dixeo_designer\service\structure;
 
+use local_dixeo\service\course_structure_sanitiser;
 use block_dixeo_designer\local\generated_image;
-use block_dixeo_designer\local\module_type;
 
 /**
  * Repository for persisted designer structure (one row per job in block_dixeo_designer_structure).
@@ -59,7 +59,10 @@ class repository {
         global $DB;
 
         $now = time();
-        $json = json_encode(module_type::sanitise_structure(generated_image::sanitise_structure($result, $userid)));
+        $json = json_encode(course_structure_sanitiser::sanitise(
+            $result,
+            static fn(string $url): bool => generated_image::get_owned_file($url, $userid) !== null
+        ));
         $existing = $DB->get_record(self::TABLE, ['jobid' => $jobid], '*', IGNORE_MISSING);
 
         if ($existing) {

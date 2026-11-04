@@ -44,54 +44,12 @@ final class generated_image {
         if ($ownerid <= 0 || trim($url) === '') {
             return null;
         }
-        $file = pluginfile_helper::get_stored_file_from_pluginfile_url($url);
-        if (
-            !$file
-            || (int) $file->get_contextid() !== (int) \context_system::instance()->id
-            || $file->get_component() !== 'block_dixeo_designer'
-            || $file->get_filearea() !== self::FILEAREA
-            || (int) $file->get_itemid() !== $ownerid
-            || strpos((string) $file->get_mimetype(), 'image/') !== 0
-        ) {
-            return null;
-        }
-        return $file;
-    }
-
-    /**
-     * Remove image URLs that do not reference the owner's generated image.
-     *
-     * Both the nested `course_structure.image` and the root `image` keys are checked.
-     *
-     * @param array $structure Decoded structure payload.
-     * @param int $ownerid Structure owner user id.
-     * @return array The payload with foreign or malformed image values removed.
-     */
-    public static function sanitise_structure(array $structure, int $ownerid): array {
-        if (isset($structure['course_structure']) && is_array($structure['course_structure'])) {
-            $structure['course_structure'] = self::sanitise_image_key($structure['course_structure'], $ownerid);
-        }
-        return self::sanitise_image_key($structure, $ownerid);
-    }
-
-    /**
-     * Drop the `image` key of one level when it is not an owned generated image.
-     *
-     * @param array $level One level of the structure payload.
-     * @param int $ownerid Structure owner user id.
-     * @return array
-     */
-    private static function sanitise_image_key(array $level, int $ownerid): array {
-        if (!array_key_exists('image', $level)) {
-            return $level;
-        }
-        $image = $level['image'];
-        if ($image === null || $image === '') {
-            return $level;
-        }
-        if (!is_string($image) || self::get_owned_file($image, $ownerid) === null) {
-            unset($level['image']);
-        }
-        return $level;
+        return pluginfile_helper::get_owned_file(
+            $url,
+            (int) \context_system::instance()->id,
+            'block_dixeo_designer',
+            self::FILEAREA,
+            $ownerid
+        );
     }
 }
