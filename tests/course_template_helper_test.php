@@ -110,9 +110,9 @@ final class course_template_helper_test extends advanced_testcase {
     }
 
     /**
-     * Template names from the catalogue reach the selector as plain text.
+     * Plain-text template names from local_dixeo are escaped where the selector prints them.
      */
-    public function test_export_template_selector_strips_markup_from_names(): void {
+    public function test_export_template_selector_escapes_names(): void {
         global $PAGE;
 
         $this->resetAfterTest(true);
@@ -121,28 +121,26 @@ final class course_template_helper_test extends advanced_testcase {
         $mockservice->method('get_cached_templates')->willReturn([
             [
                 'id' => 'tpl-x',
-                'name' => '<b>x</b></select><script>alert(1)</script> & co',
+                'name' => 'Rivers & co',
                 'description' => '',
             ],
         ]);
-        $mockservice->method('get_cached_choices')->willReturn(['tpl-x' => '<img src=x onerror=alert(1)>Plain']);
+        $mockservice->method('get_cached_choices')->willReturn(['tpl-x' => 'Rivers & co']);
         service_factory::set_test_course_template_service($mockservice);
 
         $output = $PAGE->get_renderer('core');
         $export = course_template_helper::export_template_selector($output, 'tpl-x');
         $this->assertNotNull($export);
 
-        foreach ($export['select']['options'] as $option) {
-            $this->assertStringNotContainsString('<', $option['name']);
-        }
-        $this->assertStringNotContainsString('<', $export['dropdown']['buttoncontent']);
+        $names = array_column($export['select']['options'], 'name');
+        $this->assertContains('Rivers & co', $names);
         $this->assertStringContainsString('&amp; co', $export['dropdown']['buttoncontent']);
 
         $html = $output->render_from_template('block_dixeo_designer/template_selector', ['template_selector' => $export]);
-        $this->assertStringNotContainsString('<script', $html);
-        $this->assertStringNotContainsString('</select><', $html);
+        $this->assertStringContainsString('Rivers &amp; co', $html);
+        $this->assertStringNotContainsString('Rivers & co', $html);
 
-        $this->assertSame(['tpl-x' => 'Plain'], course_template_helper::get_remote_course_template_choices());
+        $this->assertSame(['tpl-x' => 'Rivers & co'], course_template_helper::get_remote_course_template_choices());
     }
 
     /**

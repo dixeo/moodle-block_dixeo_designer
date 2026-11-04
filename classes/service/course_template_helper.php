@@ -30,18 +30,6 @@ use core\output\local\dropdown\status;
  */
 class course_template_helper {
     /**
-     * Whether local_dixeo template services are available in this install.
-     *
-     * Settings and UI must remain safe during PHPUnit/plugin install when the
-     * dependency is not present yet or not installed in CI.
-     *
-     * @return bool
-     */
-    private static function is_template_service_available(): bool {
-        return class_exists(\local_dixeo\external\service_factory::class);
-    }
-
-    /**
      * Returns remote course template choices from local_dixeo (cached there).
      *
      * When the Dixeo API is not configured (e.g. during install), returns an empty list
@@ -50,29 +38,7 @@ class course_template_helper {
      * @return array Map of template id => label.
      */
     public static function get_remote_course_template_choices(): array {
-        if (!self::is_template_service_available()) {
-            return [];
-        }
-
-        $service = \local_dixeo\external\service_factory::get_course_template_service();
-        if (!$service->is_configured()) {
-            return [];
-        }
-        $choices = [];
-        foreach ($service->get_cached_choices() as $id => $label) {
-            $choices[$id] = self::clean_template_name($label);
-        }
-        return $choices;
-    }
-
-    /**
-     * Template names come from the Dixeo catalogue and are shown as plain text only.
-     *
-     * @param mixed $name Remote template name.
-     * @return string Name without markup.
-     */
-    public static function clean_template_name($name): string {
-        return trim(clean_param((string) $name, PARAM_TEXT));
+        return \local_dixeo\external\service_factory::get_course_template_service()->get_cached_choices();
     }
 
     /**
@@ -87,15 +53,9 @@ class course_template_helper {
     /**
      * Dixeo-layer pedagogical template id.
      *
-     * An install that does not have the settings reader yet keeps the stored plugin value.
-     *
      * @return string
      */
     public static function get_selected_course_template(): string {
-        if (!self::is_template_service_available()) {
-            $stored = get_config('block_dixeo_designer', 'coursetemplate');
-            return $stored === false ? '' : (string) $stored;
-        }
         return \local_dixeo\external\service_factory::get_settings_config()
             ->get('block_dixeo_designer', 'coursetemplate', \context_system::instance())
             ->get_value();
@@ -142,10 +102,6 @@ class course_template_helper {
             $selectedtemplateid = self::get_selected_course_template();
         }
 
-        if (!self::is_template_service_available()) {
-            return null;
-        }
-
         $service = \local_dixeo\external\service_factory::get_course_template_service();
         if (!$service->is_configured()) {
             return null;
@@ -174,7 +130,7 @@ class course_template_helper {
             if ((string) $template['id'] === (string) $selectedtemplateid) {
                 $definition['selected'] = true;
             }
-            $choicelist->add_option($template['id'], self::clean_template_name($template['name']), $definition);
+            $choicelist->add_option($template['id'], $template['name'], $definition);
         }
 
         return $choicelist;

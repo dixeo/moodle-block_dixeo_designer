@@ -358,21 +358,8 @@ function block_dixeo_designer_lti_settings(): array {
  */
 function block_dixeo_designer_course_template_choices(): array {
     // Read the cache only. Opening the settings modal warms it. A catalogue load must not call the API.
-    $choices = ['' => get_string('coursetemplate_none', 'block_dixeo_designer')];
-    $cache = \cache::make('local_dixeo', 'coursetemplates');
-    $cached = $cache->get('templates');
-    if (is_array($cached)) {
-        foreach ($cached as $template) {
-            if (!is_array($template)) {
-                continue;
-            }
-            $id = (string) ($template['id'] ?? '');
-            $name = trim(clean_param((string) ($template['name'] ?? ''), PARAM_TEXT));
-            if ($id !== '' && $name !== '') {
-                $choices[$id] = $name;
-            }
-        }
-    }
+    $choices = ['' => get_string('coursetemplate_none', 'block_dixeo_designer')]
+        + \local_dixeo\external\service_factory::get_course_template_service()->peek_cached_choices();
     // Stored plugin value. This callback runs while the catalogue loads, so it cannot use the settings reader.
     $stored = get_config('block_dixeo_designer', 'coursetemplate');
     if (
