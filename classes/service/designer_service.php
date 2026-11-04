@@ -863,19 +863,16 @@ class designer_service {
             throw new \moodle_exception('structurenotfound', 'block_dixeo_designer');
         }
 
-        if (
-            policy::is_enabled(
-                policy::ENTITY_COURSE,
-                policy::ACTION_GENERATE,
-                \context_course::instance((int) $submission->courseid)
-            )
-        ) {
-            $this->cancel_image_job_if_running(
-                $structure->imagejobid ?? null,
-                (int) $submission->courseid,
-                $userid
-            );
-        }
+        policy::assert_enabled(
+            policy::ENTITY_COURSE,
+            policy::ACTION_GENERATE,
+            \context_course::instance((int) $submission->courseid)
+        );
+        $this->cancel_image_job_if_running(
+            $structure->imagejobid ?? null,
+            (int) $submission->courseid,
+            $userid
+        );
 
         $decoded = json_decode((string) $structure->structure, true);
         [$payloadtitle, $payloadsummary] = is_array($decoded)
@@ -929,19 +926,16 @@ class designer_service {
             throw new \moodle_exception('invalidinput', 'block_dixeo_designer');
         }
 
-        if (
-            policy::is_enabled(
-                policy::ENTITY_COURSE,
-                policy::ACTION_EDIT,
-                \context_course::instance((int) $submission->courseid)
-            )
-        ) {
-            $this->cancel_image_job_if_running(
-                $structure->imagejobid ?? null,
-                (int) $submission->courseid,
-                $userid
-            );
-        }
+        policy::assert_enabled(
+            policy::ENTITY_COURSE,
+            policy::ACTION_EDIT,
+            \context_course::instance((int) $submission->courseid)
+        );
+        $this->cancel_image_job_if_running(
+            $structure->imagejobid ?? null,
+            (int) $submission->courseid,
+            $userid
+        );
 
         $imagesbase64 = [pluginfile_helper::image_url_to_base64($currentimage)];
 

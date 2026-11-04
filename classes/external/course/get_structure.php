@@ -29,6 +29,7 @@ use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
+use block_dixeo_designer\local\dixeo_capability;
 use local_dixeo\service\image\failure_message;
 use local_dixeo\service\image\policy;
 
@@ -43,17 +44,21 @@ final class get_structure extends external_api {
     /**
      * Course image policy flags for the designer UI (local_dixeo settings).
      *
+     * @param string $jobid Designer job id; its draft course decides the policy when it exists.
      * @return array{image_can_generate: bool, image_can_edit: bool}
      */
-    private static function course_image_policy_flags(): array {
+    private static function course_image_policy_flags(string $jobid): array {
+        $context = dixeo_capability::image_policy_context_for_job($jobid);
         return [
             'image_can_generate' => policy::is_enabled(
                 policy::ENTITY_COURSE,
-                policy::ACTION_GENERATE
+                policy::ACTION_GENERATE,
+                $context
             ),
             'image_can_edit' => policy::is_enabled(
                 policy::ENTITY_COURSE,
-                policy::ACTION_EDIT
+                policy::ACTION_EDIT,
+                $context
             ),
         ];
     }
@@ -89,6 +94,7 @@ final class get_structure extends external_api {
         self::validate_context($context);
         require_capability('local/dixeo:create', $context);
         require_sesskey();
+        dixeo_capability::require_designer_enabled_for_job($params['job_id']);
 
         $structure = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
         if (!$structure) {
@@ -106,7 +112,7 @@ final class get_structure extends external_api {
             }
             $structures = new \block_dixeo_designer\service\structure\repository();
             $structures->save_structure($params['job_id'], (int) $USER->id, '', $result);
-            $flags = self::course_image_policy_flags();
+            $flags = self::course_image_policy_flags($params['job_id']);
             $imagestatus = 'idle';
             if ($flags['image_can_generate']) {
                 $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
@@ -133,7 +139,7 @@ final class get_structure extends external_api {
             'image_error' => self::image_error_for_client(
                 isset($structure->imageerror) ? (string) $structure->imageerror : null
             ),
-        ], self::course_image_policy_flags());
+        ], self::course_image_policy_flags($params['job_id']));
     }
 
     /**

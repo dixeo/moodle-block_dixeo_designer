@@ -89,6 +89,7 @@ final class generate_course extends external_api {
 
         require_capability('local/dixeo:create', $context);
         require_sesskey();
+        \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
         $start = $service->start_generation($jobid, (int) $USER->id, $description, $templateid);

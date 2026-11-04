@@ -29,6 +29,7 @@ use core_external\external_api;
 use core_external\external_function_parameters;
 use core_external\external_single_structure;
 use core_external\external_value;
+use block_dixeo_designer\local\dixeo_capability;
 use local_dixeo\service\image\policy;
 
 /**
@@ -78,6 +79,7 @@ final class save_structure extends external_api {
         self::validate_context($context);
         require_capability('local/dixeo:create', $context);
         require_sesskey();
+        dixeo_capability::require_designer_enabled_for_job($params['job_id']);
 
         // Validate JSON.
         $decoded = json_decode($params['structure'], true);
@@ -109,7 +111,8 @@ final class save_structure extends external_api {
         if (
             policy::is_enabled(
                 policy::ENTITY_COURSE,
-                policy::ACTION_GENERATE
+                policy::ACTION_GENERATE,
+                dixeo_capability::image_policy_context_for_job($params['job_id'])
             )
         ) {
             $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();

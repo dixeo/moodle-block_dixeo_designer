@@ -80,6 +80,7 @@ final class finalize_course extends external_api {
         self::validate_context($context);
         require_capability('local/dixeo:create', $context);
         require_sesskey();
+        \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
 
         // Release the session lock early so concurrent polling requests
         // (get_finalize_progress) can return while this long-running request runs.

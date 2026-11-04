@@ -62,6 +62,7 @@ final class get_image_status extends external_api {
         self::validate_context($context);
         require_capability('local/dixeo:create', $context);
         require_sesskey();
+        \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
         $status = $service->get_structure_image_status($jobid, (int) $USER->id);

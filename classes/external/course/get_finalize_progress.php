@@ -72,6 +72,7 @@ final class get_finalize_progress extends external_api {
         self::validate_context($context);
         require_capability('local/dixeo:create', $context);
         require_sesskey();
+        \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($params['job_id']);
 
         self::require_finalize_progress_access($params['job_id'], (int) $USER->id);
 

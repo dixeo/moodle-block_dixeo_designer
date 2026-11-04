@@ -93,7 +93,8 @@ function block_dixeo_designer_pluginfile(
 /**
  * Build a client-safe AJAX error message and log technical details.
  *
- * Only Moodle language strings from this plugin (or core error/moodle) are returned.
+ * Only Moodle language strings from this plugin (or core error/moodle) are returned,
+ * plus the local_dixeo "Dixeo is off" and "image generation is off" gate messages.
  * Raw Throwable text is never passed to the browser.
  *
  * @param Throwable $exception Caught exception.
@@ -113,6 +114,10 @@ function block_dixeo_designer_format_ajax_exception_message(
         $module = (string) $exception->module;
         if ($module === 'block_dixeo_designer' || $module === 'error' || $module === 'moodle') {
             return get_string($exception->errorcode, $module, $exception->a);
+        }
+        $dixeogates = ['error:dixeo_disabled', 'dixeo_image_generation_disabled'];
+        if ($module === 'local_dixeo' && in_array($exception->errorcode, $dixeogates, true)) {
+            return get_string($exception->errorcode, $module);
         }
     }
 

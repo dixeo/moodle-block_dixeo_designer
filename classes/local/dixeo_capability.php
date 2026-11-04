@@ -17,7 +17,7 @@
 namespace block_dixeo_designer\local;
 
 /**
- * Course-context capability checks for Dixeo operations (aligns with local_dixeo externals).
+ * Server-side gates for designer entry points and Dixeo operations (aligns with local_dixeo externals).
  *
  * @package    block_dixeo_designer
  * @copyright  2026 Dixeo
@@ -45,5 +45,62 @@ final class dixeo_capability {
         $context = \context_course::instance($courseid);
         require_capability('local/dixeo:generate', $context);
         require_capability('moodle/course:manageactivities', $context);
+    }
+
+    /**
+     * Stop when Dixeo is turned off for the designer.
+     *
+     * The designer is a site-level page, so the Dixeo layer always applies. When the job
+     * already has a draft course, that course must also have Dixeo turned on.
+     *
+     * @param int|null $courseid Draft course id, when one exists.
+     * @return void
+     * @throws \moodle_exception error:dixeo_disabled (local_dixeo) when Dixeo is off.
+     */
+    public static function require_designer_enabled(?int $courseid = null): void {
+        $config = \local_dixeo\external\service_factory::get_settings_config();
+        $config->require_enabled(\context_system::instance());
+        if ($courseid === null || $courseid <= SITEID) {
+            return;
+        }
+        $coursecontext = \context_course::instance($courseid, IGNORE_MISSING);
+        if ($coursecontext instanceof \context_course) {
+            $config->require_enabled($coursecontext);
+        }
+    }
+
+    /**
+     * Stop when Dixeo is turned off for a designer job and its draft course.
+     *
+     * @param string $jobid Designer job id.
+     * @return void
+     * @throws \moodle_exception error:dixeo_disabled (local_dixeo) when Dixeo is off.
+     */
+    public static function require_designer_enabled_for_job(string $jobid): void {
+        global $DB;
+
+        $courseid = $DB->get_field('block_dixeo_designer_submission', 'courseid', ['jobid' => $jobid]);
+        self::require_designer_enabled(!empty($courseid) ? (int) $courseid : null);
+    }
+
+    /**
+     * Context whose course-image policy applies to a designer job.
+     *
+     * The job's draft course when it exists, otherwise the Dixeo layer.
+     *
+     * @param string $jobid Designer job id.
+     * @return \context
+     */
+    public static function image_policy_context_for_job(string $jobid): \context {
+        global $DB;
+
+        $courseid = (int) $DB->get_field('block_dixeo_designer_submission', 'courseid', ['jobid' => $jobid]);
+        if ($courseid > SITEID) {
+            $coursecontext = \context_course::instance($courseid, IGNORE_MISSING);
+            if ($coursecontext instanceof \context_course) {
+                return $coursecontext;
+            }
+        }
+        return \context_system::instance();
     }
 }

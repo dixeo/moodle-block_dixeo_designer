@@ -84,6 +84,7 @@ final class validate_structure_for_finalize extends external_api {
         self::validate_context($context);
         require_capability('local/dixeo:create', $context);
         require_sesskey();
+        \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($params['job_id']);
 
         $existing = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
         if ($existing && (int) $existing->userid !== (int) $USER->id && !is_siteadmin()) {

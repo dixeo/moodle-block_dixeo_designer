@@ -40,6 +40,8 @@ header('Content-Type: application/json');
 try {
     global $USER;
 
+    \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
+
     $files = $_FILES['files'] ?? null;
     if ($files === null) {
         throw new moodle_exception('uploaderror', 'block_dixeo_designer');

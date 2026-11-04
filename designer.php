@@ -35,6 +35,16 @@ global $PAGE, $OUTPUT, $USER;
 
 $jobid = optional_param('id', '', PARAM_TEXT);
 $hasexistingjob = ($jobid !== '');
+
+// Dixeo off stops the designer before any submission or draft course is created.
+try {
+    \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
+} catch (\moodle_exception $e) {
+    $PAGE->set_url(new moodle_url('/blocks/dixeo_designer/designer.php'));
+    $PAGE->set_context($context);
+    $PAGE->set_title(get_string('pluginname', 'block_dixeo_designer'));
+    notice($e->getMessage(), new moodle_url('/my/'));
+}
 $submissionservice = new \block_dixeo_designer\service\submission\service();
 $designeruiservice = new \block_dixeo_designer\service\designer_submission_ui_service();
 
