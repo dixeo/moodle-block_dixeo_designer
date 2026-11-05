@@ -642,9 +642,10 @@ class designer_service {
      * Cancel the current draft workflow and clean submission state.
      *
      * Policy is resolved via {@see cancellation_policy_resolver} from context (saved structure,
-     * footer/hard delete, quick mode). Execution order: cancel remote jobs, course cleanup
-     * (delete course, or strip generated modules and restore draft metadata), disable file sync,
-     * structure rows, submission row or draft reset. See docs/cancellation-decision-matrix.yml.
+     * footer/hard delete, quick mode). Execution order: cancel remote jobs, file sync (purge the
+     * Dixeo files of a draft course that is about to be deleted, otherwise disable sync), course
+     * cleanup (delete course, or strip generated modules and restore draft metadata), structure
+     * rows, submission row or draft reset. See docs/cancellation-decision-matrix.yml.
      * The finalize-progress cache keeps a cancelled flag so in-flight finalize
      * requests can observe cancellation and stop safely.
      *
@@ -727,20 +728,26 @@ class designer_service {
             poll_manager::delete_queued(structure_target::course_overview($courseid));
         }
 
+        // The file step runs while the course still exists, so a course that is about to be
+        // deleted never leaves its source files at Dixeo.
+        if ($courseid !== null) {
+            if ($plan->deletedraftcourse && $plan->removefilesondisablesync) {
+                $this->purge_draft_course_files($courseid, $userid);
+            } else if ($plan->disablefilesync && $this->filesyncservice !== null) {
+                try {
+                    $this->filesyncservice->disable_sync($courseid, $userid, $plan->removefilesondisablesync);
+                } catch (\Throwable $e) {
+                    debugging('cancel_draft: failed to disable file sync: ' . $e->getMessage(), DEBUG_DEVELOPER);
+                }
+            }
+        }
+
         if ($plan->deletedraftcourse && $courseid !== null) {
             $this->coursecreation->delete_draft_course($courseid, true);
         } else if ($plan->deletegeneratedmodulesonly && $courseid !== null) {
             $this->coursecreation->delete_generated_content_modules_preserving_uploads($courseid);
             if ($plan->restoredraftcoursemetadata) {
                 $this->coursecreation->restore_draft_course_metadata_after_cancel($courseid);
-            }
-        }
-
-        if ($plan->disablefilesync && $courseid !== null && $this->filesyncservice !== null) {
-            try {
-                $this->filesyncservice->disable_sync($courseid, $userid, $plan->removefilesondisablesync);
-            } catch (\Throwable $e) {
-                debugging('cancel_draft: failed to disable file sync: ' . $e->getMessage(), DEBUG_DEVELOPER);
             }
         }
 
@@ -760,6 +767,35 @@ class designer_service {
         draft_cancelled::create_from_submission($submission, $userid, $deletestructure, $jobid)->trigger();
 
         return true;
+    }
+
+    /**
+     * Delete the Dixeo files of a draft course before the course itself is deleted.
+     *
+     * The purge is synchronous. When it fails, or when no file sync service is available, the
+     * deletion is handed to the {@see \block_dixeo_designer\task\erase_remote_data} task, which
+     * works for a deleted course and owns retry and alerting. Failures are logged for developers
+     * only and never stop the cancel.
+     *
+     * @param int $courseid Draft course id.
+     * @param int $userid Acting user id.
+     * @return void
+     */
+    private function purge_draft_course_files(int $courseid, int $userid): void {
+        if ($this->filesyncservice !== null) {
+            try {
+                $this->filesyncservice->purge_course_files($courseid, $userid);
+                return;
+            } catch (\Throwable $e) {
+                debugging('cancel_draft: remote file deletion failed, queued for retry: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            }
+        }
+
+        try {
+            \block_dixeo_designer\task\erase_remote_data::queue($userid, [], [$courseid]);
+        } catch (\Throwable $e) {
+            debugging('cancel_draft: failed to queue the remote file deletion: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
     }
 
     /**

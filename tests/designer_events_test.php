@@ -228,7 +228,8 @@ final class designer_events_test extends \advanced_testcase {
         $mockcoursecreation->expects($this->once())->method('delete_draft_course')->with($courseid);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
-        $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, true);
+        $mockfilesync->expects($this->once())->method('purge_course_files')->with($courseid, $userid);
+        $mockfilesync->expects($this->never())->method('disable_sync');
 
         $service = new designer_service(
             $mocksubmissions,

@@ -1,5 +1,16 @@
 # Cancellation policy matrix for designer_service::cancel_draft.
 # Implemented by cancellation_policy_resolver::resolve(); execution order in designer_service.
+#
+# Execution order of designer_service::cancel_draft():
+#   1. cancel remote jobs;
+#   2. file sync: when delete_draft_course and remove_files_on_disable_sync are both true, purge the
+#      draft course's Dixeo files with file_sync_service::purge_course_files() BEFORE the course is
+#      deleted; on failure (or without a file sync service) queue the erase_remote_data adhoc task for
+#      the course id. Otherwise, when disable_file_sync is true, call disable_sync(). Failures are
+#      logged for developers and never stop the cancel;
+#   3. course clean-up (delete the draft course, or strip generated modules and restore metadata);
+#   4. structure rows;
+#   5. submission row or draft reset.
 
 context:
   has_saved_structure: bool

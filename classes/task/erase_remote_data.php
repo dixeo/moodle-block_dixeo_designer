@@ -25,9 +25,11 @@ use local_dixeo\task\remote_erasure_task;
  * Designer uploads reach the Dixeo file store under two keys: the designer job id, and the
  * id of the draft course the files were copied into. The privacy provider deletes the local
  * rows first, then queues this task with both keys, so the remote calls never run inside
- * the privacy request. Every key is deleted through a local_dixeo call that throws on
- * failure, so a failure is retried instead of being lost. The retry budget, the missing-key
- * failure and the alert on the last attempt come from {@see remote_erasure_task}.
+ * the privacy request. Cancelling a draft also queues it for the draft course when the
+ * synchronous purge before the course deletion fails, or when file sync is unavailable.
+ * Every key is deleted through a local_dixeo call that throws on failure, so a failure is
+ * retried instead of being lost. The retry budget, the missing-key failure and the alert on
+ * the last attempt come from {@see remote_erasure_task}.
  *
  * @package    block_dixeo_designer
  * @copyright  2026 Dixeo

@@ -552,7 +552,7 @@ final class designer_service_test extends advanced_testcase {
     /**
      * Cancel during file upload: keep submission payload, clear draft course/remote job, reset to draft.
      */
-    public function test_cancel_draft_during_file_upload_deletes_draft_clears_submission_disables_sync(): void {
+    public function test_cancel_draft_during_file_upload_deletes_draft_clears_submission_purges_files(): void {
         $jobid = 'job-' . uniqid();
         $userid = $this->user->id;
         $courseid = 42;
@@ -582,9 +582,8 @@ final class designer_service_test extends advanced_testcase {
             ->with($courseid);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
-        $mockfilesync->expects($this->once())
-            ->method('disable_sync')
-            ->with($courseid, $userid, true);
+        $mockfilesync->expects($this->once())->method('purge_course_files')->with($courseid, $userid);
+        $mockfilesync->expects($this->never())->method('disable_sync');
 
         $service = new designer_service(
             $mocksubmissions,
@@ -602,7 +601,7 @@ final class designer_service_test extends advanced_testcase {
     /**
      * Cancel during structure generation (no saved structure): keep submission payload and reset to draft.
      */
-    public function test_cancel_draft_during_structure_generation_cancels_remote_job_and_disables_sync(): void {
+    public function test_cancel_draft_during_structure_generation_cancels_remote_job_and_purges_files(): void {
         $jobid = 'job-' . uniqid();
         $userid = $this->user->id;
         $courseid = 100;
@@ -634,9 +633,8 @@ final class designer_service_test extends advanced_testcase {
         $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid, $courseid, $userid)->willReturn([]);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
-        $mockfilesync->expects($this->once())
-            ->method('disable_sync')
-            ->with($courseid, $userid, true);
+        $mockfilesync->expects($this->once())->method('purge_course_files')->with($courseid, $userid);
+        $mockfilesync->expects($this->never())->method('disable_sync');
 
         $service = new designer_service(
             $mocksubmissions,
@@ -835,7 +833,7 @@ final class designer_service_test extends advanced_testcase {
     /**
      * Cancel with no structure: keep submission payload but reset to draft; remove draft course and remote job.
      */
-    public function test_cancel_draft_no_structure_full_rollback_calls_disable_sync(): void {
+    public function test_cancel_draft_no_structure_full_rollback_purges_files(): void {
         $jobid = 'job-' . uniqid();
         $userid = $this->user->id;
         $courseid = 50;
@@ -867,7 +865,8 @@ final class designer_service_test extends advanced_testcase {
         $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid, $courseid, $userid)->willReturn([]);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
-        $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, true);
+        $mockfilesync->expects($this->once())->method('purge_course_files')->with($courseid, $userid);
+        $mockfilesync->expects($this->never())->method('disable_sync');
 
         $service = new designer_service(
             $mocksubmissions,
@@ -880,6 +879,115 @@ final class designer_service_test extends advanced_testcase {
         );
 
         $this->assertTrue($service->cancel_draft($jobid, $userid));
+    }
+
+    /**
+     * Cancel that deletes the draft course purges its Dixeo files while the course still exists.
+     */
+    public function test_cancel_draft_purges_files_before_deleting_draft_course(): void {
+        $jobid = 'job-' . uniqid();
+        $userid = (int) $this->user->id;
+        $courseid = 51;
+        $submission = (object) [
+            'userid' => $userid,
+            'courseid' => $courseid,
+            'remotejobid' => null,
+            'status' => workflow_constants::SUBMISSION_STATUS_SYNCING_FILES,
+        ];
+
+        $mocksubmissions = $this->createMock(\block_dixeo_designer\service\submission\service::class);
+        $mocksubmissions->method('get_submission')->with($jobid)->willReturn($submission);
+
+        $mockstructures = $this->createMock(\block_dixeo_designer\service\structure\repository::class);
+        $mockstructures->method('get_latest_structure')->with($jobid)->willReturn(null);
+
+        $calls = [];
+        $mockcoursecreation = $this->createMock(designer_course_creation_service::class);
+        $mockcoursecreation->expects($this->once())
+            ->method('delete_draft_course')
+            ->with($courseid, true)
+            ->willReturnCallback(function () use (&$calls): bool {
+                $calls[] = 'delete';
+                return true;
+            });
+
+        $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
+        $mockfilesync->expects($this->once())
+            ->method('purge_course_files')
+            ->with($courseid, $userid)
+            ->willReturnCallback(function () use (&$calls): void {
+                $calls[] = 'purge';
+            });
+        $mockfilesync->expects($this->never())->method('disable_sync');
+
+        $service = new designer_service(
+            $mocksubmissions,
+            null,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            null,
+            $mockfilesync
+        );
+
+        $this->assertTrue($service->cancel_draft($jobid, $userid));
+        $this->assertSame(['purge', 'delete'], $calls);
+        $this->assertSame([], \core\task\manager::get_adhoc_tasks(\block_dixeo_designer\task\erase_remote_data::class));
+    }
+
+    /**
+     * A failing purge still deletes the draft course and hands the files to the erasure task.
+     */
+    public function test_cancel_draft_failed_purge_deletes_course_and_queues_remote_erasure(): void {
+        \local_dixeo\privacy\remote_state::record_transfer();
+
+        $jobid = 'job-' . uniqid();
+        $userid = (int) $this->user->id;
+        $courseid = 52;
+        $submission = (object) [
+            'userid' => $userid,
+            'courseid' => $courseid,
+            'remotejobid' => null,
+            'status' => workflow_constants::SUBMISSION_STATUS_SYNCING_FILES,
+        ];
+
+        $mocksubmissions = $this->createMock(\block_dixeo_designer\service\submission\service::class);
+        $mocksubmissions->method('get_submission')->with($jobid)->willReturn($submission);
+
+        $mockstructures = $this->createMock(\block_dixeo_designer\service\structure\repository::class);
+        $mockstructures->method('get_latest_structure')->with($jobid)->willReturn(null);
+
+        $mockcoursecreation = $this->createMock(designer_course_creation_service::class);
+        $mockcoursecreation->expects($this->once())->method('delete_draft_course')->with($courseid, true);
+
+        $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
+        $mockfilesync->expects($this->once())
+            ->method('purge_course_files')
+            ->with($courseid, $userid)
+            ->willThrowException(new \local_dixeo\api\exception\api_exception('server_error', 'Remote store unavailable', 503));
+        $mockfilesync->expects($this->never())->method('disable_sync');
+
+        $service = new designer_service(
+            $mocksubmissions,
+            null,
+            $mockstructures,
+            $mockcoursecreation,
+            null,
+            null,
+            $mockfilesync
+        );
+
+        $this->assertTrue($service->cancel_draft($jobid, $userid));
+        $this->assertDebuggingCalled(
+            'cancel_draft: remote file deletion failed, queued for retry: API Error: Remote store unavailable',
+            DEBUG_DEVELOPER
+        );
+
+        $tasks = \core\task\manager::get_adhoc_tasks(\block_dixeo_designer\task\erase_remote_data::class);
+        $this->assertCount(1, $tasks);
+        $data = reset($tasks)->get_custom_data();
+        $this->assertSame([$courseid], $data->courseids);
+        $this->assertSame([], $data->jobids);
     }
 
     /**
@@ -901,7 +1009,8 @@ final class designer_service_test extends advanced_testcase {
         $mockcoursecreation->expects($this->once())->method('delete_draft_course')->with($course->id);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
-        $mockfilesync->expects($this->once())->method('disable_sync')->with($course->id, $userid, true);
+        $mockfilesync->expects($this->once())->method('purge_course_files')->with($course->id, $userid);
+        $mockfilesync->expects($this->never())->method('disable_sync');
 
         $service = new designer_service(
             $submissions,
@@ -976,7 +1085,7 @@ final class designer_service_test extends advanced_testcase {
         $this->assertTrue($DB->record_exists('course', ['id' => (int) $course->id]));
     }
 
-    public function test_cancel_draft_footer_hard_reset_disables_sync_and_deletes_structure_even_when_saved(): void {
+    public function test_cancel_draft_footer_hard_reset_purges_files_and_deletes_structure_even_when_saved(): void {
         $jobid = 'job-' . uniqid();
         $userid = $this->user->id;
         $courseid = 301;
@@ -1009,7 +1118,8 @@ final class designer_service_test extends advanced_testcase {
         $mockjobservice->expects($this->once())->method('cancel_job')->with($remotejobid, $courseid, $userid)->willReturn([]);
 
         $mockfilesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
-        $mockfilesync->expects($this->once())->method('disable_sync')->with($courseid, $userid, true);
+        $mockfilesync->expects($this->once())->method('purge_course_files')->with($courseid, $userid);
+        $mockfilesync->expects($this->never())->method('disable_sync');
 
         $service = new designer_service(
             $mocksubmissions,
