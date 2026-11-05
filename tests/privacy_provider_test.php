@@ -454,6 +454,74 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
     }
 
     /**
+     * The upgrade records a past transfer from a submission sent to Dixeo, so erasure is queued without an API key.
+     */
+    public function test_upgrade_records_transfer_from_designer_evidence(): void {
+        global $CFG;
+
+        require_once($CFG->dirroot . '/blocks/dixeo_designer/db/upgrade.php');
+        require_once($CFG->libdir . '/upgradelib.php');
+
+        $this->use_unconfigured_client_without_transfer_marker();
+        $user = $this->getDataGenerator()->create_user();
+        $submissionid = $this->insert_submission('djobsent', (int) $user->id, null);
+        $this->set_remote_job_id($submissionid, 'r-1');
+
+        set_config('version', 2026110401, 'block_dixeo_designer');
+        xmldb_block_dixeo_designer_upgrade(2026110401);
+        $this->assertTrue(\local_dixeo\privacy\remote_state::has_transferred());
+
+        $approved = new approved_contextlist($user, 'block_dixeo_designer', [\context_system::instance()->id]);
+        provider::delete_data_for_user($approved);
+        $this->assertCount(1, \core\task\manager::get_adhoc_tasks(erase_remote_data::class));
+    }
+
+    /**
+     * Without a sent submission or a structure the upgrade leaves the transfer marker unset.
+     */
+    public function test_upgrade_without_designer_evidence_leaves_marker_unset(): void {
+        global $CFG;
+
+        require_once($CFG->dirroot . '/blocks/dixeo_designer/db/upgrade.php');
+        require_once($CFG->libdir . '/upgradelib.php');
+
+        $this->use_unconfigured_client_without_transfer_marker();
+        $user = $this->getDataGenerator()->create_user();
+        $this->insert_submission('djobunsent', (int) $user->id, null);
+        $this->set_remote_job_id($this->insert_submission('djobempty', (int) $user->id, null), '');
+
+        set_config('version', 2026110401, 'block_dixeo_designer');
+        xmldb_block_dixeo_designer_upgrade(2026110401);
+        $this->assertFalse(\local_dixeo\privacy\remote_state::has_transferred());
+    }
+
+    /**
+     * Use an API client without a key and clear the transfer marker set in setUp.
+     *
+     * @return void
+     */
+    private function use_unconfigured_client_without_transfer_marker(): void {
+        $client = $this->createMock(\local_dixeo\api\client::class);
+        $client->method('is_configured')->willReturn(false);
+        \local_dixeo\external\service_factory::set_test_client($client);
+        unset_config(\local_dixeo\privacy\remote_state::CONFIG_TRANSFERRED, 'local_dixeo');
+        $this->assertFalse(\local_dixeo\privacy\remote_state::has_transferred());
+    }
+
+    /**
+     * Set the remote job id of a submission.
+     *
+     * @param int $submissionid Submission id.
+     * @param string $remotejobid Remote job id.
+     * @return void
+     */
+    private function set_remote_job_id(int $submissionid, string $remotejobid): void {
+        global $DB;
+
+        $DB->set_field('block_dixeo_designer_submission', 'remotejobid', $remotejobid, ['id' => $submissionid]);
+    }
+
+    /**
      * Store an uploaded source file.
      *
      * @param int $itemid Submission id the file is stored under.

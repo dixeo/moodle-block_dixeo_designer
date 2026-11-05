@@ -226,5 +226,21 @@ function xmldb_block_dixeo_designer_upgrade($oldversion) {
         upgrade_block_savepoint(true, 2026110400, 'dixeo_designer');
     }
 
+    if ($oldversion < 2026110500) {
+        // A submission sent to Dixeo or a generated structure proves that this site transferred
+        // data to Dixeo. Recording it keeps designer remote erasure queued on a site without an
+        // API key, so a later privacy request is retried and alerted instead of being skipped.
+        $sent = $DB->record_exists_select(
+            'block_dixeo_designer_submission',
+            'remotejobid IS NOT NULL AND remotejobid <> :empty',
+            ['empty' => '']
+        );
+        if ($sent || $DB->record_exists('block_dixeo_designer_structure', [])) {
+            \local_dixeo\privacy\remote_state::record_transfer();
+        }
+
+        upgrade_block_savepoint(true, 2026110500, 'dixeo_designer');
+    }
+
     return true;
 }
