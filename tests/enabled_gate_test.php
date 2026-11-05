@@ -26,7 +26,7 @@
 namespace block_dixeo_designer;
 
 /**
- * The designer block is empty when Dixeo is off for its page.
+ * The designer block is empty when Dixeo is off for its page, and a link until the terms are accepted.
  *
  * @package    block_dixeo_designer
  * @copyright  2026 Dixeo
@@ -89,6 +89,31 @@ final class enabled_gate_test extends \advanced_testcase {
         $this->assertSame(get_string('disabled_block_course', 'local_dixeo'), $this->editing_text($block));
         $this->assertStringContainsString('dixeo-block-disabled', $this->editing_classes($block));
         $this->assertSame(get_string('blocktitle', 'block_dixeo_designer'), $block->title);
+    }
+
+    /**
+     * Until the terms are accepted the block links to the designer instead of showing the prompt form.
+     */
+    public function test_block_links_to_the_designer_until_terms_are_accepted(): void {
+        global $DB;
+
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        $block = $this->load_site_block();
+        $filesbefore = $DB->count_records('files');
+
+        $link = (string) $block->get_content()->text;
+        $this->assertStringContainsString(get_string('consent_designer_link', 'block_dixeo_designer'), $link);
+        $this->assertStringContainsString('/blocks/dixeo_designer/designer.php', $link);
+        $this->assertStringNotContainsString('name="course_description"', $link);
+        $this->assertSame($filesbefore, $DB->count_records('files'));
+
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')
+            ->create_terms_acceptance(['userid' => get_admin()->id]);
+        $block->content = null;
+        $form = (string) $block->get_content()->text;
+        $this->assertStringContainsString('name="course_description"', $form);
+        $this->assertStringNotContainsString(get_string('consent_designer_link', 'block_dixeo_designer'), $form);
     }
 
     /**

@@ -18,7 +18,7 @@ The **Dixeo Course Designer** is an AI-powered Moodle block that accelerates the
 # Requirements
 
 - **Moodle:** 4.3 or later  
-- **Dependency:** `local_dixeo` 2026051500 or later and a valid Dixeo API key  
+- **Dependency:** `local_dixeo` 2026110502 or later and a valid Dixeo API key  
 - **Automatic certificate configuration** (optional): `mod_coursecertificate` and `tool_certificate`
 
 # Installation
@@ -94,6 +94,10 @@ The interface is designed to follow Moodle accessibility standards and includes:
 - accessible controls
 - responsive layouts
 - ARIA-compatible interactive elements
+
+# Upgrade notes
+
+**2026110502:** designer services may throw `error:consentrequired` (component `local_dixeo`) until the user accepts the current Dixeo Terms of Use, and `designer.php` shows the terms dialog. See the local_dixeo README, "Upgrade notes".
 
 # Support
 

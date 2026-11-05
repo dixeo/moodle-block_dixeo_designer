@@ -118,10 +118,20 @@ class block_dixeo_designer extends block_base {
             return $this->content;
         }
 
-        $coursedescription = optional_param('course_description', '', PARAM_TEXT);
-
         $this->content = new stdClass();
         $this->content->footer = '';
+
+        // The block cannot lock its page, so until the terms are accepted it links to the designer, which shows the dialog.
+        if ((new \local_dixeo\service\consent_service())->gate_required_for_course((int) $USER->id, SITEID)) {
+            $this->content->text = html_writer::link(
+                new moodle_url('/blocks/dixeo_designer/designer.php'),
+                get_string('consent_designer_link', 'block_dixeo_designer'),
+                ['class' => 'btn btn-primary']
+            );
+            return $this->content;
+        }
+
+        $coursedescription = optional_param('course_description', '', PARAM_TEXT);
         $jobid = block_dixeo_designer_generate_job_id();
         $designeruiservice = new \block_dixeo_designer\service\designer_submission_ui_service();
         $filecontext = $designeruiservice->get_file_context($jobid, (int) $USER->id);

@@ -57,6 +57,8 @@ final class structure_ownership_test extends \advanced_testcase {
         $this->resetAfterTest();
         $this->owner = $this->getDataGenerator()->create_user();
         $this->other = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')->create_terms_acceptance(['userid' => $this->owner->id]);
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')->create_terms_acceptance(['userid' => $this->other->id]);
         $roleid = $this->getDataGenerator()->create_role();
         $sysctx = \context_system::instance();
         assign_capability('local/dixeo:create', CAP_ALLOW, $roleid, $sysctx->id);

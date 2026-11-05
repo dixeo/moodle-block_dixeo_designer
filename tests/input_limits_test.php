@@ -48,6 +48,7 @@ final class input_limits_test extends \advanced_testcase {
         parent::setUp();
         $this->resetAfterTest();
         $user = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')->create_terms_acceptance(['userid' => $user->id]);
         $roleid = $this->getDataGenerator()->create_role();
         $sysctx = \context_system::instance();
         assign_capability('local/dixeo:create', CAP_ALLOW, $roleid, $sysctx->id);

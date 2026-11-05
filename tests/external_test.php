@@ -65,6 +65,7 @@ final class external_test extends advanced_testcase {
         parent::setUp();
         $this->resetAfterTest(true);
         $this->user = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')->create_terms_acceptance(['userid' => $this->user->id]);
         $this->setUser($this->user);
         $this->assign_capability();
         $this->sesskey = sesskey();

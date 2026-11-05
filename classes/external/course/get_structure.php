@@ -95,7 +95,8 @@ final class get_structure extends external_api {
         require_capability('local/dixeo:create', $context);
         require_sesskey();
         \block_dixeo_designer\local\job_id::require_valid($params['job_id']);
-        dixeo_capability::require_designer_enabled_for_job($params['job_id']);
+        // Reading the structure sends nothing, so it works without the current Terms of Use.
+        dixeo_capability::require_designer_enabled_for_job($params['job_id'], false);
 
         $structure = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
         if (!$structure) {

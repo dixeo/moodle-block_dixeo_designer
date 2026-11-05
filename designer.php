@@ -41,7 +41,8 @@ if ($hasexistingjob && !\block_dixeo_designer\local\job_id::is_valid($jobid)) {
 
 // Dixeo off stops the designer before any submission or draft course is created.
 try {
-    \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
+    // The page shows the terms dialog instead of refusing; its sending services check the terms.
+    \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid, false);
 } catch (\moodle_exception $e) {
     $PAGE->set_url(new moodle_url('/blocks/dixeo_designer/designer.php'));
     $PAGE->set_context($context);
@@ -86,6 +87,9 @@ $PAGE->set_url(new moodle_url('/blocks/dixeo_designer/designer.php', $urlparams)
 $PAGE->set_context($context);
 $PAGE->set_title(get_string('pluginname', 'block_dixeo_designer'));
 $PAGE->set_heading(''); // Empty heading (no page title).
+
+// The designer sends course data to Dixeo, so it locks behind the local_dixeo terms dialog.
+\local_dixeo\hook\output\consent_gate::apply_to_site_page();
 
 echo $OUTPUT->header();
 

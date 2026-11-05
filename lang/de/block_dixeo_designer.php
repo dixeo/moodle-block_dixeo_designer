@@ -44,6 +44,7 @@ $string['certificate_settings_help'] = '';
 $string['certificate_template'] = 'Zertifikatsvorlage';
 $string['certificate_template_description'] = 'Wählen Sie die Vorlage für die Kurszertifikatsgenerierung.';
 $string['certificate_unavailable'] = 'Die Zertifikatsgenerierung ist nicht verfügbar. Bitte installieren Sie die Plugins Course Certificate (mod_coursecertificate) und Tool Certificate (tool_certificate).';
+$string['consent_designer_link'] = 'Lesen und akzeptieren Sie die Dixeo-Nutzungsbedingungen, um einen Kurs zu gestalten';
 $string['course_generated'] = 'Ihr Kurs «<b> {$a} </b>» wurde erfolgreich erstellt!';
 $string['coursetemplate'] = 'Standardvorlage für die pädagogische Struktur';
 $string['coursetemplate_desc'] = 'Wählen Sie die Standardvorlage für die pädagogische Struktur, die vom Kursdesigner verwendet wird.';

@@ -48,31 +48,46 @@ final class dixeo_capability {
     }
 
     /**
-     * Stop when Dixeo is turned off for the designer.
+     * Stop when Dixeo is turned off for the designer, or the user has not accepted the current Terms of Use.
      *
      * The designer is a site-level page, so the Dixeo layer always applies. When the job
      * already has a draft course, that course must also have Dixeo turned on.
      *
+     * Terms of Use gate: an entry point that starts or advances Dixeo processing, or stores
+     * input that will be sent, keeps $requireconsent = true. Status reads, cancel and delete
+     * pass false, so a user who withdrew acceptance can still stop processing and remove data.
+     * Acceptance is per user: the draft course is checked when it exists, otherwise the site.
+     *
      * @param int|null $courseid Draft course id, when one exists.
+     * @param bool $requireconsent Whether the acting user must have accepted the current Terms of Use.
      * @return void
-     * @throws \moodle_exception error:dixeo_disabled (local_dixeo) when Dixeo is off.
+     * @throws \moodle_exception error:dixeo_disabled (local_dixeo) when Dixeo is off,
+     *     error:consentrequired (local_dixeo) when the current Terms of Use are not accepted.
      */
-    public static function require_designer_enabled(?int $courseid = null): void {
+    public static function require_designer_enabled(?int $courseid = null, bool $requireconsent = true): void {
+        global $USER;
+
         $config = \local_dixeo\external\service_factory::get_settings_config();
         $config->require_enabled(\context_system::instance());
         $config->require_enabled_for_course($courseid ?? 0);
+
+        if ($requireconsent) {
+            (new \local_dixeo\service\consent_service())->require_accepted_for_course((int) $USER->id, $courseid ?? 0);
+        }
     }
 
     /**
-     * Stop when Dixeo is turned off for a designer job and its draft course.
+     * Stop when Dixeo is turned off for a designer job and its draft course, or the terms are not accepted.
      *
      * @param string $jobid Designer job id.
+     * @param bool $requireconsent Whether the acting user must have accepted the current Terms of Use.
      * @return void
-     * @throws \moodle_exception error:dixeo_disabled (local_dixeo) when Dixeo is off.
+     * @throws \moodle_exception error:dixeo_disabled (local_dixeo) when Dixeo is off,
+     *     error:consentrequired (local_dixeo) when the current Terms of Use are not accepted.
      */
-    public static function require_designer_enabled_for_job(string $jobid): void {
+    public static function require_designer_enabled_for_job(string $jobid, bool $requireconsent = true): void {
         $courseid = self::job_courseid($jobid);
-        self::require_designer_enabled($courseid > 0 ? $courseid : null);
+        self::require_designer_enabled($courseid > 0 ? $courseid : null, $requireconsent);
     }
 
     /**

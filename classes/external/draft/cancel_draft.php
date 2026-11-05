@@ -69,7 +69,8 @@ final class cancel_draft extends external_api {
         require_capability('local/dixeo:create', $context);
         require_sesskey();
         \block_dixeo_designer\local\job_id::require_valid($jobid);
-        \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid);
+        // Cancelling stops processing, so it works without the current Terms of Use.
+        \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid, false);
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
         $ok = $service->cancel_draft($jobid, (int) $USER->id, $deletestructure);

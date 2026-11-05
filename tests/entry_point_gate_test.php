@@ -29,6 +29,7 @@ use block_dixeo_designer\external\course\get_structure;
 use block_dixeo_designer\external\course\save_structure;
 use block_dixeo_designer\external\course\start_image_edit;
 use block_dixeo_designer\external\draft\cancel_draft;
+use block_dixeo_designer\external\draft\get_structure_status;
 use block_dixeo_designer\external\draft\start_generation;
 use block_dixeo_designer\external\draft\submit_structure_job;
 use block_dixeo_designer\local\dixeo_capability;
@@ -36,7 +37,7 @@ use block_dixeo_designer\service\designer_service;
 use block_dixeo_designer\service\designer_service_factory;
 
 /**
- * Designer externals refuse to run when Dixeo or the course-image action is off.
+ * Designer externals refuse to run when Dixeo or the course-image action is off, or the terms are not accepted.
  *
  * @package    block_dixeo_designer
  * @copyright  2026 Dixeo
@@ -46,8 +47,11 @@ use block_dixeo_designer\service\designer_service_factory;
  * @covers     \block_dixeo_designer\service\designer_service::start_structure_image_generation
  */
 final class entry_point_gate_test extends \advanced_testcase {
-    /** @var \stdClass Designer user. */
+    /** @var \stdClass Designer user who accepted the current terms. */
     private \stdClass $user;
+
+    /** @var int Role granting local/dixeo:create at the system context. */
+    private int $roleid;
 
     protected function setUp(): void {
         parent::setUp();
@@ -57,6 +61,9 @@ final class entry_point_gate_test extends \advanced_testcase {
         $sysctx = \context_system::instance();
         assign_capability('local/dixeo:create', CAP_ALLOW, $roleid, $sysctx->id);
         role_assign($roleid, $this->user->id, $sysctx->id);
+        $this->roleid = $roleid;
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')
+            ->create_terms_acceptance(['userid' => $this->user->id]);
         $this->setUser($this->user);
         $_POST['sesskey'] = sesskey();
     }
@@ -115,6 +122,76 @@ final class entry_point_gate_test extends \advanced_testcase {
         $this->expectException(\moodle_exception::class);
         $this->expectExceptionMessage(get_string('error:dixeo_disabled', 'local_dixeo'));
         dixeo_capability::require_designer_enabled_for_job('d09ed886443dc165af3a30102e3b18318');
+    }
+
+    /**
+     * The designer gate refuses a user without accepted terms, with or without a draft course.
+     */
+    public function test_job_gate_requires_accepted_terms(): void {
+        $user = $this->create_designer_without_terms();
+        $course = $this->getDataGenerator()->create_course();
+        $this->create_submission('d0a1b2c3d4e5f60718293a4b5c6d7e8f9', (int) $course->id);
+        $nodraft = 'dd1038189370a18cccde2c367d6dd70c9';
+        $withdraft = 'd0a1b2c3d4e5f60718293a4b5c6d7e8f9';
+
+        foreach ([$nodraft, $withdraft] as $jobid) {
+            $this->assert_consent_required(fn() => dixeo_capability::require_designer_enabled_for_job($jobid));
+            dixeo_capability::require_designer_enabled_for_job($jobid, false);
+        }
+
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')->create_terms_acceptance(['userid' => $user->id]);
+        dixeo_capability::require_designer_enabled_for_job($nodraft);
+        dixeo_capability::require_designer_enabled_for_job($withdraft);
+    }
+
+    /**
+     * Dixeo off is reported before the terms.
+     */
+    public function test_dixeo_off_is_reported_before_the_terms(): void {
+        $this->create_designer_without_terms();
+        $this->set_config_value('enabled', \context_system::instance(), '0');
+
+        $this->expectException(\moodle_exception::class);
+        $this->expectExceptionMessage(get_string('error:dixeo_disabled', 'local_dixeo'));
+        dixeo_capability::require_designer_enabled_for_job('dd1038189370a18cccde2c367d6dd70c9');
+    }
+
+    /**
+     * Sending externals refuse without accepted terms, before the designer service runs.
+     */
+    public function test_sending_externals_refuse_without_accepted_terms(): void {
+        global $DB;
+
+        $this->create_designer_without_terms();
+        $service = $this->createMock(designer_service::class);
+        $service->expects($this->never())->method($this->anything());
+        designer_service_factory::set_test_designer_service($service);
+        $jobid = 'd52a69c24405db981af7ddd5a8f38a365';
+
+        $this->assert_consent_required(
+            fn() => start_generation::execute($jobid, 'A course about rivers and lakes', null, sesskey())
+        );
+        $this->assert_consent_required(fn() => submit_structure_job::execute($jobid, sesskey()));
+        $this->assertSame(0, $DB->count_records('block_dixeo_designer_submission'));
+    }
+
+    /**
+     * Cancelling a draft and reading its status work without accepted terms.
+     */
+    public function test_cancel_and_status_work_without_accepted_terms(): void {
+        $this->create_designer_without_terms();
+        $service = $this->createMock(designer_service::class);
+        $service->expects($this->once())->method('cancel_draft')->willReturn(true);
+        $service->expects($this->once())->method('get_structure_status')
+            ->willThrowException(new \RuntimeException('status reached'));
+        designer_service_factory::set_test_designer_service($service);
+        $jobid = 'd52a69c24405db981af7ddd5a8f38a365';
+
+        $this->assertTrue(cancel_draft::execute($jobid, sesskey(), false)['success']);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('status reached');
+        get_structure_status::execute($jobid, sesskey());
     }
 
     /**
@@ -202,6 +279,35 @@ final class entry_point_gate_test extends \advanced_testcase {
             $file->get_filepath(),
             $file->get_filename()
         )->out(false);
+    }
+
+    /**
+     * Switch to a new designer user who has not accepted the current terms.
+     *
+     * @return \stdClass
+     */
+    private function create_designer_without_terms(): \stdClass {
+        $user = $this->getDataGenerator()->create_user();
+        role_assign($this->roleid, $user->id, \context_system::instance()->id);
+        $this->setUser($user);
+        $_POST['sesskey'] = sesskey();
+        return $user;
+    }
+
+    /**
+     * Assert that a call stops with error:consentrequired from local_dixeo.
+     *
+     * @param callable $call Call to run.
+     * @return void
+     */
+    private function assert_consent_required(callable $call): void {
+        try {
+            $call();
+            $this->fail('Unaccepted terms must stop the request.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('error:consentrequired', $e->errorcode);
+            $this->assertSame('local_dixeo', $e->module);
+        }
     }
 
     /**
