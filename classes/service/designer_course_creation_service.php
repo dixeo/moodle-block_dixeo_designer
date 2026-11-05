@@ -814,79 +814,48 @@ class designer_course_creation_service {
     }
 
     /**
-     * Whether the modulegen block is installed, not deleted, enabled, and loadable (optional queue logging).
-     */
-    private function is_modulegen_queue_available(): bool {
-        if (!\local_dixeo\service\plugin_installation_service::is_component_installed('block_dixeo_modulegen')) {
-            return false;
-        }
-        $pm = \core_plugin_manager::instance();
-        $info = $pm->get_plugin_info('block_dixeo_modulegen');
-        if ($info === null || empty($info->rootdir)) {
-            return false;
-        }
-        $status = $info->get_status();
-        if (
-            $status === \core_plugin_manager::PLUGIN_STATUS_MISSING
-                || $status === \core_plugin_manager::PLUGIN_STATUS_DELETE
-        ) {
-            return false;
-        }
-        if ($info->is_enabled() === false) {
-            return false;
-        }
-        return class_exists(\block_dixeo_modulegen\queue_service::class);
-    }
-
-    /**
-     * Log fill outcome to modulegen queue when that plugin is available (no hard dependency).
+     * Report a module fill outcome through the local_dixeo module_fill_finished hook.
      *
-     * @param int $courseid
-     * @param string $modulename
-     * @param string $instructions
-     * @param int $sectionnumber
-     * @param int|null $beforemod
-     * @param string $structuretitle
-     * @param string $summary
-     * @param array $out Fill outcome with keys success, cmid, error, fill_jobid, cancelled.
+     * Plugins that keep a record of fills (such as the module generator queue) listen to the hook.
+     * The hook carries no error text, and no listener can interrupt finalize.
+     *
+     * @param int $courseid Course id.
+     * @param string $modulename Dixeo module type.
+     * @param string $instructions Fill instructions.
+     * @param int $sectionnumber Target section number.
+     * @param string $structuretitle Activity title from the structure.
+     * @param string $summary Activity summary from the structure.
+     * @param array $out Fill outcome with keys success, cmid and fill_jobid.
+     * @return void
      */
-    private function maybe_log_fill_to_modulegen_queue(
+    private function dispatch_fill_finished(
         int $courseid,
         string $modulename,
         string $instructions,
         int $sectionnumber,
-        ?int $beforemod,
         string $structuretitle,
         string $summary,
         array $out
     ): void {
-        if (!$this->is_modulegen_queue_available()) {
-            return;
-        }
-        if (!empty($out['success']) && !empty($out['cmid'])) {
-            \block_dixeo_modulegen\queue_service::log_fill_completed(
+        global $USER;
+
+        $success = !empty($out['success']) && !empty($out['cmid']);
+        try {
+            \core\di::get(\core\hook\manager::class)->dispatch(new \local_dixeo\hook\module_fill_finished(
                 $courseid,
+                (int) $USER->id,
                 $modulename,
                 $instructions,
                 $sectionnumber,
-                $beforemod,
-                (int) $out['cmid'],
+                null,
                 $structuretitle,
                 $summary,
+                $success,
+                $success ? (int) $out['cmid'] : 0,
                 (string) ($out['fill_jobid'] ?? '')
-            );
-        } else if (!empty($out['error'])) {
-            \block_dixeo_modulegen\queue_service::log_fill_failed(
-                $courseid,
-                $modulename,
-                $instructions,
-                $sectionnumber,
-                $beforemod,
-                $structuretitle,
-                $summary,
-                (string) ($out['fill_jobid'] ?? ''),
-                (string) $out['error']
-            );
+            ));
+        } catch (\Throwable $e) {
+            debugging('Dixeo designer could not report a module fill outcome: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
     }
 
@@ -902,7 +871,7 @@ class designer_course_creation_service {
      * @param int $sectionnumber
      * @param string $title
      * @param string $summary
-     * @return array{success: bool, cmid: int, error: string, fill_jobid: string, cancelled: bool}
+     * @return array{success: bool, cmid: int, fill_jobid: string, cancelled: bool}
      */
     private function run_structure_fill_attempt(
         ?string $jobid,
@@ -949,7 +918,6 @@ class designer_course_creation_service {
                 return [
                     'success' => false,
                     'cmid' => 0,
-                    'error' => '',
                     'fill_jobid' => $filljobid,
                     'cancelled' => true,
                 ];
@@ -960,7 +928,6 @@ class designer_course_creation_service {
                 return [
                     'success' => false,
                     'cmid' => 0,
-                    'error' => '',
                     'fill_jobid' => $filljobid,
                     'cancelled' => true,
                 ];
@@ -975,7 +942,6 @@ class designer_course_creation_service {
                 return [
                     'success' => false,
                     'cmid' => 0,
-                    'error' => $msg,
                     'fill_jobid' => $filljobid,
                     'cancelled' => false,
                 ];
@@ -1004,7 +970,6 @@ class designer_course_creation_service {
                 return [
                     'success' => false,
                     'cmid' => 0,
-                    'error' => (string) $errmsg,
                     'fill_jobid' => $filljobid,
                     'cancelled' => false,
                 ];
@@ -1013,7 +978,6 @@ class designer_course_creation_service {
             return [
                 'success' => true,
                 'cmid' => (int) ($result['cmid'] ?? 0),
-                'error' => '',
                 'fill_jobid' => $filljobid,
                 'cancelled' => false,
             ];
@@ -1027,7 +991,6 @@ class designer_course_creation_service {
             return [
                 'success' => false,
                 'cmid' => 0,
-                'error' => $e->getMessage(),
                 'fill_jobid' => $filljobid,
                 'cancelled' => false,
             ];
@@ -1037,7 +1000,7 @@ class designer_course_creation_service {
     /**
      * Fill a single module from the course structure.
      *
-     * Failure is non-fatal. When block_dixeo_modulegen is present and enabled, logs completed/failed rows.
+     * Failure is non-fatal. The outcome is reported through the local_dixeo module_fill_finished hook.
      *
      * @param string|null $jobid Designer job id (for progress/cancel tracking).
      * @param \local_dixeo\service\module_generation_service $moduleservice
@@ -1074,12 +1037,11 @@ class designer_course_creation_service {
         if (!empty($out['cancelled'])) {
             return;
         }
-        $this->maybe_log_fill_to_modulegen_queue(
+        $this->dispatch_fill_finished(
             $courseid,
             $modulename,
             $instructions,
             $sectionnumber,
-            null,
             $title,
             $summary,
             $out

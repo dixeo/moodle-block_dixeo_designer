@@ -196,6 +196,63 @@ final class designer_course_creation_service_test extends advanced_testcase {
         );
     }
 
+    public function test_finalize_reports_module_fill_outcomes_through_the_local_dixeo_hook(): void {
+        $course = $this->getDataGenerator()->create_course([
+            'idnumber' => designer_course_creation_service::IDNUMBER_DRAFT_PREFIX . 'hook',
+        ]);
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+
+        $pending = operation_result::pending('module-op-1', 'processing', 10);
+        $this->mockmodulegen->method('submit_fill_job_for_course')->willReturn($pending);
+        $this->mockjobservice->method('wait_for_job')->willReturn($pending);
+
+        $dispatched = [];
+        $this->redirectHook(
+            \local_dixeo\hook\module_fill_finished::class,
+            static function (\local_dixeo\hook\module_fill_finished $hook) use (&$dispatched): void {
+                $dispatched[] = $hook;
+            }
+        );
+
+        $this->setUser($teacher);
+        (new designer_course_creation_service())->finalize_draft_course((int) $course->id, [
+            'course_structure' => [
+                'title' => 'Hooked course',
+                'summary' => '',
+                'format' => 'topics',
+                'sections' => [
+                    [
+                        'title' => 'Section 1',
+                        'summary' => '',
+                        'modules' => [
+                            [
+                                'type' => 'page',
+                                'title' => 'Module 1',
+                                'summary' => 'Module summary',
+                                'instructions' => 'Module instructions',
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ], (int) $teacher->id, 'job-' . uniqid());
+        $this->resetDebugging();
+
+        $this->assertCount(1, $dispatched);
+        $hook = $dispatched[0];
+        $this->assertSame((int) $course->id, $hook->courseid);
+        $this->assertSame((int) $teacher->id, $hook->userid);
+        $this->assertSame('page', $hook->modulename);
+        $this->assertSame('Module instructions', $hook->instructions);
+        $this->assertSame(1, $hook->sectionnumber);
+        $this->assertSame('Module 1', $hook->displaytitle);
+        $this->assertSame('Module summary', $hook->summary);
+        $this->assertFalse($hook->success);
+        $this->assertSame(0, $hook->cmid);
+        $this->assertSame('module-op-1', $hook->filljobid);
+        $this->assertFalse(property_exists($hook, 'errormessage'));
+    }
+
     public function test_finalize_draft_course_returns_null_when_course_missing(): void {
         $userid = 2;
         $jobid = 'job-' . uniqid();
