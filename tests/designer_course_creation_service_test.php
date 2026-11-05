@@ -373,11 +373,12 @@ final class designer_course_creation_service_test extends advanced_testcase {
             $this->fail('An over-long module instruction must stop the finalize.');
         } catch (\moodle_exception $e) {
             $this->assertSame('designerstructurevalidate_failed', $e->errorcode);
-            $this->assertStringContainsString(
-                get_string('designerstructurevalidate_fill_instructions_too_long', 'local_dixeo',
-                    ['max' => \local_dixeo\util\input_limits::MAX_INSTRUCTIONS_CHARS]),
-                $e->getMessage()
+            $expected = get_string(
+                'designerstructurevalidate_fill_instructions_too_long',
+                'local_dixeo',
+                ['max' => \local_dixeo\util\input_limits::MAX_INSTRUCTIONS_CHARS]
             );
+            $this->assertStringContainsString($expected, $e->getMessage());
         }
     }
 
