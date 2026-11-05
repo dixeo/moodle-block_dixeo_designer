@@ -164,6 +164,7 @@ $string['lti_publication_enabled'] = 'Añadir matriculación LTI';
 $string['lti_publication_enabled_desc'] = 'Si está activada, se añadirá una instancia de matriculación LTI 1.3 a los cursos nuevos.';
 $string['manage'] = 'Gestionar el Diseñador de Cursos';
 $string['myaddinstance'] = 'Agregar un nuevo bloque Diseñador de Cursos a mi panel';
+$string['nopermissions_viewjob'] = 'Ver el diseño de curso de otro usuario';
 $string['pluginname'] = 'Diseñador de Cursos';
 $string['privacy:metadata:email'] = 'La dirección de correo electrónico del usuario que usa el diseñador de cursos.';
 $string['privacy:metadata:external:files'] = 'Archivos fuente subidos para la generación del curso que pueden enviarse a Dixeo.';

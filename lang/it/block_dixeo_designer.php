@@ -164,6 +164,7 @@ $string['lti_publication_enabled'] = 'Aggiungi iscrizione LTI';
 $string['lti_publication_enabled_desc'] = 'Se attivata, ai nuovi corsi verrà aggiunta un\'istanza di iscrizione LTI 1.3.';
 $string['manage'] = 'Gestire il Progettatore di Corsi';
 $string['myaddinstance'] = 'Aggiungi un nuovo blocco Progettatore di Corsi alla mia dashboard';
+$string['nopermissions_viewjob'] = 'Visualizzare la progettazione del corso di un altro utente';
 $string['pluginname'] = 'Progettatore di Corsi';
 $string['privacy:metadata:email'] = 'L\'indirizzo email dell\'utente che utilizza il progettista dei corsi.';
 $string['privacy:metadata:external:files'] = 'File sorgente caricati per la generazione del corso che possono essere inviati a Dixeo.';

@@ -66,7 +66,12 @@ if (!$hasexistingjob) {
 $submission = $submission ?: $submissionservice->get_or_create_submission($jobid, $USER->id);
 if ((int) $submission->userid !== (int) $USER->id) {
     if (!is_siteadmin()) {
-        throw new \moodle_exception('nopermissions', 'error');
+        throw new \moodle_exception(
+            'nopermissions',
+            'error',
+            '',
+            get_string('nopermissions_viewjob', 'block_dixeo_designer')
+        );
     }
 }
 $coursedescription = optional_param('course_description', $submission->prompt ?? '', PARAM_TEXT);

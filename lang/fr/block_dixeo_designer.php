@@ -164,6 +164,7 @@ $string['lti_publication_enabled'] = 'Ajouter l’inscription LTI';
 $string['lti_publication_enabled_desc'] = 'Si activé, une instance d’inscription LTI 1.3 sera ajoutée aux nouveaux cours.';
 $string['manage'] = 'Gérer le Concepteur de Cours';
 $string['myaddinstance'] = 'Ajouter un nouveau bloc Concepteur de Cours à mon tableau de bord';
+$string['nopermissions_viewjob'] = 'Consulter la conception de cours d\'un autre utilisateur';
 $string['pluginname'] = 'Concepteur de Cours';
 $string['privacy:metadata:email'] = 'L’adresse e-mail de l’utilisateur utilisant le concepteur de cours.';
 $string['privacy:metadata:external:files'] = 'Fichiers sources téléversés pour la génération de cours pouvant être envoyés à Dixeo.';

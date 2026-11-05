@@ -164,6 +164,7 @@ $string['lti_publication_enabled'] = 'LTI-Einschreibung hinzufügen';
 $string['lti_publication_enabled_desc'] = 'Wenn aktiviert, wird neuen Kursen eine LTI-1.3-Einschreibungsinstanz hinzugefügt.';
 $string['manage'] = 'Kursdesigner verwalten';
 $string['myaddinstance'] = 'Einen neuen Kursdesigner-Block zu meiner Übersicht hinzufügen';
+$string['nopermissions_viewjob'] = 'Den Kursentwurf eines anderen Benutzers anzeigen';
 $string['pluginname'] = 'Kursdesigner';
 $string['privacy:metadata:email'] = 'E-Mail-Adresse der Nutzerin/des Nutzers, die/der den Kursdesigner verwendet.';
 $string['privacy:metadata:external:files'] = 'Für die Kursgenerierung hochgeladene Quelldateien, die an Dixeo gesendet werden können.';

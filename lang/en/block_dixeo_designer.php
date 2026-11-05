@@ -164,6 +164,7 @@ $string['lti_publication_enabled'] = 'Add LTI enrolment';
 $string['lti_publication_enabled_desc'] = 'If enabled, an LTI 1.3 enrolment instance will be added to new courses.';
 $string['manage'] = 'Manage Course Designer';
 $string['myaddinstance'] = 'Add a new Course Designer block to my dashboard';
+$string['nopermissions_viewjob'] = 'View another user\'s course design';
 $string['pluginname'] = 'Course Designer';
 $string['privacy:metadata:email'] = 'The email address of the user using the course designer.';
 $string['privacy:metadata:external:files'] = 'Source files uploaded for course generation that may be sent to Dixeo.';
