@@ -287,34 +287,32 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
     }
 
     /**
-     * The task deletes job files and the files of a missing draft course, and stops sync on an existing draft
+     * The task deletes job files directly and purges every draft course key, existing or not,
      * with the site administrator as the actor, never the erased user.
      */
     public function test_erase_task_requests_remote_deletion(): void {
         $user = $this->getDataGenerator()->create_user();
         $draft = $this->getDataGenerator()->create_course(['idnumber' => 'dixeo_draft_task']);
+        $adminid = (int) get_admin()->id;
 
         $client = $this->createMock(\local_dixeo\api\client::class);
         $client->method('is_configured')->willReturn(true);
         $client->expects($this->never())->method('delete_files');
         \local_dixeo\external\service_factory::set_test_client($client);
         $deleted = [];
+        $purged = [];
         $filesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
-        $filesync->expects($this->exactly(2))
+        $filesync->expects($this->once())
             ->method('delete_remote_files')
             ->willReturnCallback(function (string $key) use (&$deleted): void {
                 $deleted[] = $key;
             });
-        $filesync->expects($this->once())
-            ->method('disable_sync')
-            ->with(
-                (int) $draft->id,
-                $this->logicalAnd(
-                    $this->identicalTo((int) get_admin()->id),
-                    $this->logicalNot($this->identicalTo((int) $user->id))
-                ),
-                true
-            );
+        $filesync->expects($this->exactly(2))
+            ->method('purge_course_files')
+            ->willReturnCallback(function (int $courseid, int $actorid) use (&$purged): void {
+                $purged[] = [$courseid, $actorid];
+            });
+        $filesync->expects($this->never())->method('disable_sync');
         \local_dixeo\external\service_factory::set_test_file_sync_service($filesync);
 
         $task = new erase_remote_data();
@@ -325,7 +323,42 @@ final class privacy_provider_test extends \core_privacy\tests\provider_testcase 
         ]);
         $this->expectOutputRegex('/erase_remote_data/');
         $task->execute();
-        $this->assertSame(['djobone', '999999'], $deleted);
+        $this->assertSame(['djobone'], $deleted);
+        $this->assertSame([[(int) $draft->id, $adminid], [999999, $adminid]], $purged);
+        $this->assertNotSame((int) $user->id, $adminid);
+    }
+
+    /**
+     * A failed course purge fails the task so it is retried, and the last attempt alerts administrators.
+     */
+    public function test_erase_task_rethrows_and_alerts_when_purge_fails(): void {
+        $draft = $this->getDataGenerator()->create_course(['idnumber' => 'dixeo_draft_failure']);
+
+        $client = $this->createMock(\local_dixeo\api\client::class);
+        $client->method('is_configured')->willReturn(true);
+        \local_dixeo\external\service_factory::set_test_client($client);
+        $filesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
+        $filesync->method('purge_course_files')
+            ->willThrowException(new \local_dixeo\api\exception\api_exception('server_error', 'down', 503));
+        \local_dixeo\external\service_factory::set_test_file_sync_service($filesync);
+
+        $task = new erase_remote_data();
+        $task->set_custom_data((object) ['userid' => 0, 'jobids' => [], 'courseids' => [(int) $draft->id]]);
+        $task->set_attempts_available(1);
+        $sink = $this->redirectMessages();
+        try {
+            $task->execute();
+            $this->fail('The erasure task completed although the course purge failed.');
+        } catch (\local_dixeo\api\exception\api_exception $e) {
+            $this->assertSame('server_error', $e->get_error_code());
+        }
+        $messages = $sink->get_messages();
+        $sink->close();
+        $this->assertCount(count(get_admins()), $messages);
+        foreach ($messages as $message) {
+            $this->assertSame('local_dixeo', $message->component);
+            $this->assertSame('privacyfailure', $message->eventtype);
+        }
     }
 
     /**

@@ -25,8 +25,9 @@ use local_dixeo\task\remote_erasure_task;
  * Designer uploads reach the Dixeo file store under two keys: the designer job id, and the
  * id of the draft course the files were copied into. The privacy provider deletes the local
  * rows first, then queues this task with both keys, so the remote calls never run inside
- * the privacy request and a failure is retried instead of being lost. The retry budget, the
- * missing-key failure and the alert on the last attempt come from {@see remote_erasure_task}.
+ * the privacy request. Every key is deleted through a local_dixeo call that throws on
+ * failure, so a failure is retried instead of being lost. The retry budget, the missing-key
+ * failure and the alert on the last attempt come from {@see remote_erasure_task}.
  *
  * @package    block_dixeo_designer
  * @copyright  2026 Dixeo
@@ -71,15 +72,14 @@ class erase_remote_data extends remote_erasure_task {
     /**
      * Delete the remote files of every queued key.
      *
-     * A draft course that still exists goes through local_dixeo file sync, which stops the
-     * sync and deletes the remote files with its own retry. Any other key is deleted directly.
+     * Job keys are deleted directly. Draft course keys are purged by local_dixeo file sync,
+     * which also stops the sync of a course that still exists. Both calls throw on failure,
+     * so {@see remote_erasure_task} retries the task and alerts on the last attempt.
      *
      * @return void
-     * @throws \moodle_exception When a remote call fails.
+     * @throws \Throwable When a remote call fails.
      */
     protected function erase(): void {
-        global $DB;
-
         $data = $this->get_custom_data();
         $jobids = array_map('strval', (array) ($data->jobids ?? []));
         $courseids = array_map('intval', (array) ($data->courseids ?? []));
@@ -90,13 +90,9 @@ class erase_remote_data extends remote_erasure_task {
         }
         $adminid = (int) get_admin()->id;
         foreach ($courseids as $courseid) {
-            if ($DB->record_exists('course', ['id' => $courseid])) {
-                // The clean-up is a system action: recording the subject as the actor would
-                // store their id again in local_dixeo and in the event log after erasure.
-                $filesync->disable_sync($courseid, $adminid, true);
-            } else {
-                $filesync->delete_remote_files((string) $courseid);
-            }
+            // The clean-up is a system action: recording the subject as the actor would
+            // store their id again in local_dixeo and in the event log after erasure.
+            $filesync->purge_course_files($courseid, $adminid);
         }
 
         mtrace('erase_remote_data: requested deletion for ' . count($jobids) . ' job(s) and ' .

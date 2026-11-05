@@ -31,5 +31,5 @@ $plugin->component = 'block_dixeo_designer';   // Full name of the plugin (used 
 $plugin->maturity = MATURITY_STABLE;
 $plugin->release = '1.6.0';
 $plugin->dependencies = [
-    'local_dixeo' => 2026110401,
+    'local_dixeo' => 2026110500,
 ];
