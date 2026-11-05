@@ -150,4 +150,55 @@ final class external_filesync_test extends advanced_testcase {
         $this->assertSame('remote-1', $result['remotejobid']);
         $this->assertSame(55, (int) $result['courseid']);
     }
+
+    /**
+     * A stored file sync error reaches the browser only as a local_dixeo string, never the provider text.
+     */
+    public function test_get_filesync_status_hides_stored_provider_error(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course();
+        $coursecontext = \context_course::instance($course->id);
+        $roleid = $this->getDataGenerator()->create_role();
+        assign_capability('local/dixeo:generate', CAP_ALLOW, $roleid, $coursecontext->id);
+        role_assign($roleid, $this->user->id, $coursecontext->id);
+
+        $jobid = 'd0123456789abcdef0123456789abcdef';
+        $DB->insert_record('block_dixeo_designer_submission', (object) [
+            'jobid' => $jobid,
+            'userid' => (int) $this->user->id,
+            'prompt' => 'Prompt',
+            'status' => \block_dixeo_designer\workflow_constants::SUBMISSION_STATUS_SYNCING_FILES,
+            'remotejobid' => null,
+            'courseid' => (int) $course->id,
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ]);
+        $repository = new \local_dixeo\repository\course_ai_repository();
+        $repository->create((int) $course->id, (int) $this->user->id);
+        $DB->set_field('local_dixeo_course_ai', 'syncstatus', 'error', ['courseid' => $course->id]);
+        $DB->set_field(
+            'local_dixeo_course_ai',
+            'errormessage',
+            'upstream_ai: secret upstream detail',
+            ['courseid' => $course->id]
+        );
+
+        $client = $this->createMock(\local_dixeo\api\client::class);
+        $client->method('is_configured')->willReturn(false);
+        \local_dixeo\external\service_factory::set_test_file_sync_service(
+            new \local_dixeo\service\file_sync_service($repository, $client)
+        );
+        designer_service_factory::set_test_designer_service(new designer_service());
+
+        try {
+            $result = get_filesync_status::execute($jobid, $this->sesskey);
+        } finally {
+            \local_dixeo\external\service_factory::reset();
+        }
+
+        $this->assertSame('error', $result['status']);
+        $this->assertSame(get_string('error:unavailable', 'local_dixeo'), $result['errormessage']);
+        $this->assertStringNotContainsString('secret', json_encode($result));
+    }
 }

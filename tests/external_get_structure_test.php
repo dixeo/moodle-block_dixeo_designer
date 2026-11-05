@@ -20,9 +20,15 @@ defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/blocks/dixeo_designer/classes/external/course/get_structure.php');
+require_once($CFG->dirroot . '/blocks/dixeo_designer/classes/external/draft/get_structure_status.php');
 
 use advanced_testcase;
 use block_dixeo_designer\external\course\get_structure;
+use block_dixeo_designer\external\draft\get_structure_status;
+use block_dixeo_designer\service\designer_service;
+use block_dixeo_designer\service\designer_service_factory;
+use block_dixeo_designer\service\remote\dixeo_remote_adapter;
+use local_dixeo\dto\job_status;
 
 /**
  * Tests for get_structure external (structure table access, no API mock).
@@ -32,6 +38,8 @@ use block_dixeo_designer\external\course\get_structure;
  * @copyright  2026 Dixeo
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers     \block_dixeo_designer\external\course\get_structure
+ * @covers     \block_dixeo_designer\external\draft\get_structure_status
+ * @covers     \block_dixeo_designer\service\designer_service
  */
 final class external_get_structure_test extends advanced_testcase {
     /** @var \stdClass */
@@ -48,6 +56,11 @@ final class external_get_structure_test extends advanced_testcase {
         $this->assign_capability();
         $this->sesskey = sesskey();
         $_POST['sesskey'] = $this->sesskey;
+    }
+
+    protected function tearDown(): void {
+        designer_service_factory::reset();
+        parent::tearDown();
     }
 
     /**
@@ -125,5 +138,79 @@ final class external_get_structure_test extends advanced_testcase {
 
         $this->expectException(\required_capability_exception::class);
         get_structure::execute('dac15a52e59f363d653442a598ffab484', sesskey());
+    }
+
+    /**
+     * A failed job with an unknown error code reports the generic local_dixeo string, not the provider text.
+     */
+    public function test_get_structure_status_hides_provider_error_detail(): void {
+        $result = $this->structure_status_for([
+            'status' => 'failed',
+            'error' => ['type' => 'internal_diagnostics', 'title' => 'secret title', 'detail' => 'secret upstream detail'],
+        ]);
+        $this->assertDebuggingCalled();
+
+        $this->assertTrue($result['failed']);
+        $this->assertSame(get_string('error:unexpected', 'local_dixeo'), $result['error']);
+        $this->assertStringNotContainsString('secret', json_encode($result));
+    }
+
+    /**
+     * A failed job with a known error code reports its local_dixeo string.
+     */
+    public function test_get_structure_status_maps_known_error_code(): void {
+        $result = $this->structure_status_for([
+            'status' => 'failed',
+            'error' => ['type' => 'rate_limited', 'detail' => 'secret upstream detail'],
+        ]);
+        $this->assertDebuggingCalled();
+
+        $this->assertSame(get_string('error:busy', 'local_dixeo'), $result['error']);
+    }
+
+    /**
+     * A job that did not fail reports no error, even when the provider sent one.
+     */
+    public function test_get_structure_status_completed_job_has_no_error(): void {
+        $result = $this->structure_status_for([
+            'status' => 'completed',
+            'progress' => 100,
+            'result' => ['sections' => []],
+            'error' => ['type' => 'internal_diagnostics', 'detail' => 'secret upstream detail'],
+        ]);
+
+        $this->assertTrue($result['completed']);
+        $this->assertNull($result['error']);
+    }
+
+    /**
+     * Call get_structure_status for a submission whose remote job returns the given status.
+     *
+     * @param array $job Job fields merged over a minimal API job response.
+     * @return array External function result.
+     */
+    private function structure_status_for(array $job): array {
+        global $DB;
+
+        $jobid = 'd1234567890abcdef1234567890abcdef';
+        $DB->insert_record('block_dixeo_designer_submission', (object) [
+            'jobid' => $jobid,
+            'userid' => (int) $this->user->id,
+            'prompt' => 'Prompt',
+            'status' => 'draft',
+            'remotejobid' => 'remote-job-1',
+            'courseid' => null,
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ]);
+        $remote = $this->createMock(dixeo_remote_adapter::class);
+        $remote->method('get_job_status')->willReturn(job_status::from_array(array_merge([
+            'id' => 'remote-job-1',
+            'type' => 'generate_course_structure',
+            'createdAt' => time(),
+        ], $job)));
+        designer_service_factory::set_test_designer_service(new designer_service(null, null, null, null, $remote));
+
+        return get_structure_status::execute($jobid, $this->sesskey);
     }
 }

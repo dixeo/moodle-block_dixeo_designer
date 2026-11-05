@@ -25,6 +25,7 @@ use block_dixeo_designer\local\dixeo_capability;
 use block_dixeo_designer\local\generated_image;
 use block_dixeo_designer\service\cache\prepare_progress_cache;
 use block_dixeo_designer\service\remote\dixeo_remote_adapter;
+use local_dixeo\external\response_factory;
 use local_dixeo\repository\image\job_repository;
 use local_dixeo\service\image\failure_message;
 use local_dixeo\service\image\job_orchestrator;
@@ -450,13 +451,20 @@ class designer_service {
             $result = is_array($decoded) ? $decoded : null;
         }
 
+        // Provider error text never reaches the browser: a failed job reports a local_dixeo string.
+        $error = null;
+        if ($jobstatus->is_failed()) {
+            $client = response_factory::client_job_status($jobstatus);
+            $error = $client['error']['detail'] ?? get_string('error:unexpected', 'local_dixeo');
+        }
+
         return (object) [
             'status' => $jobstatus->status,
             'progress' => $jobstatus->progress,
             'completed' => $jobstatus->is_completed(),
             'failed' => $jobstatus->is_failed(),
             'result' => $jobstatus->is_completed() ? $result : null,
-            'error' => $jobstatus->errormessage,
+            'error' => $error,
         ];
     }
 
