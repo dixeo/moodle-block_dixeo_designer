@@ -253,6 +253,165 @@ final class designer_course_creation_service_test extends advanced_testcase {
         $this->assertFalse(property_exists($hook, 'errormessage'));
     }
 
+    public function test_finalize_binds_the_fill_wait_to_the_course_and_current_user(): void {
+        $course = $this->getDataGenerator()->create_course([
+            'idnumber' => designer_course_creation_service::IDNUMBER_DRAFT_PREFIX . 'bound',
+        ]);
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+        $filljobid = \core\uuid::generate();
+
+        $pending = operation_result::pending($filljobid, 'processing', 10);
+        $this->mockmodulegen->method('submit_fill_job_for_course')->willReturn($pending);
+        $this->mockjobservice->expects($this->once())
+            ->method('wait_for_job')
+            ->with($filljobid, 'fill_module', (int) $course->id, (int) $teacher->id)
+            ->willReturn($pending);
+
+        $this->setUser($teacher);
+        (new designer_course_creation_service())->finalize_draft_course(
+            (int) $course->id,
+            $this->single_module_structure('page'),
+            (int) $teacher->id,
+            'job-' . uniqid()
+        );
+        $this->resetDebugging();
+    }
+
+    public function test_finalize_creates_no_module_when_the_fill_result_has_another_type(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course([
+            'idnumber' => designer_course_creation_service::IDNUMBER_DRAFT_PREFIX . 'mismatch',
+        ]);
+        $teacher = $this->getDataGenerator()->create_and_enrol($course, 'editingteacher');
+        $filljobid = \core\uuid::generate();
+
+        $this->mockmodulegen->method('submit_fill_job_for_course')
+            ->willReturn(operation_result::pending($filljobid, 'processing', 10));
+        $pageresult = [
+            'moduleType' => 'page',
+            'creation' => [
+                [
+                    'action' => 'create_module',
+                    'save_as' => 'module',
+                    'fields' => [
+                        'name' => ['source' => '$.name'],
+                        'intro' => ['source' => '$.intro'],
+                        'content' => ['source' => '$.content'],
+                    ],
+                ],
+            ],
+            'data' => [
+                'name' => 'Generated page',
+                'intro' => 'Intro',
+                'content' => '<p>Body</p>',
+            ],
+        ];
+        $this->mockjobservice->method('wait_for_job')->willReturn(operation_result::completed($filljobid, $pageresult));
+        $this->mockjobservice->method('get_job_status')->willReturn(new \local_dixeo\dto\job_status(
+            jobid: $filljobid,
+            type: 'module',
+            status: 'completed',
+            progress: 100,
+            createdat: time(),
+            result: $pageresult
+        ));
+
+        $dispatched = [];
+        $this->redirectHook(
+            \local_dixeo\hook\module_fill_finished::class,
+            static function (\local_dixeo\hook\module_fill_finished $hook) use (&$dispatched): void {
+                $dispatched[] = $hook;
+            }
+        );
+
+        $before = $DB->count_records('course_modules', ['course' => $course->id]);
+
+        $this->setUser($teacher);
+        (new designer_course_creation_service())->finalize_draft_course(
+            (int) $course->id,
+            $this->single_module_structure('quiz'),
+            (int) $teacher->id,
+            'job-' . uniqid()
+        );
+        $this->resetDebugging();
+
+        $this->assertSame($before, $DB->count_records('course_modules', ['course' => $course->id]));
+        $this->assertCount(1, $dispatched);
+        $this->assertSame('quiz', $dispatched[0]->modulename);
+        $this->assertFalse($dispatched[0]->success);
+        $this->assertSame(0, $dispatched[0]->cmid);
+    }
+
+    public function test_finalize_rejects_over_long_module_instructions_before_any_fill_job(): void {
+        $course = $this->getDataGenerator()->create_course([
+            'idnumber' => designer_course_creation_service::IDNUMBER_DRAFT_PREFIX . 'toolong',
+        ]);
+        $userid = (int) get_admin()->id;
+        $jobid = 'job-' . uniqid();
+
+        $submissions = new \block_dixeo_designer\service\submission\service();
+        $structures = new \block_dixeo_designer\service\structure\repository();
+        $submissions->save_submission($jobid, $userid, 'Prompt', null);
+        $submissions->set_draft_and_remote_job($submissions->get_submission($jobid), (int) $course->id, null);
+        $structures->save_structure($jobid, $userid, '', $this->single_module_structure(
+            'page',
+            str_repeat('a', \local_dixeo\util\input_limits::MAX_INSTRUCTIONS_CHARS + 1)
+        ));
+
+        $this->mockmodulegen->expects($this->never())->method('submit_fill_job_for_course');
+
+        $service = new \block_dixeo_designer\service\designer_service(
+            $submissions,
+            null,
+            $structures,
+            new designer_course_creation_service()
+        );
+
+        try {
+            $service->finalize_course($jobid, $userid, true);
+            $this->fail('An over-long module instruction must stop the finalize.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('designerstructurevalidate_failed', $e->errorcode);
+            $this->assertStringContainsString(
+                get_string('designerstructurevalidate_fill_instructions_too_long', 'local_dixeo',
+                    ['max' => \local_dixeo\util\input_limits::MAX_INSTRUCTIONS_CHARS]),
+                $e->getMessage()
+            );
+        }
+    }
+
+    /**
+     * A course structure with one section holding one module of the given type.
+     *
+     * @param string $type Dixeo module type.
+     * @param string $instructions Module instructions.
+     * @return array
+     */
+    private function single_module_structure(string $type, string $instructions = 'Module instructions'): array {
+        return [
+            'course_structure' => [
+                'title' => 'Structured course',
+                'summary' => '',
+                'format' => 'topics',
+                'sections' => [
+                    [
+                        'title' => 'Section 1',
+                        'summary' => '',
+                        'modules' => [
+                            [
+                                'type' => $type,
+                                'title' => 'Module 1',
+                                'summary' => 'Module summary',
+                                'instructions' => $instructions,
+                            ],
+                        ],
+                    ],
+                ],
+            ],
+        ];
+    }
+
     public function test_finalize_draft_course_returns_null_when_course_missing(): void {
         $userid = 2;
         $jobid = 'job-' . uniqid();

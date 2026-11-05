@@ -862,10 +862,13 @@ class designer_course_creation_service {
     /**
      * Run fill_module → wait → create module; used by finalize only.
      *
+     * The wait is bound to the course and the current user, and the module is only created
+     * when the job result names the requested module type.
+     *
      * @param string|null $jobid
      * @param \local_dixeo\service\module_generation_service $moduleservice
      * @param \local_dixeo\service\job_service $jobservice
-     * @param string $modulename
+     * @param string $modulename Requested Dixeo module type.
      * @param string $instructions
      * @param int $courseid
      * @param int $sectionnumber
@@ -884,6 +887,8 @@ class designer_course_creation_service {
         string $title,
         string $summary
     ): array {
+        global $USER;
+
         $filljobid = '';
 
         try {
@@ -923,7 +928,8 @@ class designer_course_creation_service {
                 ];
             }
 
-            $waitresult = $jobservice->wait_for_job($operation->jobid, 'fill_module');
+            // The fill job was registered for the current user and this course.
+            $waitresult = $jobservice->wait_for_job($operation->jobid, 'fill_module', $courseid, (int) $USER->id);
             if ($this->is_finalize_cancelled($jobid)) {
                 return [
                     'success' => false,
@@ -953,7 +959,8 @@ class designer_course_creation_service {
                 $sectionnumber,
                 null,
                 $title,
-                format_text($summary, FORMAT_PLAIN)
+                format_text($summary, FORMAT_PLAIN),
+                $modulename
             );
 
             if (empty($result['success'])) {
@@ -964,6 +971,7 @@ class designer_course_creation_service {
                     'module=' . $modulename .
                     ', section=' . $sectionnumber .
                     ', title=' . ($title !== '' ? $title : '(empty title)') .
+                    ', errorcode=' . (string) ($result['errorcode'] ?? '') .
                     ', error=' . $errmsg .
                     ', jobid=' . $filljobid;
                 debugging($msg, DEBUG_DEVELOPER);
