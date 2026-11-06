@@ -78,6 +78,8 @@ final class get_structure extends external_api {
     /**
      * Get the persisted structure by job ID (single row per job).
      *
+     * Starts the first course image when none exists and the user has accepted the current Dixeo Terms of Use.
+     *
      * @param string $jobid The job identifier
      * @param string $sesskey Session key
      * @return array Structure data
@@ -95,7 +97,7 @@ final class get_structure extends external_api {
         require_capability('local/dixeo:create', $context);
         require_sesskey();
         \block_dixeo_designer\local\job_id::require_valid($params['job_id']);
-        // Reading the structure sends nothing, so it works without the current Terms of Use.
+        // Reading the structure works without the current Terms of Use. The first image starts only once they are accepted.
         dixeo_capability::require_designer_enabled_for_job($params['job_id'], false);
 
         $structure = $DB->get_record('block_dixeo_designer_structure', ['jobid' => $params['job_id']], '*', IGNORE_MISSING);
@@ -116,8 +118,7 @@ final class get_structure extends external_api {
             $structures->save_structure($params['job_id'], (int) $USER->id, '', $result);
             $flags = self::course_image_policy_flags($params['job_id']);
             $imagestatus = 'idle';
-            if ($flags['image_can_generate']) {
-                $service->start_structure_image_generation($params['job_id'], (int) $USER->id);
+            if ($flags['image_can_generate'] && $service->auto_start_structure_image($params['job_id'], (int) $USER->id)) {
                 $imagestatus = 'pending';
             }
             $structurejson = json_encode($result);

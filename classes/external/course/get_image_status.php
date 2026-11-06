@@ -44,6 +44,8 @@ final class get_image_status extends external_api {
     /**
      * Poll image generation/edit status for a structure.
      *
+     * Starts the first course image when none exists and the user has accepted the current Dixeo Terms of Use.
+     *
      * @param string $jobid Job identifier.
      * @param string $sesskey Session key.
      * @return array
@@ -63,7 +65,7 @@ final class get_image_status extends external_api {
         require_capability('local/dixeo:create', $context);
         require_sesskey();
         \block_dixeo_designer\local\job_id::require_valid($jobid);
-        // A status read sends nothing, so it works without the current Terms of Use.
+        // Reads the image status, so it works without the current Terms of Use. The first image starts only once they are accepted.
         \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid, false);
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();

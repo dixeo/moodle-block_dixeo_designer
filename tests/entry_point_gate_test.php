@@ -25,6 +25,7 @@
 
 namespace block_dixeo_designer;
 
+use block_dixeo_designer\external\course\get_image_status;
 use block_dixeo_designer\external\course\get_structure;
 use block_dixeo_designer\external\course\save_structure;
 use block_dixeo_designer\external\course\start_image_edit;
@@ -35,6 +36,9 @@ use block_dixeo_designer\external\draft\submit_structure_job;
 use block_dixeo_designer\local\dixeo_capability;
 use block_dixeo_designer\service\designer_service;
 use block_dixeo_designer\service\designer_service_factory;
+use local_dixeo\dto\operation_result;
+use local_dixeo\service\consent_service;
+use local_dixeo\task\poll_image_job;
 
 /**
  * Designer externals refuse to run when Dixeo or the course-image action is off, or the terms are not accepted.
@@ -45,6 +49,9 @@ use block_dixeo_designer\service\designer_service_factory;
  * @covers     \block_dixeo_designer\local\dixeo_capability
  * @covers     \block_dixeo_designer\service\designer_service::start_structure_image_edit
  * @covers     \block_dixeo_designer\service\designer_service::start_structure_image_generation
+ * @covers     \block_dixeo_designer\service\designer_service::auto_start_structure_image
+ * @covers     \block_dixeo_designer\external\course\get_image_status
+ * @covers     \block_dixeo_designer\external\course\get_structure
  */
 final class entry_point_gate_test extends \advanced_testcase {
     /** @var \stdClass Designer user who accepted the current terms. */
@@ -226,6 +233,157 @@ final class entry_point_gate_test extends \advanced_testcase {
 
         $structure = (new service\structure\repository())->get_by_jobid('d4be267aa8319c44c42afbe0d96452126');
         $this->assertEmpty($structure->imagejobid);
+    }
+
+    /**
+     * The image status read starts no image for an owner who withdrew the terms, and starts it once they accept.
+     */
+    public function test_image_status_starts_the_first_image_only_with_accepted_terms(): void {
+        global $DB;
+
+        $jobid = 'd1f2e3d4c5b6a79881726354a5b6c7d8e';
+        $this->structure_without_image($jobid);
+        (new consent_service())->withdraw_terms((int) $this->user->id);
+        designer_service_factory::set_test_designer_service($this->image_designer_service(false));
+
+        $status = get_image_status::execute($jobid, sesskey());
+
+        $this->assertSame('idle', $status['status']);
+        $this->assertFalse($status['completed']);
+        $this->assertEmpty((new service\structure\repository())->get_by_jobid($jobid)->imagejobid);
+        $this->assertSame(0, $DB->count_records('local_dixeo_image_job'));
+        $this->assertCount(0, \core\task\manager::get_adhoc_tasks(poll_image_job::class));
+
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')->create_terms_acceptance(['userid' => $this->user->id]);
+        designer_service_factory::set_test_designer_service($this->image_designer_service(true));
+
+        $status = get_image_status::execute($jobid, sesskey());
+
+        $this->assertSame('pending', $status['status']);
+        $this->assertSame('remote-image-1', (new service\structure\repository())->get_by_jobid($jobid)->imagejobid);
+        $this->assertCount(1, \core\task\manager::get_adhoc_tasks(poll_image_job::class));
+    }
+
+    /**
+     * The structure read falls back to the API result and starts the first image only with accepted terms.
+     */
+    public function test_structure_fallback_starts_the_first_image_only_with_accepted_terms(): void {
+        global $DB;
+
+        $course = $this->getDataGenerator()->create_course();
+        $this->enable_course_image_generation();
+        (new consent_service())->withdraw_terms((int) $this->user->id);
+
+        $jobid = 'd2a3b4c5d6e7f8091a2b3c4d5e6f70819';
+        $this->create_submission($jobid, (int) $course->id);
+        designer_service_factory::set_test_designer_service($this->fallback_designer_service(false));
+        $result = get_structure::execute($jobid, sesskey());
+        $this->assertSame('idle', $result['image_status']);
+        $this->assertTrue($result['image_can_generate']);
+        $this->assertSame(0, $DB->count_records('local_dixeo_image_job'));
+
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')->create_terms_acceptance(['userid' => $this->user->id]);
+        $jobid = 'd3b4c5d6e7f8091a2b3c4d5e6f708192a';
+        $this->create_submission($jobid, (int) $course->id);
+        designer_service_factory::set_test_designer_service($this->fallback_designer_service(true));
+        $result = get_structure::execute($jobid, sesskey());
+        $this->assertSame('pending', $result['image_status']);
+    }
+
+    /**
+     * The auto-start helper turns only a missing acceptance into "not started".
+     */
+    public function test_auto_start_structure_image(): void {
+        $jobid = 'd4c5d6e7f8091a2b3c4d5e6f708192a3b';
+        $this->structure_without_image($jobid);
+
+        (new consent_service())->withdraw_terms((int) $this->user->id);
+        $this->assertFalse($this->image_designer_service(false)->auto_start_structure_image($jobid, (int) $this->user->id));
+
+        $this->getDataGenerator()->get_plugin_generator('local_dixeo')->create_terms_acceptance(['userid' => $this->user->id]);
+        $this->assertTrue($this->image_designer_service(true)->auto_start_structure_image($jobid, (int) $this->user->id));
+
+        $nocourse = 'd5d6e7f8091a2b3c4d5e6f708192a3b4c';
+        (new service\submission\service())->get_or_create_submission($nocourse, (int) $this->user->id);
+        try {
+            $this->image_designer_service(false)->auto_start_structure_image($nocourse, (int) $this->user->id);
+            $this->fail('A submission without a draft course must not start an image.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('invalidinput', $e->errorcode);
+        }
+    }
+
+    /**
+     * Store a structure without a course image for a job bound to a new draft course, with course images on.
+     *
+     * @param string $jobid Designer job id.
+     * @return void
+     */
+    private function structure_without_image(string $jobid): void {
+        $course = $this->getDataGenerator()->create_course();
+        $this->create_submission($jobid, (int) $course->id);
+        (new service\structure\repository())->save_structure(
+            $jobid,
+            (int) $this->user->id,
+            '',
+            ['course_structure' => ['title' => 'Rivers', 'sections' => []]]
+        );
+        $this->enable_course_image_generation();
+    }
+
+    /**
+     * Turn course image generation on at the Dixeo layer.
+     *
+     * @return void
+     */
+    private function enable_course_image_generation(): void {
+        $this->set_config_value('image_generation_enabled', \context_system::instance(), '1');
+        $this->set_config_value('image_generation_course_mode', \context_system::instance(), 'generate');
+    }
+
+    /**
+     * Job service mock that accepts one image submission, or must never be called.
+     *
+     * @param bool $expectsubmit Whether one submission is expected.
+     * @return \local_dixeo\service\job_service
+     */
+    private function image_job_service(bool $expectsubmit): \local_dixeo\service\job_service {
+        $jobservice = $this->createMock(\local_dixeo\service\job_service::class);
+        if ($expectsubmit) {
+            $jobservice->expects($this->once())->method('submit_job')
+                ->willReturn(operation_result::pending('remote-image-1', 'pending', 0));
+        } else {
+            $jobservice->expects($this->never())->method('submit_job');
+        }
+        return $jobservice;
+    }
+
+    /**
+     * Designer service whose image submissions go to a job service mock.
+     *
+     * @param bool $expectsubmit Whether one submission is expected.
+     * @return designer_service
+     */
+    private function image_designer_service(bool $expectsubmit): designer_service {
+        return new designer_service(null, null, null, null, null, $this->image_job_service($expectsubmit), null);
+    }
+
+    /**
+     * Designer service whose structure status is a completed API result without an image.
+     *
+     * @param bool $expectsubmit Whether one image submission is expected.
+     * @return designer_service
+     */
+    private function fallback_designer_service(bool $expectsubmit): designer_service {
+        $service = $this->getMockBuilder(designer_service::class)
+            ->setConstructorArgs([null, null, null, null, null, $this->image_job_service($expectsubmit), null])
+            ->onlyMethods(['get_structure_status'])
+            ->getMock();
+        $service->method('get_structure_status')->willReturn((object) [
+            'completed' => true,
+            'result' => ['course_structure' => ['title' => 'Rivers', 'sections' => []]],
+        ]);
+        return $service;
     }
 
     /**

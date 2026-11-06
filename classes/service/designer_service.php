@@ -902,6 +902,24 @@ class designer_service {
     }
 
     /**
+     * Start the first course image of a structure, unless the user has not accepted the current Dixeo Terms of Use.
+     *
+     * Status reads call this, so they keep working after the terms are withdrawn.
+     *
+     * @param string $jobid Designer job id.
+     * @param int $userid Structure owner.
+     * @return bool True when a generation was started.
+     */
+    public function auto_start_structure_image(string $jobid, int $userid): bool {
+        try {
+            $this->start_structure_image_generation($jobid, $userid);
+            return true;
+        } catch (\local_dixeo\exception\consent_required_exception $e) {
+            return false;
+        }
+    }
+
+    /**
      * Start async image edit job using current structure image as base.
      *
      * @param string $jobid
@@ -992,8 +1010,8 @@ class designer_service {
                         policy::ACTION_GENERATE,
                         \context_course::instance((int) $submission->courseid)
                     )
+                    && $this->auto_start_structure_image($jobid, $userid)
             ) {
-                $this->start_structure_image_generation($jobid, $userid);
                 return [
                     'status' => 'pending',
                     'completed' => false,
