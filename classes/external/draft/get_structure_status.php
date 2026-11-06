@@ -64,8 +64,7 @@ final class get_structure_status extends external_api {
         require_capability('local/dixeo:create', $context);
         require_sesskey();
         \block_dixeo_designer\local\job_id::require_valid($jobid);
-        // A status read sends nothing, so it works without the current Terms of Use.
-        \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid, false);
+        // Stops or reads status, so it works while Dixeo is off and without the current Terms of Use.
 
         $service = \block_dixeo_designer\service\designer_service_factory::get_designer_service();
         $status = $service->get_structure_status($jobid, (int) $USER->id);

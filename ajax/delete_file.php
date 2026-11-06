@@ -42,8 +42,7 @@ try {
     global $USER;
 
     \block_dixeo_designer\local\job_id::require_valid($jobid);
-    // Deleting a file removes data, so it works without the current Terms of Use.
-    \block_dixeo_designer\local\dixeo_capability::require_designer_enabled_for_job($jobid, false);
+    // Stops or reads status, so it works while Dixeo is off and without the current Terms of Use.
 
     $service = new \block_dixeo_designer\service\designer_submission_ui_service();
     $filecontext = $service->delete_file($jobid, (int) $USER->id, $fileid);

@@ -25,17 +25,22 @@
 
 namespace block_dixeo_designer;
 
+use block_dixeo_designer\external\course\get_finalize_progress;
 use block_dixeo_designer\external\course\get_image_status;
 use block_dixeo_designer\external\course\get_structure;
 use block_dixeo_designer\external\course\save_structure;
 use block_dixeo_designer\external\course\start_image_edit;
 use block_dixeo_designer\external\draft\cancel_draft;
+use block_dixeo_designer\external\draft\get_filesync_status;
 use block_dixeo_designer\external\draft\get_structure_status;
 use block_dixeo_designer\external\draft\start_generation;
 use block_dixeo_designer\external\draft\submit_structure_job;
 use block_dixeo_designer\local\dixeo_capability;
 use block_dixeo_designer\service\designer_service;
+use block_dixeo_designer\service\designer_course_creation_service;
 use block_dixeo_designer\service\designer_service_factory;
+use block_dixeo_designer\service\remote\dixeo_remote_adapter;
+use local_dixeo\dto\job_status;
 use local_dixeo\dto\operation_result;
 use local_dixeo\service\consent_service;
 use local_dixeo\task\poll_image_job;
@@ -52,6 +57,10 @@ use local_dixeo\task\poll_image_job;
  * @covers     \block_dixeo_designer\service\designer_service::auto_start_structure_image
  * @covers     \block_dixeo_designer\external\course\get_image_status
  * @covers     \block_dixeo_designer\external\course\get_structure
+ * @covers     \block_dixeo_designer\external\course\get_finalize_progress
+ * @covers     \block_dixeo_designer\external\draft\cancel_draft
+ * @covers     \block_dixeo_designer\external\draft\get_structure_status
+ * @covers     \block_dixeo_designer\external\draft\get_filesync_status
  */
 final class entry_point_gate_test extends \advanced_testcase {
     /** @var \stdClass Designer user who accepted the current terms. */
@@ -99,7 +108,6 @@ final class entry_point_gate_test extends \advanced_testcase {
             fn() => save_structure::execute($jobid, '{"course_structure":{"title":"x"}}', sesskey()),
             fn() => get_structure::execute($jobid, sesskey()),
             fn() => start_image_edit::execute($jobid, 'Make it blue', sesskey()),
-            fn() => cancel_draft::execute($jobid, sesskey(), false),
         ];
         foreach ($calls as $index => $call) {
             try {
@@ -199,6 +207,87 @@ final class entry_point_gate_test extends \advanced_testcase {
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('status reached');
         get_structure_status::execute($jobid, sesskey());
+    }
+
+    /**
+     * With the site and the draft course off, the owner still cancels and reads status; sending stays refused.
+     */
+    public function test_stop_and_status_work_while_dixeo_is_off(): void {
+        global $DB;
+
+        $jobid = 'd6e7f8091a2b3c4d5e6f708192a3b4c5d';
+        $remotejobid = '0b0f8a3c-1d2e-4f5a-9b6c-7d8e9f0a1b2c';
+        $course = $this->getDataGenerator()->create_course();
+        $this->getDataGenerator()->enrol_user($this->user->id, $course->id, 'editingteacher');
+        $this->create_submission($jobid, (int) $course->id);
+        $DB->set_field('block_dixeo_designer_submission', 'remotejobid', $remotejobid, ['jobid' => $jobid]);
+        $DB->set_field(
+            'block_dixeo_designer_submission',
+            'status',
+            workflow_constants::SUBMISSION_STATUS_SYNCING_FILES,
+            ['jobid' => $jobid]
+        );
+        $this->set_config_value('enabled', \context_system::instance(), '0');
+        $this->set_config_value('enabled', \context_course::instance($course->id), '0');
+
+        $remote = $this->createMock(dixeo_remote_adapter::class);
+        $remote->expects($this->once())->method('get_job_status')
+            ->with($remotejobid, (int) $course->id, (int) $this->user->id)
+            ->willReturn(job_status::from_array([
+                'id' => $remotejobid,
+                'type' => 'course_structure',
+                'status' => 'processing',
+                'progress' => 30,
+                'createdAt' => '2026-11-06T10:00:00Z',
+            ]));
+        $remote->expects($this->once())->method('get_file_sync_progress')->with((int) $course->id)
+            ->willReturn((object) ['status' => 'syncing', 'progresspercent' => 50.0]);
+        $jobservice = $this->createMock(\local_dixeo\service\job_service::class);
+        $jobservice->expects($this->once())->method('cancel_job')
+            ->with($remotejobid, (int) $course->id, (int) $this->user->id);
+        $filesync = $this->createMock(\local_dixeo\service\file_sync_service::class);
+        $coursecreation = $this->createMock(designer_course_creation_service::class);
+        designer_service_factory::set_test_designer_service(
+            new designer_service(null, null, null, $coursecreation, $remote, $jobservice, $filesync)
+        );
+
+        // Another designer reaches no data of the owner's job.
+        $other = $this->getDataGenerator()->create_user();
+        role_assign($this->roleid, $other->id, \context_system::instance()->id);
+        $this->setUser($other);
+        $_POST['sesskey'] = sesskey();
+        $this->assertFalse(cancel_draft::execute($jobid, sesskey(), false)['success']);
+        $this->assertSame('unknown', get_structure_status::execute($jobid, sesskey())['status']);
+        $this->assertSame('preparing', get_filesync_status::execute($jobid, sesskey())['status']);
+        try {
+            get_finalize_progress::execute($jobid, sesskey());
+            $this->fail('Another user must not read the finalize progress.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('nopermissions', $e->errorcode);
+        }
+
+        $this->setUser($this->user);
+        $_POST['sesskey'] = sesskey();
+        $this->assertSame('processing', get_structure_status::execute($jobid, sesskey())['status']);
+        $this->assertSame('syncing', get_filesync_status::execute($jobid, sesskey())['status']);
+        $this->assertSame('', get_finalize_progress::execute($jobid, sesskey())['phase']);
+
+        $calls = [
+            fn() => start_generation::execute($jobid, 'A course about rivers and lakes', null, sesskey()),
+            fn() => submit_structure_job::execute($jobid, sesskey()),
+            fn() => get_structure::execute($jobid, sesskey()),
+        ];
+        foreach ($calls as $index => $call) {
+            try {
+                $call();
+                $this->fail('Sending call ' . $index . ' ran while Dixeo is off.');
+            } catch (\moodle_exception $e) {
+                $this->assertSame('error:dixeo_disabled', $e->errorcode);
+                $this->assertSame('local_dixeo', $e->module);
+            }
+        }
+
+        $this->assertTrue(cancel_draft::execute($jobid, sesskey(), false)['success']);
     }
 
     /**

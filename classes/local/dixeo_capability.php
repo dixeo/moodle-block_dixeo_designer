@@ -54,9 +54,11 @@ final class dixeo_capability {
      * already has a draft course, that course must also have Dixeo turned on.
      *
      * Terms of Use gate: an entry point that starts or advances Dixeo processing, or stores
-     * input that will be sent, keeps $requireconsent = true. Status reads, cancel and delete
-     * pass false, so a user who withdrew acceptance can still stop processing and remove data.
-     * Acceptance is per user: the draft course is checked when it exists, otherwise the site.
+     * input that will be sent, keeps $requireconsent = true. A read that can start a course
+     * image passes false. Stop, cancel, delete and pure status reads do not call this method,
+     * so a user can still stop processing, check it and remove data after Dixeo is turned off
+     * or acceptance is withdrawn. Acceptance is per user: the draft course is checked when it
+     * exists, otherwise the site.
      *
      * @param int|null $courseid Draft course id, when one exists.
      * @param bool $requireconsent Whether the acting user must have accepted the current Terms of Use.
