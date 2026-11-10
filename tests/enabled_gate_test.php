@@ -103,8 +103,15 @@ final class enabled_gate_test extends \advanced_testcase {
         $filesbefore = $DB->count_records('files');
 
         $link = (string) $block->get_content()->text;
-        $this->assertStringContainsString(get_string('consent_designer_link', 'block_dixeo_designer'), $link);
-        $this->assertStringContainsString('/blocks/dixeo_designer/designer.php', $link);
+        $termslink = \html_writer::link(
+            new \moodle_url('/blocks/dixeo_designer/designer.php'),
+            get_string('consent_designer_link_terms', 'block_dixeo_designer')
+        );
+        $this->assertStringContainsString(
+            get_string('consent_designer_link', 'block_dixeo_designer', $termslink),
+            $link
+        );
+        $this->assertStringNotContainsString('btn btn-primary', $link);
         $this->assertStringNotContainsString('name="course_description"', $link);
         $this->assertSame($filesbefore, $DB->count_records('files'));
 
@@ -113,7 +120,10 @@ final class enabled_gate_test extends \advanced_testcase {
         $block->content = null;
         $form = (string) $block->get_content()->text;
         $this->assertStringContainsString('name="course_description"', $form);
-        $this->assertStringNotContainsString(get_string('consent_designer_link', 'block_dixeo_designer'), $form);
+        $this->assertStringNotContainsString(
+            get_string('consent_designer_link_terms', 'block_dixeo_designer'),
+            $form
+        );
     }
 
     /**

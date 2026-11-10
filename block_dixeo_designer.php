@@ -123,11 +123,11 @@ class block_dixeo_designer extends block_base {
 
         // The block cannot lock its page, so until the terms are accepted it links to the designer, which shows the dialog.
         if ((new \local_dixeo\service\consent_service())->gate_required_for_course((int) $USER->id, SITEID)) {
-            $this->content->text = html_writer::link(
+            $termsofuselink = html_writer::link(
                 new moodle_url('/blocks/dixeo_designer/designer.php'),
-                get_string('consent_designer_link', 'block_dixeo_designer'),
-                ['class' => 'btn btn-primary']
+                get_string('consent_designer_link_terms', 'block_dixeo_designer')
             );
+            $this->content->text = get_string('consent_designer_link', 'block_dixeo_designer', $termsofuselink);
             return $this->content;
         }
 
