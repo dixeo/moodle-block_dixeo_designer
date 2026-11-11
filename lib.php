@@ -180,6 +180,7 @@ function block_dixeo_designer_dixeo_settings(): array {
         'levels' => ['dixeo'],
         'sub' => 'selfenrol',
         'help' => 'self_enrol_generate_key_desc',
+        'requires' => 'self_enrol_configure',
     ]);
 
     return $settings;
@@ -265,6 +266,7 @@ function block_dixeo_designer_certificate_settings(): array {
             'levels' => ['dixeo'],
             'sub' => 'certificate',
             'help' => 'certificate_template_description',
+            'requires' => 'certificate_generation',
         ]),
         block_dixeo_designer_setting_row([
             'key' => 'certificate_location',
@@ -279,6 +281,7 @@ function block_dixeo_designer_certificate_settings(): array {
             'levels' => ['dixeo'],
             'sub' => 'certificate',
             'help' => 'certificate_location_description',
+            'requires' => 'certificate_generation',
         ]),
     ];
 }
@@ -318,20 +321,17 @@ function block_dixeo_designer_lti_settings(): array {
             'levels' => ['dixeo'],
             'sub' => 'lti',
             'help' => 'lti_maxenrolled_desc',
+            'requires' => 'lti_publication_enabled',
         ]),
         block_dixeo_designer_setting_row([
             'key' => 'lti_membersync',
             'shortname' => 'lti_membersync',
-            'type' => 'select',
+            'type' => 'bool',
             'default' => '0',
-            'options' => ['0', '1'],
-            'labels' => [
-                '0' => get_string('no'),
-                '1' => get_string('yes'),
-            ],
             'levels' => ['dixeo'],
             'sub' => 'lti',
             'help' => 'lti_membersync_desc',
+            'requires' => 'lti_publication_enabled',
         ]),
         block_dixeo_designer_setting_row([
             'key' => 'lti_membersyncmode',
@@ -347,6 +347,7 @@ function block_dixeo_designer_lti_settings(): array {
             'levels' => ['dixeo'],
             'sub' => 'lti',
             'help' => 'lti_membersyncmode_desc',
+            'requires' => 'lti_membersync',
         ]),
     ];
 }
