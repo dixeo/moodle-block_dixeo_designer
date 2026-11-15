@@ -28,8 +28,9 @@ define([
     'core/notification',
     'core/str',
     'core/config',
-    'block_dixeo_designer/progress'
-], function(Ajax, $, Template, Notification, Str, Config, Progress) {
+    'block_dixeo_designer/progress',
+    'block_dixeo_designer/network'
+], function(Ajax, $, Template, Notification, Str, Config, Progress, Network) {
     const generatorForm = document.getElementById('edai_course_designer_form');
     const promptContainer = generatorForm.querySelector('.prompt-container');
     const promptForm = generatorForm.querySelector('#prompt-form');
@@ -457,14 +458,13 @@ define([
                 // Polling in parallel allowed stale course sync state to trigger an early submit.
                 this.startStep2Progress(createcourse, runId);
             })
-            .catch(async error => {
+            .catch(error => {
                 if (runId !== this.generationRunId) {
                     return;
                 }
                 this.resetProgress();
                 this.clearAllProgressPolls();
-                const errorTitle = await Str.get_string('error_title', 'block_dixeo_designer');
-                Notification.alert(errorTitle, error.message);
+                Network.notifyError(error, 'designer_error_generation_failed_inline');
             });
         },
         designerUiLockEl: null,
@@ -739,7 +739,7 @@ define([
                     }
                     this.bindDeleteHandlers();
                 }).catch((error) => {
-                    Notification.exception(error);
+                    Network.notifyError(error);
                 });
             }
         },
@@ -771,7 +771,7 @@ define([
 
                         this.displayFileNames(data.context);
                     } catch (error) {
-                        Notification.exception(error);
+                        Network.notifyError(error, 'designer_error_delete_failed');
                     }
                 });
             });
@@ -806,7 +806,7 @@ define([
                     Notification.alert('', s[0]);
                 }
             })
-            .fail(Notification.exception);
+            .fail(Network.notifyError);
         }
     }, Progress.createGeneratorProgress({
         generationContainer: generationContainer,

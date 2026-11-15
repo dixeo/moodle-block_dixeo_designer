@@ -17,8 +17,9 @@ define([
     'core/notification',
     'core/templates',
     'block_dixeo_designer/filesync_progress_map',
-    'block_dixeo_designer/content_phase_progress'
-], function(Ajax, Str, Config, Notification, Template, filesyncMap, ContentPhaseProgress) {
+    'block_dixeo_designer/content_phase_progress',
+    'block_dixeo_designer/network'
+], function(Ajax, Str, Config, Notification, Template, filesyncMap, ContentPhaseProgress, Network) {
     'use strict';
 
     // Phases returned by block_dixeo_designer_get_finalize_progress().
@@ -178,22 +179,27 @@ define([
                 }
 
                 let submitted = false;
+                let pollInFlight = false;
+                const retry = Network.createRetryWindow();
 
                 const pollFileSync = function() {
-                    if (runId !== self.generationRunId) {
+                    if (runId !== self.generationRunId || pollInFlight) {
                         return;
                     }
-                    Ajax.call([{
+                    pollInFlight = true;
+                    Network.call({
                         methodname: 'block_dixeo_designer_get_filesync_status',
                         args: {
                             job_id: self.getJobId(),
                             sesskey: M.cfg.sesskey
                         },
-                    }])[0]
+                    })
                     .then(function(data) {
+                        pollInFlight = false;
                         if (runId !== self.generationRunId) {
                             return;
                         }
+                        retry.succeeded();
                         if (data && data.errormessage) {
                             self.clearAllProgressPolls();
                             self.resetProgress();
@@ -228,14 +234,13 @@ define([
                         }
                     })
                     .catch(function(err) {
-                        if (runId !== self.generationRunId) {
+                        pollInFlight = false;
+                        if (runId !== self.generationRunId || retry.shouldRetry(err)) {
                             return;
                         }
                         self.clearAllProgressPolls();
                         self.resetProgress();
-                        Str.get_string('designer_error_status_check_failed', 'block_dixeo_designer').then(function(msg) {
-                            Notification.alert('', (err && err.message) ? err.message : msg);
-                        });
+                        Network.notifyError(err, 'designer_error_status_check_failed');
                     });
                 };
 
@@ -282,30 +287,33 @@ define([
                     }
                     self.clearAllProgressPolls();
                     self.resetProgress();
-                    Str.get_string('designer_error_structure_start_failed', 'block_dixeo_designer').then(function(msg) {
-                        Notification.alert('', err.message || msg);
-                    });
+                    Network.notifyError(err, 'designer_error_structure_start_failed');
                 });
             },
 
             pollStructureCompletion: function(createcourse, runId) {
                 const self = this;
+                let pollInFlight = false;
+                const retry = Network.createRetryWindow();
 
                 const poll = function() {
-                    if (runId !== self.generationRunId) {
+                    if (runId !== self.generationRunId || pollInFlight) {
                         return;
                     }
-                    Ajax.call([{
+                    pollInFlight = true;
+                    Network.call({
                         methodname: 'block_dixeo_designer_get_structure_status',
                         args: {
                             job_id: self.getJobId(),
                             sesskey: M.cfg.sesskey
                         },
-                    }])[0]
+                    })
                     .then(function(data) {
+                        pollInFlight = false;
                         if (runId !== self.generationRunId) {
                             return;
                         }
+                        retry.succeeded();
                         if (data.failed) {
                             self.clearAllProgressPolls();
                             self.resetProgress();
@@ -369,6 +377,7 @@ define([
                                             }
                                             return;
                                         }
+                                        self.finalizeRequestLost = false;
                                         Ajax.call([{
                                             methodname: 'block_dixeo_designer_finalize_course',
                                             args: {
@@ -381,13 +390,13 @@ define([
                                             if (runId !== self.generationRunId) {
                                                 return;
                                             }
+                                            if (Network.isConnectionError(err)) {
+                                                // The server keeps creating the course; progress polling reports it.
+                                                self.finalizeRequestLost = true;
+                                                return;
+                                            }
                                             self.resetProgress();
-                                            Str.get_string(
-                                                'designer_error_finalize_failed',
-                                                'block_dixeo_designer'
-                                            ).then(function(msg) {
-                                                Notification.alert('', err.message || msg);
-                                            });
+                                            Network.notifyError(err, 'designer_error_finalize_failed');
                                         });
                                         self.pollFinalizeProgress(runId);
                                     })
@@ -396,12 +405,7 @@ define([
                                             return;
                                         }
                                         self.resetProgress();
-                                        Str.get_string(
-                                            'designer_error_finalize_failed',
-                                            'block_dixeo_designer'
-                                        ).then(function(msg) {
-                                            Notification.alert('', err.message || msg);
-                                        });
+                                        Network.notifyError(err, 'designer_error_finalize_failed');
                                     });
                             } else {
                                 var structureJson = (typeof data.result === 'string')
@@ -423,25 +427,19 @@ define([
                                 })
                                 .catch(function(err) {
                                     self.resetProgress();
-                                    Str.get_string(
-                                        'designer_error_save_structure_failed',
-                                        'block_dixeo_designer'
-                                    ).then(function(msg) {
-                                        Notification.alert('', err.message || msg);
-                                    });
+                                    Network.notifyError(err, 'designer_error_save_structure_failed');
                                 });
                             }
                         }, delayMs);
                     })
                     .catch(function(err) {
-                        if (runId !== self.generationRunId) {
+                        pollInFlight = false;
+                        if (runId !== self.generationRunId || retry.shouldRetry(err)) {
                             return;
                         }
                         self.clearAllProgressPolls();
                         self.resetProgress();
-                        Str.get_string('designer_error_status_check_failed', 'block_dixeo_designer').then(function(msg) {
-                            Notification.alert('', err.message || msg);
-                        });
+                        Network.notifyError(err, 'designer_error_status_check_failed');
                     });
                 };
 
@@ -463,6 +461,7 @@ define([
                 self.clearFinalizePoll();
                 contentPhaseAnimator.reset();
                 let pollInFlight = false;
+                const watch = Network.createFinalizeWatch();
                 const poll = function() {
                     if (runId !== undefined && runId !== null && runId !== self.generationRunId) {
                         return;
@@ -471,17 +470,18 @@ define([
                         return;
                     }
                     pollInFlight = true;
-                    Ajax.call([{
+                    Network.call({
                         methodname: 'block_dixeo_designer_get_finalize_progress',
                         args: {
                             job_id: self.getJobId(),
                             sesskey: M.cfg.sesskey
                         },
-                    }])[0]
+                    })
                     .then(function(data) {
                         if (runId !== undefined && runId !== null && runId !== self.generationRunId) {
                             return;
                         }
+                        watch.observe(data);
                         if (data.phase === PHASE_GENERATING_CONTENT) {
                             const parsed = ContentPhaseProgress.parseIndexAndTotal(data);
                             if (parsed && parsed.total > 0) {
@@ -530,6 +530,10 @@ define([
                     .catch(function() {})
                     .then(function() {
                         pollInFlight = false;
+                        if (self.finalizeRequestLost && self.finalizePollIntervalId && watch.stalled()) {
+                            self.resetProgress();
+                            Network.alertString('designer_error_connection_finalize');
+                        }
                     });
                 };
                 poll();
@@ -676,7 +680,7 @@ define([
                             r.generationContainer.classList.replace('d-block', 'd-none');
                         })
                         .catch((error) => {
-                            Notification.exception(error);
+                            Network.notifyError(error);
                         });
                 }, 3000);
             },

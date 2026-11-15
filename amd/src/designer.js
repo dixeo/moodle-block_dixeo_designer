@@ -35,7 +35,8 @@ define([
     'block_dixeo_designer/designer_dragdrop',
     'block_dixeo_designer/designer_collapse',
     'block_dixeo_designer/designer_editing',
-    'block_dixeo_designer/designer_undo'
+    'block_dixeo_designer/designer_undo',
+    'block_dixeo_designer/network'
 ], function(
     $,
     Ajax,
@@ -48,7 +49,8 @@ define([
     designerDragDropMixin,
     designerCollapseMixin,
     designerEditingMixin,
-    designerUndoMixin
+    designerUndoMixin,
+    Network
 ) {
 
     /**
@@ -191,7 +193,7 @@ define([
             this.loadModuleTypes().then(function() {
                 self.loadStructure();
             }).catch(function(err) {
-                Notification.exception(err);
+                Network.notifyError(err);
                 self.showLoading();
             });
         },
@@ -373,39 +375,46 @@ define([
         },
 
         /**
-         * Load structure from server (single latest version)
+         * Load structure from server (single latest version), retrying through short connection losses.
+         *
+         * @param {number} [attempt] Retry count
          */
-        loadStructure: function() {
+        loadStructure: function(attempt) {
             var self = this;
+            attempt = attempt || 0;
 
-            Ajax.call([{
+            Network.call({
                 methodname: 'block_dixeo_designer_get_structure',
                 args: {
                     job_id: this.jobid
-                },
-                done: function(response) {
-                    self.imageCanGenerate = !!response.image_can_generate;
-                    self.imageCanEdit = !!response.image_can_edit;
-                    var raw = JSON.parse(response.structure);
-                    self.structure = raw.course_structure || raw;
-                    self.history = [JSON.parse(JSON.stringify(self.structure))];
-                    self.historyIndex = 0;
-                    self.renderStructure();
-                    self.updateUndoRedoButtons();
-                    var st = response.image_status ? String(response.image_status) : '';
-                    var shouldPoll = self.imageCanGenerate && (
-                        !self.structure.image ||
-                        st === 'pending' ||
-                        st === 'processing'
-                    );
-                    if (shouldPoll) {
-                        self.startImageStatusPoll();
-                    }
-                },
-                fail: function(error) {
-                    Notification.exception(error);
                 }
-            }]);
+            }).then(function(response) {
+                self.imageCanGenerate = !!response.image_can_generate;
+                self.imageCanEdit = !!response.image_can_edit;
+                var raw = JSON.parse(response.structure);
+                self.structure = raw.course_structure || raw;
+                self.history = [JSON.parse(JSON.stringify(self.structure))];
+                self.historyIndex = 0;
+                self.renderStructure();
+                self.updateUndoRedoButtons();
+                var st = response.image_status ? String(response.image_status) : '';
+                var shouldPoll = self.imageCanGenerate && (
+                    !self.structure.image ||
+                    st === 'pending' ||
+                    st === 'processing'
+                );
+                if (shouldPoll) {
+                    self.startImageStatusPoll();
+                }
+            }).catch(function(error) {
+                if (Network.isConnectionError(error) && attempt < 4) {
+                    setTimeout(function() {
+                        self.loadStructure(attempt + 1);
+                    }, 2000 * (attempt + 1));
+                    return;
+                }
+                Network.notifyError(error, 'designer_invalid_data');
+            });
         },
 
         /**
@@ -426,7 +435,7 @@ define([
                     self.showSavedIndicator();
                 },
                 fail: function(error) {
-                    Notification.exception(error);
+                    Network.notifyError(error, 'designer_error_save_structure_failed');
                 }
             }])[0];
         },
@@ -553,7 +562,7 @@ define([
                     self.clearStructureValidationErrors();
                 }
             }).catch(function(error) {
-                Notification.exception(error);
+                Network.notifyError(error);
                 Str.get_string('designer_invalid_data', 'block_dixeo_designer').done(function(str) {
                     container.html('<div class="alert alert-danger">' + str + '</div>');
                 });

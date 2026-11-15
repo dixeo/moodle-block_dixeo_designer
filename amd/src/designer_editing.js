@@ -11,9 +11,9 @@
  */
 define([
     'jquery',
-    'core/notification',
-    'block_dixeo_designer/designer_text'
-], function($, Notification, TextUtil) {
+    'block_dixeo_designer/designer_text',
+    'block_dixeo_designer/network'
+], function($, TextUtil, Network) {
     'use strict';
 
     return {
@@ -350,7 +350,7 @@ define([
             if (typeof done === 'function') {
                 done(false);
             }
-            Notification.exception(err);
+            Network.notifyError(err);
         });
     },
 

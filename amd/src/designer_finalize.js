@@ -18,8 +18,9 @@ define([
     'core/templates',
     'core/config',
     'block_dixeo_designer/progress',
-    'block_dixeo_designer/content_phase_progress'
-], function($, Ajax, Notification, Str, Templates, Config, DesignerProgress, ContentPhaseProgress) {
+    'block_dixeo_designer/content_phase_progress',
+    'block_dixeo_designer/network'
+], function($, Ajax, Notification, Str, Templates, Config, DesignerProgress, ContentPhaseProgress, Network) {
     'use strict';
 
     const contentPhaseAnimator = ContentPhaseProgress.createAnimator();
@@ -243,7 +244,7 @@ define([
                 maybeWarnPendingImageThenProceed();
             }).catch(function(err) {
                 $btn.prop('disabled', false);
-                Notification.exception(err);
+                Network.notifyError(err);
             });
         }
 
@@ -275,6 +276,7 @@ define([
             self.setGenerationProgress(40);
             self.updateGenerationActiveStepFromProgress();
 
+            self.finalizeRequestLost = false;
             self.pollDesignerFinalizeProgress();
 
             Ajax.call([{
@@ -293,28 +295,17 @@ define([
                         finalize_mode: 'twostep'
                     }
                 }])[0].catch(function(err) {
-                    self.clearFinalizePoll();
-                    self.unlockDesignerUI();
-                    self.setDesignerEditingLocked(false);
-
-                    if (promptContainer && generationContainer) {
-                        promptContainer.classList.replace('d-none', 'd-block');
-                        generationContainer.classList.replace('d-block', 'd-none');
+                    if (Network.isConnectionError(err)) {
+                        // The server keeps creating the course; progress polling reports it.
+                        self.finalizeRequestLost = true;
+                        return;
                     }
-                    $('#btn-create-course').prop('disabled', false);
-                    Notification.exception(err);
+                    self.abortFinalizeUI();
+                    Network.notifyError(err, 'designer_error_finalize_failed');
                 });
             }).catch(function(err) {
-                self.clearFinalizePoll();
-                self.unlockDesignerUI();
-                self.setDesignerEditingLocked(false);
-
-                if (promptContainer && generationContainer) {
-                    promptContainer.classList.replace('d-none', 'd-block');
-                    generationContainer.classList.replace('d-block', 'd-none');
-                }
-                $('#btn-create-course').prop('disabled', false);
-                Notification.exception(err);
+                self.abortFinalizeUI();
+                Network.notifyError(err, 'designer_error_save_structure_failed');
             });
         }
 
@@ -364,22 +355,42 @@ define([
         runValidateThenMaybeProceed();
     },
 
+    /**
+     * Give the editor back after a failed course creation.
+     */
+    abortFinalizeUI: function() {
+        var generatorForm = document.getElementById('edai_course_designer_form');
+        var promptContainer = generatorForm ? generatorForm.querySelector('.prompt-container') : null;
+        var generationContainer = generatorForm ? generatorForm.querySelector('.generation-container') : null;
+
+        this.clearFinalizePoll();
+        this.unlockDesignerUI();
+        this.setDesignerEditingLocked(false);
+        if (promptContainer && generationContainer) {
+            promptContainer.classList.replace('d-none', 'd-block');
+            generationContainer.classList.replace('d-block', 'd-none');
+        }
+        $('#btn-create-course').prop('disabled', false);
+    },
+
     pollDesignerFinalizeProgress: function() {
         var self = this;
         contentPhaseAnimator.reset();
         var pollInFlight = false;
+        var watch = Network.createFinalizeWatch();
         var poll = function() {
             if (pollInFlight) {
                 return;
             }
             pollInFlight = true;
-            Ajax.call([{
+            Network.call({
                 methodname: 'block_dixeo_designer_get_finalize_progress',
                 args: {
                     job_id: self.jobid,
                     sesskey: M.cfg.sesskey
                 }
-            }])[0].then(function(data) {
+            }).then(function(data) {
+                watch.observe(data);
                 if (data.phase === DesignerProgress.PHASE_GENERATING_CONTENT) {
                     var parsed = ContentPhaseProgress.parseIndexAndTotal(data);
                     if (parsed && parsed.total > 0) {
@@ -436,6 +447,11 @@ define([
                 }
             }).catch(function() {}).then(function() {
                 pollInFlight = false;
+                if (self.finalizeRequestLost && !self.finalizeProgressCompleted && self.finalizePollIntervalId &&
+                        watch.stalled()) {
+                    self.abortFinalizeUI();
+                    Network.alertString('designer_error_connection_finalize');
+                }
             });
         };
         poll();
@@ -662,7 +678,7 @@ define([
                 }
             })
             .catch(function(error) {
-                Notification.exception(error);
+                Network.notifyError(error);
             });
     }
 };
