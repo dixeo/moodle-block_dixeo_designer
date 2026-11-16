@@ -22,14 +22,15 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 define([
-    'core/ajax',
     'jquery',
     'core/templates',
     'core/notification',
     'core/str',
     'core/config',
-    'block_dixeo_designer/progress'
-], function(Ajax, $, Template, Notification, Str, Config, Progress) {
+    'block_dixeo_designer/progress',
+    'local_dixeo/network',
+    'block_dixeo_designer/connection'
+], function($, Template, Notification, Str, Config, Progress, Network, Connection) {
     const generatorForm = document.getElementById('edai_course_designer_form');
     const promptContainer = generatorForm.querySelector('.prompt-container');
     const promptForm = generatorForm.querySelector('#prompt-form');
@@ -311,15 +312,14 @@ define([
             };
 
             // Quick generation happens outside designer.php, so a cancel must hard reset.
-            var cancelErr = null;
-            Ajax.call([{
+            Network.call({
                 methodname: 'block_dixeo_designer_cancel_draft',
                 args: {
                     sesskey: Config.sesskey,
                     ['job_id']: this.getJobId(),
                     ['delete_structure']: isHardReset
                 },
-            }])[0]
+            }, {timeout: Network.TIMEOUT_ACTION_MS})
             .then(function() {
                 finishCancel();
                 if (isFooterCancel) {
@@ -332,18 +332,7 @@ define([
             })
             .catch(function(err) {
                 finishCancel();
-                cancelErr = err;
-                return Str.get_string('designer_error_cancel_failed', 'block_dixeo_designer');
-            })
-            .then(function(msg) {
-                if (!cancelErr) {
-                    return null;
-                }
-                Notification.alert('', cancelErr.message || msg);
-                return null;
-            })
-            .catch(function() {
-                return null;
+                return Connection.notifyError(err, 'designer_error_cancel_failed');
             });
         },
         getJobId: function() {
@@ -447,7 +436,8 @@ define([
             // Start at 0; step 1 is driven by file-sync polling in parallel with prepare_generation.
             this.setProgress(0, true);
 
-            const startPromise = Ajax.call([{
+            // A paid start: sent once.
+            const startPromise = Network.call({
                 methodname: 'block_dixeo_designer_start_generation',
                 args: {
                     description: courseDescriptionValue,
@@ -455,7 +445,7 @@ define([
                     sesskey: Config.sesskey,
                     ['job_id']: this.getJobId()
                 },
-            }])[0];
+            }, {timeout: Network.TIMEOUT_ACTION_MS});
 
             startPromise.then((startResp) => {
                 if (runId !== this.generationRunId) {
@@ -479,15 +469,13 @@ define([
                 this.startStep2Progress(createcourse, runId);
                 return null;
             })
-            .catch(async error => {
+            .catch(error => {
                 if (runId !== this.generationRunId) {
                     return null;
                 }
                 this.resetProgress();
                 this.clearAllProgressPolls();
-                const errorTitle = await Str.get_string('error_title', 'block_dixeo_designer');
-                Notification.alert(errorTitle, error.message);
-                return null;
+                return Connection.notifyError(error, 'designer_error_generation_failed_inline');
             });
         },
         designerUiLockEl: null,
@@ -559,8 +547,10 @@ define([
                     formData.append('jobid', self.getJobId());
                     formData.append('files[]', file);
 
+                    // Sent once: a lost upload is reported, never resent.
                     const xhr = new XMLHttpRequest();
                     xhr.open('POST', Config.wwwroot + '/blocks/dixeo_designer/ajax/upload_files.php');
+                    xhr.timeout = Network.TIMEOUT_ACTION_MS;
 
                     xhr.upload.addEventListener('progress', function(e) {
                         if (e.lengthComputable) {
@@ -602,7 +592,10 @@ define([
                         }
                     };
                     xhr.onerror = function() {
-                        reject(new Error(uploadFailedMsg));
+                        reject(Network.connectionError(null, 'network'));
+                    };
+                    xhr.ontimeout = function() {
+                        reject(Network.connectionError(null, 'timeout'));
                     };
                     xhr.send(formData);
                 });
@@ -627,6 +620,10 @@ define([
                 self.setFileNamesLoading(false);
                 filesContainer.innerHTML = '';
                 filesContainer.classList.add('d-none');
+                if (Network.isConnectionError(error)) {
+                    Connection.notifyConnection();
+                    return;
+                }
                 Str.get_string('designer_error_upload_failed', 'block_dixeo_designer').then(function(msg) {
                     Notification.alert('', error.message || msg);
                     return null;
@@ -769,7 +766,7 @@ define([
                     this.bindDeleteHandlers();
                     return null;
                 }).catch((error) => {
-                    Notification.exception(error);
+                    Connection.notifyError(error);
                     return null;
                 });
             }
@@ -782,7 +779,7 @@ define([
             filesContainer.querySelectorAll('.delete-icon').forEach((deleteIcon) => {
                 deleteIcon.addEventListener('click', async() => {
                     try {
-                        const response = await fetch(
+                        const response = await Network.fetchWithTimeout(
                             Config.wwwroot + '/blocks/dixeo_designer/ajax/delete_file.php',
                             {
                                 method: 'POST',
@@ -802,7 +799,7 @@ define([
 
                         this.displayFileNames(data.context);
                     } catch (error) {
-                        Notification.exception(error);
+                        Connection.notifyError(error, 'designer_error_delete_failed');
                     }
                 });
             });
@@ -837,7 +834,7 @@ define([
                     Notification.alert('', s[0]);
                 }
             })
-            .fail(Notification.exception);
+            .fail(Connection.notifyError);
         }
     }, Progress.createGeneratorProgress({
         generationContainer: generationContainer,

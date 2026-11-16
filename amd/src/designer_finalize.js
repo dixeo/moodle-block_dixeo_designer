@@ -12,14 +12,15 @@
  */
 define([
     'jquery',
-    'core/ajax',
     'core/notification',
     'core/str',
     'core/templates',
     'core/config',
     'block_dixeo_designer/progress',
-    'block_dixeo_designer/content_phase_progress'
-], function($, Ajax, Notification, Str, Templates, Config, DesignerProgress, ContentPhaseProgress) {
+    'block_dixeo_designer/content_phase_progress',
+    'local_dixeo/network',
+    'block_dixeo_designer/connection'
+], function($, Notification, Str, Templates, Config, DesignerProgress, ContentPhaseProgress, Network, Connection) {
     'use strict';
 
     const contentPhaseAnimator = ContentPhaseProgress.createAnimator();
@@ -209,14 +210,17 @@ define([
         function runValidateThenMaybeProceed() {
             self.clearStructureValidationErrors();
             var validationBody = null;
-            Ajax.call([{
-                methodname: 'block_dixeo_designer_validate_structure_for_finalize',
-                args: {
-                    structure: JSON.stringify(self.structure),
-                    sesskey: Config.sesskey,
-                    ['job_id']: self.jobid
-                }
-            }])[0].then(function(resp) {
+            var validateArgs = {
+                structure: JSON.stringify(self.structure),
+                sesskey: Config.sesskey,
+                ['job_id']: self.jobid
+            };
+            Network.retryRead(function() {
+                return Network.call({
+                    methodname: 'block_dixeo_designer_validate_structure_for_finalize',
+                    args: validateArgs
+                }, {timeout: Network.TIMEOUT_STATUS_MS});
+            }).then(function(resp) {
                 if (!resp || !resp.valid) {
                     var fielderrors = (resp && resp.fielderrors) ? resp.fielderrors : [];
                     if (fielderrors.length) {
@@ -247,7 +251,7 @@ define([
                     Notification.alert('', validationBody);
                     return null;
                 }
-                Notification.exception(err);
+                Connection.notifyError(err);
                 return null;
             });
         }
@@ -283,17 +287,22 @@ define([
             self.setGenerationProgress(40);
             self.updateGenerationActiveStepFromProgress();
 
+            self.finalizeRequestLost = false;
             self.pollDesignerFinalizeProgress();
 
-            Ajax.call([{
+            // Both calls are sent once. Course creation runs synchronously without a timeout;
+            // when its answer is lost, the progress poll follows the creation on the server.
+            var saved = false;
+            Network.call({
                 methodname: 'block_dixeo_designer_save_structure',
                 args: {
                     structure: JSON.stringify(self.structure),
                     sesskey: Config.sesskey,
                     ['job_id']: self.jobid
                 }
-            }])[0].then(function() {
-                return Ajax.call([{
+            }, {timeout: Network.TIMEOUT_ACTION_MS}).then(function() {
+                saved = true;
+                return Network.call({
                     methodname: 'block_dixeo_designer_finalize_course',
                     args: {
                         createcourse: true,
@@ -301,18 +310,15 @@ define([
                         ['job_id']: self.jobid,
                         ['finalize_mode']: 'twostep'
                     }
-                }])[0];
+                }, {timeout: Network.TIMEOUT_NONE});
             }).catch(function(err) {
-                self.clearFinalizePoll();
-                self.unlockDesignerUI();
-                self.setDesignerEditingLocked(false);
-
-                if (promptContainer && generationContainer) {
-                    promptContainer.classList.replace('d-none', 'd-block');
-                    generationContainer.classList.replace('d-block', 'd-none');
+                if (saved && Network.isConnectionError(err)) {
+                    // The server keeps creating the course; progress polling reports it.
+                    self.finalizeRequestLost = true;
+                    return null;
                 }
-                $('#btn-create-course').prop('disabled', false);
-                Notification.exception(err);
+                self.abortFinalizeUI();
+                Connection.notifyError(err, saved ? 'designer_error_finalize_failed' : 'designer_error_save_structure_failed');
                 return null;
             });
         }
@@ -323,13 +329,15 @@ define([
          * @returns {void}
          */
         function maybeWarnPendingImageThenProceed() {
-            Ajax.call([{
-                methodname: 'block_dixeo_designer_get_image_status',
-                args: {
-                    sesskey: Config.sesskey,
-                    ['job_id']: self.jobid
-                }
-            }])[0].then(function(resp) {
+            Network.retryRead(function() {
+                return Network.call({
+                    methodname: 'block_dixeo_designer_get_image_status',
+                    args: {
+                        sesskey: Config.sesskey,
+                        ['job_id']: self.jobid
+                    }
+                }, {timeout: Network.TIMEOUT_STATUS_MS});
+            }).then(function(resp) {
                 var st = resp && resp.status ? String(resp.status) : '';
                 if (st === 'pending' || st === 'processing') {
                     return self.showImageFinalizeBackgroundModal();
@@ -367,22 +375,47 @@ define([
         runValidateThenMaybeProceed();
     },
 
+    /**
+     * Give the editor back after a failed course creation.
+     */
+    abortFinalizeUI: function() {
+        var generatorForm = document.getElementById('edai_course_designer_form');
+        var promptContainer = generatorForm ? generatorForm.querySelector('.prompt-container') : null;
+        var generationContainer = generatorForm ? generatorForm.querySelector('.generation-container') : null;
+
+        this.clearFinalizePoll();
+        this.unlockDesignerUI();
+        this.setDesignerEditingLocked(false);
+        if (promptContainer && generationContainer) {
+            promptContainer.classList.replace('d-none', 'd-block');
+            generationContainer.classList.replace('d-block', 'd-none');
+        }
+        $('#btn-create-course').prop('disabled', false);
+    },
+
+    /**
+     * Follow course creation on the server. When the creation request was lost, a creation that
+     * no longer advances ends the wait with the "may have been created anyway" message.
+     */
     pollDesignerFinalizeProgress: function() {
         var self = this;
         contentPhaseAnimator.reset();
         var pollInFlight = false;
+        var watch = Network.createStallWatch();
         var poll = function() {
             if (pollInFlight) {
                 return;
             }
             pollInFlight = true;
-            Ajax.call([{
+            Network.call({
                 methodname: 'block_dixeo_designer_get_finalize_progress',
                 args: {
                     sesskey: Config.sesskey,
                     ['job_id']: self.jobid
                 }
-            }])[0].then(function(data) {
+            }, {timeout: Network.TIMEOUT_STATUS_MS}).then(function(data) {
+                watch.observe([data.phase, data.section_index, data.section_total,
+                    data.module_index, data.module_total, data.courseid].join('|'), !!data.phase);
                 if (data.phase === DesignerProgress.PHASE_GENERATING_CONTENT) {
                     var parsed = ContentPhaseProgress.parseIndexAndTotal(data);
                     if (parsed && parsed.total > 0) {
@@ -441,6 +474,15 @@ define([
                 return null;
             }).catch(function() {
                 pollInFlight = false;
+                return null;
+            }).then(function() {
+                if (self.finalizeRequestLost && !self.finalizeProgressCompleted && self.finalizePollIntervalId &&
+                        watch.stalled()) {
+                    self.abortFinalizeUI();
+                    Connection.alertString('designer_error_connection_finalize');
+                }
+                return null;
+            }).catch(function() {
                 return null;
             });
         };
@@ -669,7 +711,7 @@ define([
                 return null;
             })
             .catch(function(error) {
-                Notification.exception(error);
+                Connection.notifyError(error);
                 return null;
             });
     }

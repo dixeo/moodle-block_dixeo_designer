@@ -12,8 +12,9 @@
 define([
     'jquery',
     'core/notification',
-    'block_dixeo_designer/designer_text'
-], function($, Notification, TextUtil) {
+    'block_dixeo_designer/designer_text',
+    'block_dixeo_designer/connection'
+], function($, Notification, TextUtil, Connection) {
     'use strict';
 
     return {
@@ -339,7 +340,7 @@ define([
         }).catch(function(failure) {
             self.structure = snapshot;
             $controls.find('.save-edit, .cancel-edit').prop('disabled', false);
-            Notification.exception(failure);
+            Connection.notifyError(failure);
             return false;
         });
     },

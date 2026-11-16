@@ -11,14 +11,15 @@
  * @module block_dixeo_designer/progress
  */
 define([
-    'core/ajax',
     'core/str',
     'core/config',
     'core/notification',
     'core/templates',
     'block_dixeo_designer/filesync_progress_map',
-    'block_dixeo_designer/content_phase_progress'
-], function(Ajax, Str, Config, Notification, Template, filesyncMap, ContentPhaseProgress) {
+    'block_dixeo_designer/content_phase_progress',
+    'local_dixeo/network',
+    'block_dixeo_designer/connection'
+], function(Str, Config, Notification, Template, filesyncMap, ContentPhaseProgress, Network, Connection) {
     'use strict';
 
     // Phases returned by block_dixeo_designer_get_finalize_progress().
@@ -90,19 +91,14 @@ define([
     }
 
     /**
-     * Alert using a lang string as fallback when failure.message is missing.
+     * Report a failure: the connection message, the server's message, or the lang string.
      *
      * @param {Error|object|null} failure
      * @param {string} stringKey
      * @returns {Promise}
      */
     function alertErrorWithString(failure, stringKey) {
-        return Str.get_string(stringKey, 'block_dixeo_designer').then(function(msg) {
-            Notification.alert('', (failure && failure.message) ? failure.message : msg);
-            return null;
-        }).catch(function() {
-            return null;
-        });
+        return Connection.notifyError(failure, stringKey);
     }
 
     /**
@@ -162,11 +158,18 @@ define([
         finalizeArgs[KEY_JOB_ID] = self.getJobId();
         finalizeArgs[KEY_FINALIZE_MODE] = 'quick';
 
-        const finalizePromise = Ajax.call([{
+        // Synchronous course creation, sent once without a timeout. When its answer is lost,
+        // the progress poll follows the creation on the server.
+        self.finalizeRequestLost = false;
+        const finalizePromise = Network.call({
             methodname: 'block_dixeo_designer_finalize_course',
             args: finalizeArgs,
-        }])[0].catch(function(err) {
+        }, {timeout: Network.TIMEOUT_NONE}).catch(function(err) {
             if (runId !== self.generationRunId) {
+                return null;
+            }
+            if (Network.isConnectionError(err)) {
+                self.finalizeRequestLost = true;
                 return null;
             }
             self.resetProgress();
@@ -191,10 +194,12 @@ define([
         };
         validateArgs[KEY_JOB_ID] = self.getJobId();
 
-        return Ajax.call([{
-            methodname: 'block_dixeo_designer_validate_structure_for_finalize',
-            args: validateArgs,
-        }])[0]
+        return Network.retryRead(function() {
+            return Network.call({
+                methodname: 'block_dixeo_designer_validate_structure_for_finalize',
+                args: validateArgs,
+            }, {timeout: Network.TIMEOUT_STATUS_MS});
+        })
         .then(function(vresp) {
             if (runId !== self.generationRunId) {
                 return null;
@@ -227,10 +232,10 @@ define([
         };
         saveArgs[KEY_JOB_ID] = self.getJobId();
 
-        return Ajax.call([{
+        return Network.call({
             methodname: 'block_dixeo_designer_save_structure',
             args: saveArgs,
-        }])[0]
+        }, {timeout: Network.TIMEOUT_ACTION_MS})
         .then(function() {
             document.dispatchEvent(
                 new CustomEvent(ALLOW_NAVIGATION_EVENT, {bubbles: true})
@@ -373,23 +378,29 @@ define([
                 }
 
                 let submitted = false;
+                // One status read at a time; connection failures are retried within the retry window.
+                let pollInFlight = false;
+                const retryWindow = Network.createRetryWindow();
 
                 const pollFileSync = function() {
-                    if (runId !== self.generationRunId) {
+                    if (runId !== self.generationRunId || pollInFlight) {
                         return;
                     }
+                    pollInFlight = true;
                     const syncArgs = {
                         sesskey: Config.sesskey
                     };
                     syncArgs[KEY_JOB_ID] = self.getJobId();
-                    Ajax.call([{
+                    Network.call({
                         methodname: 'block_dixeo_designer_get_filesync_status',
                         args: syncArgs,
-                    }])[0]
+                    }, {timeout: Network.TIMEOUT_STATUS_MS})
                     .then(function(data) {
+                        pollInFlight = false;
                         if (runId !== self.generationRunId) {
                             return null;
                         }
+                        retryWindow.succeeded();
                         if (data && data.errormessage) {
                             self.clearAllProgressPolls();
                             self.resetProgress();
@@ -427,7 +438,8 @@ define([
                         return labelPromise;
                     })
                     .catch(function(err) {
-                        if (runId !== self.generationRunId) {
+                        pollInFlight = false;
+                        if (runId !== self.generationRunId || retryWindow.shouldRetry(err)) {
                             return null;
                         }
                         self.clearAllProgressPolls();
@@ -457,24 +469,33 @@ define([
                     sesskey: Config.sesskey
                 };
                 structureArgs[KEY_JOB_ID] = self.getJobId();
-                Ajax.call([{
-                    methodname: 'block_dixeo_designer_submit_structure_job',
-                    args: structureArgs,
-                }])[0]
-                .then(function() {
-                    if (runId !== self.generationRunId) {
-                        return null;
-                    }
+                const followStructureJob = function(submitLost) {
                     self.structureSubmitDone = true;
                     self.setProgress(20, true);
                     if (typeof startStep2Fake === 'function') {
                         startStep2Fake();
                     }
-                    self.pollStructureCompletion(createcourse, runId);
+                    self.pollStructureCompletion(createcourse, runId, submitLost);
+                };
+                // A paid start: sent once. After a lost answer the structure poll follows a job
+                // that reached the server.
+                Network.call({
+                    methodname: 'block_dixeo_designer_submit_structure_job',
+                    args: structureArgs,
+                }, {timeout: Network.TIMEOUT_ACTION_MS})
+                .then(function() {
+                    if (runId !== self.generationRunId) {
+                        return null;
+                    }
+                    followStructureJob(false);
                     return null;
                 })
                 .catch(function(err) {
                     if (runId !== self.generationRunId) {
+                        return null;
+                    }
+                    if (Network.isConnectionError(err)) {
+                        followStructureJob(true);
                         return null;
                     }
                     self.clearAllProgressPolls();
@@ -483,33 +504,62 @@ define([
                 });
             },
 
-            pollStructureCompletion: function(createcourse, runId) {
+            /**
+             * Poll the structure job until it completes.
+             *
+             * One status read runs at a time and connection failures are retried within the retry
+             * window. After a lost submission, a job that shows no progress ends the wait with the
+             * connection message.
+             *
+             * @param {boolean} createcourse
+             * @param {*} runId Generation run id
+             * @param {boolean} [submitLost] Whether the answer of the job submission was lost
+             */
+            pollStructureCompletion: function(createcourse, runId, submitLost) {
                 const self = this;
+                let pollInFlight = false;
+                const retryWindow = Network.createRetryWindow();
+                const stallWatch = submitLost ? Network.createStallWatch() : null;
 
                 const poll = function() {
-                    if (runId !== self.generationRunId) {
+                    if (runId !== self.generationRunId || pollInFlight) {
                         return;
                     }
+                    pollInFlight = true;
                     let afterStructure = null;
                     const statusArgs = {
                         sesskey: Config.sesskey
                     };
                     statusArgs[KEY_JOB_ID] = self.getJobId();
-                    Ajax.call([{
+                    Network.call({
                         methodname: 'block_dixeo_designer_get_structure_status',
                         args: statusArgs,
-                    }])[0]
+                    }, {timeout: Network.TIMEOUT_STATUS_MS})
                     .then(function(data) {
+                        pollInFlight = false;
                         if (runId !== self.generationRunId) {
                             return null;
                         }
+                        retryWindow.succeeded();
                         if (data.failed) {
                             self.clearAllProgressPolls();
                             self.resetProgress();
+                            if (!data.error) {
+                                return Connection.alertString('designer_error_generation_failed_inline');
+                            }
                             return alertErrorWithString(
                                 {message: data.error},
                                 'designer_error_generation_failed_inline'
                             );
+                        }
+
+                        if (stallWatch && !data.completed) {
+                            stallWatch.observe([data.status, data.progress].join('|'), Number(data.progress) > 0);
+                            if (stallWatch.stalled()) {
+                                self.clearAllProgressPolls();
+                                self.resetProgress();
+                                return Connection.notifyConnection();
+                            }
                         }
 
                         if (!data.completed) {
@@ -542,7 +592,8 @@ define([
                         return saveStructureAndNavigate(self, pending.structureJson);
                     })
                     .catch(function(failure) {
-                        if (runId !== self.generationRunId) {
+                        pollInFlight = false;
+                        if (runId !== self.generationRunId || retryWindow.shouldRetry(failure)) {
                             return null;
                         }
                         self.clearAllProgressPolls();
@@ -569,6 +620,8 @@ define([
                 self.clearFinalizePoll();
                 contentPhaseAnimator.reset();
                 let pollInFlight = false;
+                // After a lost creation request, a creation that no longer advances ends the wait.
+                const watch = Network.createStallWatch();
                 const poll = function() {
                     if (runId !== undefined && runId !== null && runId !== self.generationRunId) {
                         return;
@@ -581,14 +634,16 @@ define([
                         sesskey: Config.sesskey
                     };
                     progressArgs[KEY_JOB_ID] = self.getJobId();
-                    Ajax.call([{
+                    Network.call({
                         methodname: 'block_dixeo_designer_get_finalize_progress',
                         args: progressArgs,
-                    }])[0]
+                    }, {timeout: Network.TIMEOUT_STATUS_MS})
                     .then(function(data) {
                         if (runId !== undefined && runId !== null && runId !== self.generationRunId) {
                             return null;
                         }
+                        watch.observe([data.phase, data[KEY_SECTION_INDEX], data[KEY_SECTION_TOTAL],
+                            data[KEY_MODULE_INDEX], data[KEY_MODULE_TOTAL], data.courseid].join('|'), !!data.phase);
                         if (data.phase === PHASE_GENERATING_CONTENT) {
                             const parsed = ContentPhaseProgress.parseIndexAndTotal(data);
                             if (parsed && parsed.total > 0) {
@@ -640,6 +695,10 @@ define([
                     })
                     .then(function() {
                         pollInFlight = false;
+                        if (self.finalizeRequestLost && self.finalizePollIntervalId && watch.stalled()) {
+                            self.resetProgress();
+                            Connection.alertString('designer_error_connection_finalize');
+                        }
                         return null;
                     })
                     .catch(function() {
@@ -791,7 +850,7 @@ define([
                             return null;
                         })
                         .catch((error) => {
-                            Notification.exception(error);
+                            Connection.notifyError(error);
                         });
                 }, 3000);
             },

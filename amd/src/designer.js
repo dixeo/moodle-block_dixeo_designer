@@ -25,7 +25,6 @@
 
 define([
     'jquery',
-    'core/ajax',
     'core/notification',
     'core/str',
     'core/templates',
@@ -35,10 +34,11 @@ define([
     'block_dixeo_designer/designer_dragdrop',
     'block_dixeo_designer/designer_collapse',
     'block_dixeo_designer/designer_editing',
-    'block_dixeo_designer/designer_undo'
+    'block_dixeo_designer/designer_undo',
+    'local_dixeo/network',
+    'block_dixeo_designer/connection'
 ], function(
     $,
-    Ajax,
     Notification,
     Str,
     Templates,
@@ -48,7 +48,9 @@ define([
     designerDragDropMixin,
     designerCollapseMixin,
     designerEditingMixin,
-    designerUndoMixin
+    designerUndoMixin,
+    Network,
+    Connection
 ) {
 
     // Web service / Mustache keys that must remain snake_case (accessed via consts).
@@ -236,7 +238,7 @@ define([
                 self.loadStructure();
                 return null;
             }).catch(function(err) {
-                Notification.exception(err);
+                Connection.notifyError(err);
                 self.showLoading();
                 return null;
             });
@@ -319,10 +321,12 @@ define([
             if (scopePath) {
                 args[KEY_SCOPE_PATH] = String(scopePath);
             }
-            return Ajax.call([{
-                methodname: 'block_dixeo_designer_validate_structure_for_finalize',
-                args: args
-            }])[0];
+            return Network.retryRead(function() {
+                return Network.call({
+                    methodname: 'block_dixeo_designer_validate_structure_for_finalize',
+                    args: args
+                }, {timeout: Network.TIMEOUT_STATUS_MS});
+            });
         },
 
         /**
@@ -381,10 +385,13 @@ define([
          * Load module types from API; fallback to default list on error
          */
         loadModuleTypes: function() {
-            return Ajax.call([{
-                methodname: 'local_dixeo_get_module_types',
-                args: {courseid: this.courseId || 0}
-            }])[0].then(function(response) {
+            var courseId = this.courseId || 0;
+            return Network.retryRead(function() {
+                return Network.call({
+                    methodname: 'local_dixeo_get_module_types',
+                    args: {courseid: courseId}
+                }, {timeout: Network.TIMEOUT_STATUS_MS});
+            }).then(function(response) {
                 if (response.success && response.types && response.types.length > 0) {
                     MODULE_TYPE_OPTIONS = response.types.map(function(t) {
                         var installed = t.installed !== false;
@@ -423,7 +430,9 @@ define([
         },
 
         /**
-         * Load structure from server (single latest version)
+         * Load structure from server (single latest version), retrying through short connection losses.
+         *
+         * @return {Promise}
          */
         loadStructure: function() {
             var self = this;
@@ -432,10 +441,12 @@ define([
             };
             args[KEY_JOB_ID] = this.jobid;
 
-            return Ajax.call([{
-                methodname: 'block_dixeo_designer_get_structure',
-                args: args
-            }])[0].then(function(response) {
+            return Network.retryRead(function() {
+                return Network.call({
+                    methodname: 'block_dixeo_designer_get_structure',
+                    args: args
+                }, {timeout: Network.TIMEOUT_STATUS_MS});
+            }).then(function(response) {
                 self.imageCanGenerate = !!response[KEY_IMAGE_CAN_GENERATE];
                 self.imageCanEdit = !!response[KEY_IMAGE_CAN_EDIT];
                 var raw = JSON.parse(response.structure);
@@ -452,7 +463,7 @@ define([
             }).then(function() {
                 return self.finishLoadedStructure();
             }).catch(function(error) {
-                Notification.exception(error);
+                Connection.notifyError(error, 'designer_invalid_data');
                 return null;
             });
         },
@@ -491,14 +502,15 @@ define([
             };
             args[KEY_JOB_ID] = this.jobid;
 
-            return Ajax.call([{
+            // Sent once: a lost save is reported, never resent.
+            return Network.call({
                 methodname: 'block_dixeo_designer_save_structure',
                 args: args
-            }])[0].then(function() {
+            }, {timeout: Network.TIMEOUT_ACTION_MS}).then(function() {
                 self.showSavedIndicator();
                 return null;
             }).catch(function(error) {
-                Notification.exception(error);
+                Connection.notifyError(error, 'designer_error_save_structure_failed');
                 throw error;
             });
         },
@@ -636,7 +648,7 @@ define([
                 }
                 return null;
             }).catch(function(error) {
-                Notification.exception(error);
+                Connection.notifyError(error);
                 return Str.get_string('designer_invalid_data', 'block_dixeo_designer');
             }).then(function(str) {
                 if (typeof str === 'string') {
@@ -729,15 +741,23 @@ define([
                 return;
             }
 
+            // One status read at a time; connection failures are retried within the retry window.
+            var retryWindow = Network.createRetryWindow();
+            var pollInFlight = false;
             var poll = function() {
+                if (pollInFlight) {
+                    return;
+                }
+                pollInFlight = true;
                 var args = {
                     sesskey: Config.sesskey
                 };
                 args[KEY_JOB_ID] = self.jobid;
-                Ajax.call([{
+                Network.call({
                     methodname: 'block_dixeo_designer_get_image_status',
                     args: args
-                }])[0].then(function(resp) {
+                }, {timeout: Network.TIMEOUT_STATUS_MS}).then(function(resp) {
+                    retryWindow.succeeded();
                     if (resp.image && self.structure) {
                         self.structure.image = resp.image;
                     }
@@ -766,9 +786,16 @@ define([
                         return null;
                     }
                     return self.renderFailedCourseImage();
-                }).catch(function() {
+                }).catch(function(failure) {
+                    if (Network.isConnectionError(failure) && !retryWindow.shouldRetry(failure)) {
+                        self.clearImageStatusPoll();
+                        self.setImageLoadingState(false);
+                        Connection.notifyConnection();
+                    }
                     // Keep polling in case transient backend errors happen.
                     return null;
+                }).finally(function() {
+                    pollInFlight = false;
                 });
             };
 
@@ -1058,10 +1085,7 @@ define([
                         sesskey: Config.sesskey
                     };
                     editArgs[KEY_JOB_ID] = self.jobid;
-                    Ajax.call([{
-                        methodname: 'block_dixeo_designer_start_image_edit',
-                        args: editArgs
-                    }])[0].then(function() {
+                    var onEditStarted = function() {
                         if (regenerateModal) {
                             regenerateModal.classList.add('d-none');
                             regenerateModal.setAttribute('aria-hidden', 'true');
@@ -1079,7 +1103,16 @@ define([
                         self.setImageLoadingState(true);
                         self.startImageStatusPoll();
                         return null;
-                    }).catch(function(error) {
+                    };
+                    // A paid start: sent once. After a lost answer the status poll shows an edit
+                    // that reached the server.
+                    Network.call({
+                        methodname: 'block_dixeo_designer_start_image_edit',
+                        args: editArgs
+                    }, {timeout: Network.TIMEOUT_ACTION_MS}).then(onEditStarted).catch(function(error) {
+                        if (Network.isConnectionError(error)) {
+                            return onEditStarted();
+                        }
                         self.setImageLoadingState(false);
                         self._imageEditError = error;
                         return Str.get_string('designer_image_generate_unavailable', 'block_dixeo_designer');
