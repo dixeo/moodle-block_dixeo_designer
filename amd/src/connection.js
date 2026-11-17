@@ -23,34 +23,24 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import {forComponent} from 'local_dixeo/network';
-import Prefetch from 'core/prefetch';
+define(['local_dixeo/network', 'core/prefetch'], function(Network, Prefetch) {
+    Prefetch.prefetchTemplates(['block_dixeo_designer/success_message']);
 
-Prefetch.prefetchTemplates(['block_dixeo_designer/success_message']);
-
-export const {
-    component,
-    connectionMessage,
-    message,
-    alertString,
-    notifyConnection,
-    notifyError,
-    exception,
-    handle,
-} = forComponent({
-    component: 'block_dixeo_designer',
-    connectionKey: 'designer_error_connection',
-    keys: [
-        'designer_error_connection_finalize',
-        'designer_error_finalize_failed',
-        'designer_error_generation_failed_inline',
-        'designer_error_save_structure_failed',
-        'designer_error_status_check_failed',
-        'designer_error_structure_start_failed',
-        'designer_invalid_data',
-        'designer_error_delete_failed',
-        'course_generated',
-        'generate_another',
-        'view_course',
-    ],
+    return Network.forComponent({
+        component: 'block_dixeo_designer',
+        connectionKey: 'designer_error_connection',
+        keys: [
+            'designer_error_connection_finalize',
+            'designer_error_finalize_failed',
+            'designer_error_generation_failed_inline',
+            'designer_error_save_structure_failed',
+            'designer_error_status_check_failed',
+            'designer_error_structure_start_failed',
+            'designer_invalid_data',
+            'designer_error_delete_failed',
+            'course_generated',
+            'generate_another',
+            'view_course',
+        ],
+    });
 });
