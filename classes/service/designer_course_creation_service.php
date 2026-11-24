@@ -660,13 +660,20 @@ class designer_course_creation_service {
     /**
      * Generate a unique course shortname from a base name.
      *
+     * Accented letters are folded to their ASCII equivalents before the shortname
+     * alphabet is applied, so "é" is kept as "e" rather than removed.
+     *
      * @param string $basename
      * @return string
      */
     private function generate_unique_shortname(string $basename): string {
         global $DB;
 
-        $shortname = trim(preg_replace('/\s+/', '-', \core_text::strtolower($basename)), '-');
+        $shortname = \core_text::specialtoascii($basename);
+        if (!is_string($shortname)) {
+            $shortname = $basename;
+        }
+        $shortname = trim(preg_replace('/\s+/', '-', \core_text::strtolower($shortname)), '-');
         $shortname = clean_param($shortname, PARAM_ALPHANUMEXT);
         if ($shortname === '') {
             $shortname = 'dixeo-course';

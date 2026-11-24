@@ -196,6 +196,32 @@ final class designer_course_creation_service_test extends advanced_testcase {
         );
     }
 
+    public function test_finalize_draft_course_folds_accents_into_the_shortname(): void {
+        $course = $this->getDataGenerator()->create_course();
+        $pending = operation_result::pending('module-op-1', 'processing', 10);
+        $this->mockmodulegen->method('submit_fill_job_for_course')->willReturn($pending);
+        $this->mockjobservice->method('wait_for_job')->willReturn($pending);
+
+        $title = 'Découvrir et maîtriser les activités';
+        $result = [
+            'title' => $title,
+            'sections' => [
+                [
+                    'title' => 'Section 1',
+                    'modules' => [
+                        ['type' => 'page', 'title' => 'Module 1', 'instructions' => 'M instructions'],
+                    ],
+                ],
+            ],
+        ];
+
+        $created = (new designer_course_creation_service())->finalize_draft_course($course->id, $result, 2, 'djobaccent');
+        $this->assertDebuggingCalled(null, DEBUG_DEVELOPER);
+
+        $this->assertSame($title, $created->fullname);
+        $this->assertSame('decouvrir-et-maitriser-les-activites', $created->shortname);
+    }
+
     public function test_finalize_reports_module_fill_outcomes_through_the_local_dixeo_hook(): void {
         $course = $this->getDataGenerator()->create_course([
             'idnumber' => designer_course_creation_service::IDNUMBER_DRAFT_PREFIX . 'hook',
